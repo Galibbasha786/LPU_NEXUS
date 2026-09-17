@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard • LPU Nexus{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card card-nx p-4 mb-3">
+      <h3>Hello, {{ user.full_name }} 👋</h3>
+      <p class="text-muted mb-0">
+        Role: <span class="badge bg-dark">{{ user.role }}</span>
+        &nbsp;•&nbsp; {{ user.email }}
+      </p>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="card card-nx p-3">
+          <h6>Report a Problem</h6>
+          <p class="small text-muted">Wi-Fi, water, electricity, cleanliness…</p>
+          <span class="badge bg-secondary">Coming next</span>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card card-nx p-3">
+          <h6>Ideas & Innovation</h6>
+          <p class="small text-muted">Propose solutions, vote on ideas.</p>
+          <span class="badge bg-secondary">Coming next</span>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card card-nx p-3">
+          <h6>Campus Map</h6>
+          <p class="small text-muted">Find rooms, food, medical, ATMs.</p>
+          <span class="badge bg-secondary">Coming next</span>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card card-nx p-3" style="border-left:4px solid var(--nx-coral)">
+          <h6 class="text-danger">Emergency</h6>
+          <p class="small text-muted">Medical / Fire / Security.</p>
+          <span class="badge bg-secondary">Coming next</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card card-nx p-4">
+      <h5>Your Profile</h5>
+      <hr>
+      <p class="mb-1"><strong>Name:</strong> {{ user.full_name }}</p>
+      <p class="mb-1"><strong>Email:</strong> {{ user.email }}</p>
+      <p class="mb-0"><strong>Role:</strong> {{ user.role }}</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
