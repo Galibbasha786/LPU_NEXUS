@@ -34,7 +34,9 @@ def emergencies():        return get_db()['emergencies']
 def emergency_updates():  return get_db()['emergency_updates']
 def locations():          return get_db()['locations']
 def notifications():      return get_db()['notifications']
-
+def navigation_routes():  return get_db()['navigation_routes']
+def route_history():      return get_db()['route_history']
+def obstacles():          return get_db()['obstacles']
 
 def init_indexes():
     """Create MongoDB indexes. Safe to call repeatedly."""
@@ -75,6 +77,12 @@ def init_indexes():
         # locations
         locations().create_index([("name", ASCENDING)])
         locations().create_index([("category", ASCENDING)])
+                # Navigation
+        navigation_routes().create_index([("from_location", ASCENDING), ("to_location", ASCENDING)])
+        route_history().create_index([("from_location", ASCENDING), ("to_location", ASCENDING), ("hour", ASCENDING)])
+        obstacles().create_index([("location.coordinates", "2dsphere")])
+        obstacles().create_index([("active", ASCENDING)])
+        obstacles().create_index([("expires_at", ASCENDING)])
 
         # notifications
         notifications().create_index(

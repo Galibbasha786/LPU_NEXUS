@@ -1,5 +1,7 @@
+# navigation/apps.py
 from django.apps import AppConfig
 
 
 class NavigationConfig(AppConfig):
-    name = 'navigation'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "navigation"

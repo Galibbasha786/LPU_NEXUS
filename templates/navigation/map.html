@@ -1,0 +1,869 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Campus Navigation • LPU Nexus{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  body { background: #f5f7fa; }
+  #map {
+    height: 640px;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(30,42,68,.12);
+  }
+  .route-panel {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(30,42,68,.08);
+    padding: 22px;
+    border-top: 3px solid var(--nx-orange);
+    max-height: 640px;
+    overflow-y: auto;
+  }
+  .route-panel h6 {
+    font-weight: 700;
+    color: var(--nx-navy);
+    letter-spacing: .3px;
+    margin-bottom: 14px;
+  }
+  .stat-card {
+    background: var(--nx-bg);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+  }
+  .stat-card .label { font-size: .7rem; color: #64748b; text-transform: uppercase; letter-spacing: .5px; }
+  .stat-card .value { font-size: 1.35rem; font-weight: 700; color: var(--nx-navy); margin-top: 3px; }
+  .congestion-badge {
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  .congestion-low { background: #dcfce7; color: #166534; }
+  .congestion-moderate { background: #fef9c3; color: #854d0e; }
+  .congestion-high { background: #ffedd5; color: #9a3412; }
+  .congestion-severe { background: #fee2e2; color: #991b1b; }
+
+  .btn-nx { background: var(--nx-orange); color: #fff; font-weight: 600; border: none; }
+  .btn-nx:hover { background: #e0961f; color: #fff; }
+  .btn-nx:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+  .loc-marker-icon {
+    background: var(--nx-navy);
+    border: 2px solid var(--nx-orange);
+    border-radius: 50%;
+    width: 14px; height: 14px;
+    box-shadow: 0 0 0 3px rgba(245,166,35,.25);
+  }
+
+  /* User location pulse */
+  .user-dot {
+    width: 18px; height: 18px;
+    background: #3b82f6;
+    border: 3px solid white;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(59,130,246,.4), 0 0 12px rgba(59,130,246,.6);
+    position: relative;
+  }
+  .user-dot::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: rgba(59,130,246,.4);
+    transform: translate(-50%, -50%);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%   { width: 18px; height: 18px; opacity: 1; }
+    100% { width: 60px; height: 60px; opacity: 0; }
+  }
+
+  /* Turn-by-turn */
+  .step-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px 10px;
+    border-radius: 10px;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background .2s;
+  }
+  .step-item.active {
+    background: #fff7ed;
+    border-left: 4px solid var(--nx-orange);
+  }
+  .step-icon {
+    font-size: 1.5rem;
+    min-width: 32px;
+    text-align: center;
+  }
+  .step-text { flex: 1; }
+  .step-text .dist { color: #64748b; font-size: .78rem; }
+  .step-text .instr { color: var(--nx-navy); font-weight: 600; font-size: .9rem; }
+
+  .progress-wrap {
+    background: #e2e8f0;
+    height: 6px;
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 10px 0 16px;
+  }
+  .progress-bar-nx {
+    background: linear-gradient(90deg, var(--nx-orange), #fbbf24);
+    height: 100%;
+    transition: width .5s ease;
+  }
+
+  .tracking-hud {
+    position: absolute;
+    top: 12px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30,42,68,.92);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: .85rem;
+    font-weight: 600;
+    z-index: 500;
+    backdrop-filter: blur(6px);
+    display: none;
+  }
+  .tracking-hud.on { display: block; }
+
+  .compass-arrow {
+    display: inline-block;
+    font-size: 1.3rem;
+    transition: transform .3s;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">🗺️ Smart Campus Navigation</h3>
+  <span class="badge bg-dark">Peak-Time Aware</span>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="route-panel" style="position: relative;">
+      <!-- TABS -->
+      <ul class="nav nav-pills nav-fill mb-3 small" id="navTabs">
+        <li class="nav-item"><button class="nav-link active" data-tab="plan">Plan</button></li>
+        <li class="nav-item"><button class="nav-link" data-tab="steps" id="tab-steps-btn">Steps</button></li>
+      </ul>
+
+      <!-- ==== PLAN TAB ==== -->
+      <div id="tab-plan">
+        <h6>FIND YOUR WAY</h6>
+
+        <button id="btn-locate" class="btn btn-sm btn-outline-primary w-100 mb-3">
+          📍 Use My Current Location
+        </button>
+
+        <div class="mb-3">
+          <label class="form-label small text-muted">From</label>
+          <input list="loc-list" id="from-loc" class="form-control" placeholder="e.g. Block 34 (CSE)">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-muted">To</label>
+          <input list="loc-list" id="to-loc" class="form-control" placeholder="e.g. Central Library">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small text-muted">Class start time (optional)</label>
+          <input type="datetime-local" id="class-time" class="form-control">
+        </div>
+
+        <button id="find-route" class="btn btn-nx w-100 py-2">Find Route</button>
+        <button id="start-nav" class="btn btn-success w-100 py-2 mt-2 d-none">
+          ▶ Start Live Navigation
+        </button>
+        <button id="stop-nav" class="btn btn-danger w-100 py-2 mt-2 d-none">
+          ■ Stop Navigation
+        </button>
+
+        <hr class="my-3">
+        <div id="route-result" class="d-none">
+          <div class="row g-2 mb-3">
+            <div class="col-6"><div class="stat-card"><div class="label">Distance</div><div class="value" id="r-distance">—</div></div></div>
+            <div class="col-6"><div class="stat-card"><div class="label">Walk time</div><div class="value" id="r-time">—</div></div></div>
+            <div class="col-6"><div class="stat-card"><div class="label">Congestion</div><div class="value"><span id="r-congestion" class="congestion-badge">—</span></div></div></div>
+            <div class="col-6"><div class="stat-card"><div class="label">Safety buffer</div><div class="value" id="r-buffer">—</div></div></div>
+          </div>
+
+          <div id="r-departure-wrap" class="alert alert-info py-2 d-none small">
+            <strong>Recommended departure:</strong>
+            <div id="r-departure">—</div>
+          </div>
+
+          <div id="r-obstacles" class="d-none">
+            <h6 class="small text-muted mb-2">⚠️ Obstacles on this route</h6>
+            <ul id="r-obstacle-list" class="small mb-0 ps-3"></ul>
+          </div>
+
+          <hr>
+          <button id="btn-report-obstacle" class="btn btn-sm btn-outline-danger w-100">
+            ⚠️ Report Obstacle on This Route
+          </button>
+        </div>
+
+        <div id="route-error" class="alert alert-danger py-2 d-none mt-3 small"></div>
+      </div>
+
+      <!-- ==== STEPS TAB ==== -->
+      <div id="tab-steps" class="d-none">
+        <h6>TURN-BY-TURN DIRECTIONS</h6>
+
+        <div class="progress-wrap">
+          <div class="progress-bar-nx" id="progress-bar" style="width: 0%;"></div>
+        </div>
+        <div class="d-flex justify-content-between small text-muted mb-3">
+          <span id="progress-pct">0%</span>
+          <span id="progress-remaining">—</span>
+        </div>
+
+        <div id="steps-list" class="small"></div>
+
+        <div id="no-steps-msg" class="text-center text-muted py-4 small">
+          Plan a route first to see turn-by-turn directions.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8" style="position: relative;">
+    <div id="map"></div>
+    <div id="tracking-hud" class="tracking-hud">
+      🎯 Navigating — <span id="hud-eta">—</span> &nbsp;
+      <span class="compass-arrow" id="compass-arrow">↑</span>
+    </div>
+  </div>
+</div>
+
+<datalist id="loc-list"></datalist>
+
+<!-- Obstacle reporting modal -->
+<div class="modal fade" id="obstacleModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Report Obstacle</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label small">Type</label>
+        <select id="obs-type" class="form-select mb-2">
+          <option value="construction">Construction / blocked path</option>
+          <option value="crowd">Crowd / congestion</option>
+          <option value="spill">Spill / debris</option>
+          <option value="vehicle">Vehicle blocking</option>
+          <option value="water">Waterlogging</option>
+          <option value="other">Other</option>
+        </select>
+        <label class="form-label small">Description</label>
+        <textarea id="obs-desc" class="form-control mb-2" rows="2"
+                  placeholder="e.g. Construction near Block 34 entrance"></textarea>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="obs-use-my-loc" checked>
+          <label class="form-check-label small" for="obs-use-my-loc">
+            Use my current location
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-danger btn-sm" id="obs-submit">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ============================================================
+//  GLOBAL STATE
+// ============================================================
+let map, userMarker, routeLayer, routeGlow, destMarker;
+let allLocations = [];
+let currentRoute = null;        // last computed route
+let watchId = null;             // geolocation watch id
+let navActive = false;
+let userPos = null;             // {lat, lng}
+let lastRerouteAt = 0;          // throttle
+let currentStepIndex = 0;
+let spokenStepIndex = -1;
+
+// ============================================================
+//  INIT MAP
+// ============================================================
+map = L.map('map').setView([31.253, 75.703], 16);
+
+const satelliteLayer = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: 'Tiles &copy; Esri'
+  }
+);
+const streetLayer = L.tileLayer(
+  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    maxZoom: 20, subdomains: 'abcd',
+    attribution: '&copy; OpenStreetMap &copy; CARTO'
+  }
+);
+const darkLayer = L.tileLayer(
+  'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 20, subdomains: 'abcd',
+    attribution: '&copy; OpenStreetMap &copy; CARTO'
+  }
+);
+
+satelliteLayer.addTo(map);
+
+L.control.layers({
+  "🛰️ Satellite": satelliteLayer,
+  "🗺️ Street": streetLayer,
+  "🌙 Dark": darkLayer,
+}, null, { position: 'topright' }).addTo(map);
+
+const markerLayer = L.layerGroup().addTo(map);
+
+// ============================================================
+//  CUSTOM ICONS
+// ============================================================
+const locIcon = L.divIcon({
+  className: '',
+  html: '<div class="loc-marker-icon"></div>',
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+});
+
+const userIcon = L.divIcon({
+  className: '',
+  html: '<div class="user-dot"></div>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
+// ============================================================
+//  LOAD LOCATIONS
+// ============================================================
+fetch("{% url 'navigation:api_locations' %}")
+  .then(r => r.json())
+  .then(data => {
+    allLocations = data.locations || [];
+    const dl = document.getElementById('loc-list');
+    allLocations.forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l.name;
+      dl.appendChild(opt);
+    });
+    allLocations.forEach(l => {
+      const [lon, lat] = l.coordinates;
+      L.marker([lat, lon], { icon: locIcon })
+        .addTo(markerLayer)
+        .bindPopup(`<strong>${l.name}</strong><br><small class="text-muted">${l.category}</small>`);
+    });
+  });
+
+// ============================================================
+//  TABS
+// ============================================================
+document.querySelectorAll('#navTabs .nav-link').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#navTabs .nav-link').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-plan').classList.toggle('d-none', btn.dataset.tab !== 'plan');
+    document.getElementById('tab-steps').classList.toggle('d-none', btn.dataset.tab !== 'steps');
+  });
+});
+
+// ============================================================
+//  "USE MY LOCATION" BUTTON
+// ============================================================
+document.getElementById('btn-locate').addEventListener('click', () => {
+  if (!navigator.geolocation) { alert('Geolocation not supported.'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    updateUserMarker();
+    map.setView([userPos.lat, userPos.lng], 18);
+    document.getElementById('from-loc').value = '📍 Your location';
+  }, err => alert('Could not get location: ' + err.message), {
+    enableHighAccuracy: true, timeout: 8000
+  });
+});
+
+function updateUserMarker() {
+  if (!userPos) return;
+  if (userMarker) {
+    userMarker.setLatLng([userPos.lat, userPos.lng]);
+  } else {
+    userMarker = L.marker([userPos.lat, userPos.lng], {
+      icon: userIcon, zIndexOffset: 1000
+    }).addTo(map).bindPopup('You are here');
+  }
+}
+
+// ============================================================
+//  FIND ROUTE
+// ============================================================
+document.getElementById('find-route').addEventListener('click', () => {
+  const fromText = document.getElementById('from-loc').value.trim();
+  const toText = document.getElementById('to-loc').value.trim();
+  const classTime = document.getElementById('class-time').value;
+  const errBox = document.getElementById('route-error');
+  errBox.classList.add('d-none');
+
+  if (!fromText || !toText) {
+    errBox.textContent = 'Enter both locations.';
+    errBox.classList.remove('d-none');
+    return;
+  }
+
+  const body = new URLSearchParams({ to: toText });
+  if (classTime) body.append('class_start_time', classTime);
+
+  let endpoint = "{% url 'navigation:api_route' %}";
+
+  if (fromText.startsWith('📍') && userPos) {
+    endpoint = "{% url 'navigation:api_route_from_coords' %}";
+    body.append('from_lon', userPos.lng);
+    body.append('from_lat', userPos.lat);
+  } else {
+    body.append('from', fromText);
+  }
+
+  fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        errBox.textContent = data.error;
+        errBox.classList.remove('d-none');
+        return;
+      }
+      currentRoute = data;
+      renderRoute(data);
+      renderSteps(data);
+      document.getElementById('start-nav').classList.remove('d-none');
+    });
+});
+
+// ============================================================
+//  RENDER ROUTE + STEPS
+// ============================================================
+function renderRoute(data) {
+  if (routeLayer) map.removeLayer(routeLayer);
+  if (routeGlow) map.removeLayer(routeGlow);
+  if (destMarker) map.removeLayer(destMarker);
+
+  routeGlow = L.geoJSON(data.geometry, {
+    style: { color: '#ffffff', weight: 10, opacity: 0.7 }
+  }).addTo(map);
+
+  routeLayer = L.geoJSON(data.geometry, {
+    style: { color: '#f5a623', weight: 6, opacity: 0.95 }
+  }).addTo(map);
+
+  map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+
+  const [dlon, dlat] = data.to.coordinates;
+  destMarker = L.marker([dlat, dlon]).addTo(map).bindPopup('🎯 ' + data.to.name).openPopup();
+
+  document.getElementById('r-distance').textContent = (data.distance_m / 1000).toFixed(2) + ' km';
+  document.getElementById('r-time').textContent = Math.round(data.total_duration_s / 60) + ' min';
+
+  const cong = data.congestion.level;
+  const badge = document.getElementById('r-congestion');
+  badge.textContent = cong;
+  badge.className = 'congestion-badge congestion-' + cong;
+
+  document.getElementById('r-buffer').textContent = Math.round(data.safety_buffer_s / 60) + ' min';
+
+  const depWrap = document.getElementById('r-departure-wrap');
+  if (data.recommended_departure) {
+    depWrap.classList.remove('d-none');
+    document.getElementById('r-departure').textContent =
+      new Date(data.recommended_departure).toLocaleString();
+  } else {
+    depWrap.classList.add('d-none');
+  }
+
+  const obsWrap = document.getElementById('r-obstacles');
+  const obsList = document.getElementById('r-obstacle-list');
+  obsList.innerHTML = '';
+  if (data.obstacles && data.obstacles.length) {
+    obsWrap.classList.remove('d-none');
+    data.obstacles.forEach(o => {
+      const li = document.createElement('li');
+      li.textContent = `${o.type}: ${o.description}`;
+      obsList.appendChild(li);
+    });
+  } else {
+    obsWrap.classList.add('d-none');
+  }
+
+  document.getElementById('route-result').classList.remove('d-none');
+}
+
+function renderSteps(data) {
+  const container = document.getElementById('steps-list');
+  const noMsg = document.getElementById('no-steps-msg');
+  container.innerHTML = '';
+
+  // OSRM steps can be missing with some geometries — derive from geometry if needed
+  const steps = data.steps || [];
+
+  if (!steps.length) {
+    noMsg.classList.remove('d-none');
+    noMsg.textContent = 'No step data available — route drawn on map.';
+    return;
+  }
+
+  noMsg.classList.add('d-none');
+  currentStepIndex = 0;
+
+  steps.forEach((s, i) => {
+    const maneuver = s.maneuver || {};
+    const type = maneuver.type || 'continue';
+    const modifier = maneuver.modifier || '';
+    const distance = s.distance || 0;
+    const name = s.name || '';
+
+    const icon = iconForManeuver(type, modifier);
+    const instr = instructionForManeuver(type, modifier, name, distance);
+
+    const div = document.createElement('div');
+    div.className = 'step-item' + (i === 0 ? ' active' : '');
+    div.dataset.stepIndex = i;
+    div.innerHTML = `
+      <div class="step-icon">${icon}</div>
+      <div class="step-text">
+        <div class="instr">${instr}</div>
+        <div class="dist">${formatDist(distance)}</div>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+
+  updateProgress(0);
+}
+
+function iconForManeuver(type, modifier) {
+  if (type === 'arrive') return '🏁';
+  if (type === 'depart') return '🚶';
+  if (modifier.includes('left')) return '⬅️';
+  if (modifier.includes('right')) return '➡️';
+  if (modifier.includes('uturn')) return '↩️';
+  if (type === 'roundabout' || type === 'rotary') return '🔄';
+  if (type === 'merge') return '🔀';
+  return '⬆️';
+}
+
+function instructionForManeuver(type, modifier, name, distance) {
+  const d = formatDist(distance);
+  const road = name ? ` on <em>${name}</em>` : '';
+
+  if (type === 'arrive') return `Arrive at your destination`;
+  if (type === 'depart') return `Head ${modifier || 'forward'}${road}`;
+  if (type === 'turn') {
+    if (modifier.includes('left'))  return `Turn left${road}`;
+    if (modifier.includes('right')) return `Turn right${road}`;
+    return `Turn ${modifier}${road}`;
+  }
+  if (type === 'roundabout' || type === 'rotary') return `Take the roundabout${road}`;
+  if (type === 'merge') return `Merge${road}`;
+  return `Continue ${modifier || 'straight'}${road}`;
+}
+
+function formatDist(m) {
+  if (m < 1000) return Math.round(m) + ' m';
+  return (m / 1000).toFixed(2) + ' km';
+}
+
+// ============================================================
+//  LIVE NAVIGATION
+// ============================================================
+document.getElementById('start-nav').addEventListener('click', () => {
+  if (!navigator.geolocation) { alert('Geolocation not supported.'); return; }
+
+  navActive = true;
+  document.getElementById('start-nav').classList.add('d-none');
+  document.getElementById('stop-nav').classList.remove('d-none');
+  document.getElementById('tracking-hud').classList.add('on');
+
+  // Switch to Steps tab
+  document.querySelector('#navTabs .nav-link[data-tab="steps"]').click();
+
+  watchId = navigator.geolocation.watchPosition(onPositionUpdate, onPositionError, {
+    enableHighAccuracy: true,
+    maximumAge: 2000,
+    timeout: 10000,
+  });
+});
+
+document.getElementById('stop-nav').addEventListener('click', stopNavigation);
+
+function stopNavigation() {
+  navActive = false;
+  if (watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
+  document.getElementById('start-nav').classList.remove('d-none');
+  document.getElementById('stop-nav').classList.add('d-none');
+  document.getElementById('tracking-hud').classList.remove('on');
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+}
+
+function onPositionError(err) {
+  console.warn('GPS error:', err.message);
+  document.getElementById('hud-eta').textContent = 'GPS unavailable';
+}
+
+function onPositionUpdate(pos) {
+  userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  updateUserMarker();
+
+  if (!currentRoute) return;
+
+  // Center map on user
+  map.setView([userPos.lat, userPos.lng], Math.max(map.getZoom(), 17));
+
+  // Find nearest step + update progress
+  updateProgressFromGPS(userPos);
+
+  // Throttled reroute (every 12s max)
+  const now = Date.now();
+  if (now - lastRerouteAt > 12000) {
+    lastRerouteAt = now;
+    rerouteFromUser();
+  }
+}
+
+function updateProgressFromGPS(pos) {
+  if (!currentRoute || !currentRoute.geometry) return;
+
+  const coords = currentRoute.geometry.coordinates; // [[lon,lat], ...]
+  if (!coords || coords.length < 2) return;
+
+  // Find closest point on route
+  let minDist = Infinity;
+  let closestIdx = 0;
+  coords.forEach((c, i) => {
+    const d = haversine(pos.lat, pos.lng, c[1], c[0]);
+    if (d < minDist) { minDist = d; closestIdx = i; }
+  });
+
+  // Progress %
+  const pct = Math.round((closestIdx / (coords.length - 1)) * 100);
+  updateProgress(pct);
+
+  // Remaining distance
+  let remaining = 0;
+  for (let i = closestIdx; i < coords.length - 1; i++) {
+    remaining += haversine(coords[i][1], coords[i][0], coords[i + 1][1], coords[i + 1][0]);
+  }
+  const remainingMin = Math.round(remaining / 1.4 / 60); // ~1.4 m/s walking
+  document.getElementById('hud-eta').textContent = `${remainingMin} min • ${formatDist(remaining)}`;
+  document.getElementById('progress-remaining').textContent = `${formatDist(remaining)} left`;
+
+  // Highlight current step
+  highlightStepForProgress(pct);
+}
+
+function updateProgress(pct) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+}
+
+function highlightStepForProgress(pct) {
+  const items = document.querySelectorAll('.step-item');
+  if (!items.length) return;
+  const idx = Math.min(items.length - 1, Math.floor((pct / 100) * items.length));
+
+  if (idx !== currentStepIndex) {
+    items.forEach(i => i.classList.remove('active'));
+    items[idx].classList.add('active');
+    currentStepIndex = idx;
+
+    // Voice guidance
+    if (spokenStepIndex !== idx && window.speechSynthesis) {
+      spokenStepIndex = idx;
+      const instr = items[idx].querySelector('.instr')?.textContent || '';
+      if (instr) speakText(instr);
+    }
+  }
+}
+
+function speakText(text) {
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.0;
+    u.pitch = 1.0;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+// ============================================================
+//  REROUTE (when user moves significantly)
+// ============================================================
+function rerouteFromUser() {
+  if (!currentRoute || !currentRoute.to) return;
+
+  const body = new URLSearchParams({
+    from_lon: userPos.lng,
+    from_lat: userPos.lat,
+    to: currentRoute.to.name,
+  });
+
+  fetch("{% url 'navigation:api_route_from_coords' %}", {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.error) {
+        currentRoute = data;
+        renderRoute(data);
+        renderSteps(data);
+      }
+    })
+    .catch(() => {});
+}
+
+// ============================================================
+//  UTILS
+// ============================================================
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(Δφ/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ============================================================
+//  OBSTACLE REPORTING
+// ============================================================
+const obstacleModal = new bootstrap.Modal(document.getElementById('obstacleModal'));
+
+document.getElementById('btn-report-obstacle').addEventListener('click', () => {
+  obstacleModal.show();
+});
+
+document.getElementById('obs-submit').addEventListener('click', () => {
+  const type = document.getElementById('obs-type').value;
+  const desc = document.getElementById('obs-desc').value.trim();
+  const useMyLoc = document.getElementById('obs-use-my-loc').checked;
+
+  if (!userPos && useMyLoc) {
+    alert('📍 Waiting for GPS… please try again in a moment, or uncheck "Use my current location".');
+    return;
+  }
+
+  if (!useMyLoc) {
+    alert('Please enable "Use my current location" or enter coordinates manually.');
+    return;
+  }
+
+  const submitBtn = document.getElementById('obs-submit');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting…';
+
+  const body = new URLSearchParams({
+    type,
+    description: desc,
+    lon: userPos.lng,
+    lat: userPos.lat,
+    severity: 'medium',
+  });
+
+  fetch("{% url 'navigation:api_create_obstacle' %}", {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  })
+    .then(r => r.json())
+    .then(data => {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit';
+
+      if (data.error) {
+        alert('❌ ' + data.error);
+        return;
+      }
+
+      // Success
+      obstacleModal.hide();
+      document.getElementById('obs-desc').value = '';
+
+      // Show on map as a red icon
+      const obsIcon = L.divIcon({
+        className: '',
+        html: '<div style="background:#ef4444;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(239,68,68,.8);"></div>',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      });
+      L.marker([userPos.lat, userPos.lng], { icon: obsIcon })
+        .addTo(map)
+        .bindPopup(`<strong>⚠️ ${type}</strong><br>${desc || 'Reported obstacle'}<br><small>Active for 6 hours</small>`)
+        .openPopup();
+
+      // Toast-style notification
+      const toast = document.createElement('div');
+      toast.className = 'alert alert-success';
+      toast.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.15);';
+      toast.textContent = '✅ Obstacle reported! Routes updated.';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3500);
+
+      // Reroute current route to avoid the obstacle
+      if (currentRoute && navActive) {
+        rerouteFromUser();
+      } else if (currentRoute) {
+        // Just re-compute with same from/to
+        const fromInput = document.getElementById('from-loc').value.trim();
+        const toInput = document.getElementById('to-loc').value.trim();
+        if (fromInput && toInput) {
+          document.getElementById('find-route').click();
+        }
+      }
+    })
+    .catch(() => {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit';
+      alert('❌ Network error. Please try again.');
+    });
+});
+
+// ============================================================
+//  SPEAK ON MANUAL TAB CHANGE (safety)
+// ============================================================
+window.addEventListener('beforeunload', () => {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+});
+</script>
+{% endblock %}
