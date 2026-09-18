@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard • LPU Nexus{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Admin Dashboard</h3>
+  <span class="badge bg-dark">{{ user.role|upper }}</span>
+</div>
+
+<div class="card card-nx p-3 mb-3">
+  <strong>{{ user.full_name }} 👋</strong>
+  <span class="text-muted small">{{ user.email }}</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card card-nx p-3 text-center">
+      <div class="fs-3 fw-bold">{{ stats.total_students }}</div>
+      <div class="text-muted small">Students</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-nx p-3 text-center">
+      <div class="fs-3 fw-bold text-warning">{{ stats.total_staff }}</div>
+      <div class="text-muted small">Staff</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-nx p-3 text-center">
+      <div class="fs-3 fw-bold">{{ stats.total_problems }}</div>
+      <div class="text-muted small">Problems</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-nx p-3 text-center">
+      <div class="fs-3 fw-bold text-danger">{{ stats.active_emergencies }}</div>
+      <div class="text-muted small">Active Emergencies</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <a href="{% url 'accounts:admin_create_staff' %}" class="text-decoration-none">
+      <div class="card card-nx p-4 h-100">
+        <h6>➕ Create Staff Account</h6>
+        <p class="small text-muted mb-0">Add a new responder / staff member.</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{% url 'accounts:admin_list_staff' %}" class="text-decoration-none">
+      <div class="card card-nx p-4 h-100">
+        <h6>👥 Manage Staff</h6>
+        <p class="small text-muted mb-0">{{ stats.total_staff }} staff account(s).</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{% url 'accounts:admin_list_students' %}" class="text-decoration-none">
+      <div class="card card-nx p-4 h-100">
+        <h6>🎓 View Students</h6>
+        <p class="small text-muted mb-0">{{ stats.total_students }} student(s) registered.</p>
+      </div>
+    </a>
+  </div>
+</div>
+
+<h5 class="mb-3">Recent Staff</h5>
+<div class="card card-nx p-3">
+  {% if staff_list %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Created</th></tr></thead>
+        <tbody>
+          {% for s in staff_list %}
+            <tr>
+              <td>{{ s.full_name }}</td>
+              <td>{{ s.email }}</td>
+              <td>{{ s.department|default:"—" }}</td>
+              <td class="text-muted small">{{ s.created_at|slice:":10" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted mb-0 text-center py-3">
+      No staff accounts yet. <a href="{% url 'accounts:admin_create_staff' %}">Create the first one</a>.
+    </p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,47 +1,76 @@
 {% extends 'base.html' %}
-{% block title %}Register • LPU Nexus{% endblock %}
+{% block title %}Student Registration • LPU Nexus{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-md-6 col-lg-5">
+  <div class="col-md-7 col-lg-6">
     <div class="card card-nx p-4">
-      <h3 class="mb-3">Create your account</h3>
-      <form method="post">
+      <h3 class="mb-1">Student Registration</h3>
+      <p class="text-muted small mb-4">
+        Staff & admin accounts are created by the administrator.
+      </p>
+
+      <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
+
         <div class="mb-3">
-          <label class="form-label">Full name *</label>
-          <input type="text" name="full_name" class="form-control" required>
+          <label class="form-label">Full Name *</label>
+          <input type="text" name="full_name" class="form-control" required
+                 value="{{ form_data.full_name|default:'' }}">
         </div>
+
+        <div class="mb-3">
+          <label class="form-label">LPU Registration Number *</label>
+          <input type="text" name="registration_number" class="form-control" required
+                 placeholder="e.g. 12345678"
+                 value="{{ form_data.registration_number|default:'' }}">
+          <div class="form-text">Your LPU UID / registration number.</div>
+        </div>
+
         <div class="mb-3">
           <label class="form-label">Email *</label>
-          <input type="email" name="email" class="form-control" required>
+          <input type="email" name="email" class="form-control" required
+                 value="{{ form_data.email|default:'' }}">
         </div>
+
         <div class="row">
           <div class="col-md-6 mb-3">
-            <label class="form-label">Registration No.</label>
-            <input type="text" name="registration_number" class="form-control">
+            <label class="form-label">Department</label>
+            <input type="text" name="department" class="form-control"
+                   placeholder="CSE / ECE / ..."
+                   value="{{ form_data.department|default:'' }}">
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Year</label>
-            <input type="text" name="year" class="form-control" placeholder="1 / 2 / 3 / 4">
+            <input type="text" name="year" class="form-control"
+                   placeholder="1 / 2 / 3 / 4"
+                   value="{{ form_data.year|default:'' }}">
           </div>
         </div>
+
         <div class="mb-3">
-          <label class="form-label">Department</label>
-          <input type="text" name="department" class="form-control" placeholder="CSE / ECE / ...">
+          <label class="form-label">LPU ID Card Image *</label>
+          <input type="file" name="id_card" class="form-control"
+                 accept=".jpg,.jpeg,.png,.webp,.pdf" required>
+          <div class="form-text">
+            JPG, PNG, WEBP or PDF — max 5 MB. Required for verification.
+          </div>
         </div>
+
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Password *</label>
-            <input type="password" name="password" class="form-control" required>
+            <input type="password" name="password" class="form-control" required minlength="6">
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Confirm Password *</label>
-            <input type="password" name="confirm_password" class="form-control" required>
+            <input type="password" name="confirm_password" class="form-control" required minlength="6">
           </div>
         </div>
-        <button class="btn btn-nx w-100">Register</button>
+
+        <button class="btn btn-nx w-100">Create Student Account</button>
       </form>
+
       <p class="mt-3 mb-0 text-center small">
         Already have an account? <a href="{% url 'accounts:login' %}">Log in</a>
       </p>

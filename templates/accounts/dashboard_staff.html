@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Staff Dashboard • LPU Nexus{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Staff / Responder Dashboard</h3>
+  <span class="badge bg-warning text-dark">{{ user.role|upper }}</span>
+</div>
+
+<div class="card card-nx p-3 mb-3">
+  <strong>Hello, {{ user.full_name }} 👋</strong>
+  <span class="text-muted small">{{ user.email }}</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card card-nx p-3 text-center">
+      <div class="fs-3 fw-bold text-primary">{{ stats.assigned_to_me }}</div>
+      <div class="text-muted small">Assigned to me</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-nx p-3 text-center">
+      <div class="fs-3 fw-bold text-warning">{{ stats.in_progress }}</div>
+      <div class="text-muted small">In Progress</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-nx p-3 text-center">
+      <div class="fs-3 fw-bold text-success">{{ stats.resolved_today }}</div>
+      <div class="text-muted small">Resolved Today</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-nx p-3 text-center">
+      <div class="fs-3 fw-bold text-danger">{{ stats.pending_ack }}</div>
+      <div class="text-muted small">Pending Ack.</div>
+    </div>
+  </div>
+</div>
+
+<h5 class="mb-3">Response Queue</h5>
+<div class="card card-nx p-4 text-center text-muted">
+  <p class="mb-0">🔧 Problem assignment & emergency response queue arrives with the <strong>Problems</strong> and <strong>Emergencies</strong> modules.</p>
+</div>
+{% endblock %}

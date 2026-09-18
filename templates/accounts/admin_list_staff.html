@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Staff Accounts • LPU Nexus{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Staff Accounts</h3>
+  <div>
+    <a href="{% url 'accounts:admin_create_staff' %}" class="btn btn-nx btn-sm">+ New Staff</a>
+    <a href="{% url 'accounts:admin_dashboard' %}" class="btn btn-sm btn-outline-secondary">Back</a>
+  </div>
+</div>
+
+<div class="card card-nx p-3">
+  {% if staff_list %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Department</th><th>Designation</th><th>Phone</th><th>Created</th></tr>
+        </thead>
+        <tbody>
+          {% for s in staff_list %}
+            <tr>
+              <td>{{ s.full_name }}</td>
+              <td>{{ s.email }}</td>
+              <td>{{ s.department|default:"—" }}</td>
+              <td>{{ s.designation|default:"—" }}</td>
+              <td>{{ s.phone|default:"—" }}</td>
+              <td class="text-muted small">{{ s.created_at|slice:":10" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted mb-0 text-center py-4">No staff accounts yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

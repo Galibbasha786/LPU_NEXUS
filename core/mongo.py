@@ -42,7 +42,7 @@ def init_indexes():
         # users
         users().create_index([("email", ASCENDING)], unique=True)
         users().create_index([("role", ASCENDING)])
-
+        users().create_index([("registration_number", ASCENDING)], sparse=True)
         # problems
         problems().create_index([("status", ASCENDING)])
         problems().create_index([("category", ASCENDING)])

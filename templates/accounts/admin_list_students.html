@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Students • LPU Nexus{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Registered Students</h3>
+  <a href="{% url 'accounts:admin_dashboard' %}" class="btn btn-sm btn-outline-secondary">Back</a>
+</div>
+
+<div class="card card-nx p-3">
+  {% if students %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Reg No</th><th>Dept</th><th>Year</th><th>Joined</th></tr>
+        </thead>
+        <tbody>
+          {% for s in students %}
+            <tr>
+              <td>{{ s.full_name }}</td>
+              <td>{{ s.email }}</td>
+              <td>{{ s.registration_number|default:"—" }}</td>
+              <td>{{ s.department|default:"—" }}</td>
+              <td>{{ s.year|default:"—" }}</td>
+              <td class="text-muted small">{{ s.created_at|slice:":10" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted mb-0 text-center py-4">No students yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

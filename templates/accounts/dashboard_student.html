@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Student Dashboard • LPU Nexus{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Student Dashboard</h3>
+  <span class="badge bg-primary">{{ user.role|upper }}</span>
+</div>
+
+<div class="card card-nx p-3 mb-3">
+  <div class="row align-items-center">
+    <div class="col-md-8">
+      <strong>{{ user.full_name }} 👋</strong><br>
+      <span class="text-muted small">{{ user.email }}</span>
+      {% if profile %}
+        <div class="mt-2 small">
+          <span class="badge bg-light text-dark">Reg No: {{ profile.registration_number }}</span>
+          {% if profile.department %}<span class="badge bg-light text-dark">{{ profile.department }}</span>{% endif %}
+          {% if profile.year %}<span class="badge bg-light text-dark">Year {{ profile.year }}</span>{% endif %}
+        </div>
+      {% endif %}
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+      {% if profile.id_card_path %}
+        <a href="/media/{{ profile.id_card_path }}" target="_blank"
+           class="btn btn-sm btn-outline-secondary">View ID Card</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card card-nx p-3 text-center">
+      <div class="fs-3 fw-bold">{{ stats.my_reports }}</div>
+      <div class="text-muted small">My Reports</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-nx p-3 text-center">
+      <div class="fs-3 fw-bold text-warning">{{ stats.affected_confirmations }}</div>
+      <div class="text-muted small">"I'm Affected Too"</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-nx p-3 text-center">
+      <div class="fs-3 fw-bold text-info">{{ stats.my_ideas }}</div>
+      <div class="text-muted small">My Ideas</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-nx p-3 text-center">
+      <div class="fs-3 fw-bold text-danger">{{ stats.open_emergencies }}</div>
+      <div class="text-muted small">Open Emergencies</div>
+    </div>
+  </div>
+</div>
+
+<h5 class="mb-3">What do you want to do?</h5>
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card card-nx p-3 h-100">
+      <h6>📢 Report a Problem</h6>
+      <p class="small text-muted">Wi-Fi, water, electricity, cleanliness, hostel, transport…</p>
+      <span class="badge bg-secondary">Next module</span>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-nx p-3 h-100">
+      <h6>💡 Share an Idea</h6>
+      <p class="small text-muted">Propose a solution to a real campus problem.</p>
+      <span class="badge bg-secondary">Next module</span>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-nx p-3 h-100">
+      <h6>🗺️ Campus Map</h6>
+      <p class="small text-muted">Find rooms, food, medical, ATMs, washrooms.</p>
+      <span class="badge bg-secondary">Next module</span>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card card-nx p-3 h-100" style="border-left:4px solid var(--nx-coral)">
+      <h6 class="text-danger">🚨 Emergency</h6>
+      <p class="small text-muted">Medical, Fire, Security, Accident.</p>
+      <span class="badge bg-secondary">Next module</span>
+    </div>
+  </div>
+</div>
+{% endblock %}

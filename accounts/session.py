@@ -56,3 +56,13 @@ def role_required(*allowed_roles):
             return view_func(request, *args, **kwargs)
         return wrapper
     return decorator
+# accounts/session.py  (only add this function at the bottom — keep rest as-is)
+
+def get_current_profile(request):
+    """Returns the student_profile doc for current user, or None."""
+    from .mongo_auth import get_student_profile
+    uid = request.session.get(SESSION_KEY)
+    if not uid:
+        return None
+    from core.utils import serialize_doc
+    return serialize_doc(get_student_profile(uid))
