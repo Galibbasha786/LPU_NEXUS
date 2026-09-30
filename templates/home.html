@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Lovely Professional University | LPU Nexus{% endblock %}
+{% block content_container_class %}container-fluid p-0{% endblock %}
+
+{% block content %}
+<main class="home-shell">
+  <section class="home-hero">
+    <img src="{% static 'images/img1.jpeg' %}" alt="Lovely Professional University campus">
+    <div class="home-hero-content">
+      <div class="home-brand-lockup" aria-label="Lovely Professional University and LPU Nexus">
+        <img src="{% static 'images/lpulogo.png' %}" alt="Lovely Professional University" class="logo-remove-white">
+        <img src="{% static 'images/logo.png' %}" alt="LPU Nexus">
+      </div>
+      <p class="eyebrow">LOVELY PROFESSIONAL UNIVERSITY · PHAGWARA, PUNJAB</p>
+      <h1>Lovely Professional University</h1>
+      <p class="home-lede">A connected campus for learning, discovery, and community.</p>
+      <div class="d-flex flex-wrap gap-3 mt-4">
+        <a class="btn btn-gold" href="#about">Discover LPU</a>
+        <a class="btn btn-outline-light" href="{% url 'accounts:login' %}">Open LPU Nexus</a>
+      </div>
+    </div>
+    <span class="home-hero-index">LPU · INDIA</span>
+  </section>
+
+  <section class="home-intro" id="about">
+    <div>
+      <p class="eyebrow">ABOUT THE UNIVERSITY</p>
+      <h2>Rooted in Punjab.<br>Open to possibility.</h2>
+    </div>
+    <div class="home-intro-copy">
+      <p>Lovely Professional University is a private university located on the Jalandhar-Delhi G.T. Road in Phagwara, Punjab. Its campus brings together students, faculty, and staff from across India and around the world.</p>
+      <p>LPU Nexus is a campus companion for finding places, sharing ideas, reporting concerns, and reaching campus support.</p>
+    </div>
+  </section>
+
+  <section class="home-services" aria-labelledby="services-heading">
+    <div class="home-section-heading">
+      <p class="eyebrow">LPU NEXUS</p>
+      <h2 id="services-heading">Campus, made easier to navigate.</h2>
+    </div>
+    <div class="home-service-grid">
+      <article>
+        <i class="bi bi-signpost-2" aria-hidden="true"></i>
+        <h3>Find your way</h3>
+        <p>Explore campus locations and plan a route to the places you need.</p>
+      </article>
+      <article>
+        <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+        <h3>Share an idea</h3>
+        <p>Bring suggestions and campus improvement ideas to the community.</p>
+      </article>
+      <article>
+        <i class="bi bi-life-preserver" aria-hidden="true"></i>
+        <h3>Get support</h3>
+        <p>Report campus issues and find emergency support resources.</p>
+      </article>
+    </div>
+    <a class="home-text-link" href="{% url 'accounts:register' %}">Join the LPU Nexus community <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+  </section>
+
+  <section class="home-contact" id="contact">
+    <div>
+      <p class="eyebrow">VISIT LPU</p>
+      <h2>Lovely Professional University</h2>
+      <p>Jalandhar-Delhi, G.T. Road<br>Phagwara, Punjab 144411, India</p>
+    </div>
+    <div class="home-contact-action">
+      <p>For university enquiries and current contact information, visit the official LPU website.</p>
+      <a class="btn btn-lpu" href="https://www.lpu.in/" target="_blank" rel="noopener noreferrer">Official LPU website <i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i></a>
+    </div>
+  </section>
+</main>
+{% endblock %}

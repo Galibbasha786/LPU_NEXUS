@@ -5,7 +5,8 @@ from . import views
 app_name = 'accounts'
 
 urlpatterns = [
-    path('', views.dashboard_view, name='dashboard'),
+    path('', views.home_view, name='home'),
+    path('dashboard/', views.dashboard_view, name='dashboard'),
 
     # dashboards
     path('dashboard/student/', views.student_dashboard, name='student_dashboard'),
@@ -20,5 +21,7 @@ urlpatterns = [
     # auth
     path('register/', views.register_view, name='register'),
     path('login/', views.login_view, name='login'),
+    path('forgot-password/', views.forgot_password_view, name='forgot_password'),
+    path('profile/', views.profile_view, name='profile'),
     path('logout/', views.logout_view, name='logout'),
 ]

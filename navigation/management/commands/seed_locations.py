@@ -71,7 +71,7 @@ class Command(BaseCommand):
         if options["reset"]:
             result = locations().delete_many({})
             self.stdout.write(self.style.WARNING(
-                f"🗑️  Deleted {result.deleted_count} existing locations"
+                f"[OK] Deleted {result.deleted_count} existing locations"
             ))
 
         # Geospatial index
@@ -103,5 +103,5 @@ class Command(BaseCommand):
             created += 1
 
         self.stdout.write(self.style.SUCCESS(
-            f"\n🎉 Seeded {created} new locations, skipped {skipped}."
+            f"\n[OK] Seeded {created} new locations, skipped {skipped}."
         ))

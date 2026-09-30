@@ -1,97 +1,98 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Student Dashboard • LPU Nexus{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h3 class="mb-0">Student Dashboard</h3>
-  <span class="badge bg-primary">{{ user.role|upper }}</span>
-</div>
 
-<div class="card card-nx p-3 mb-3">
-  <div class="row align-items-center">
-    <div class="col-md-8">
-      <strong>{{ user.full_name }} 👋</strong><br>
-      <span class="text-muted small">{{ user.email }}</span>
-      {% if profile %}
-        <div class="mt-2 small">
-          <span class="badge bg-light text-dark">Reg No: {{ profile.registration_number }}</span>
-          {% if profile.department %}<span class="badge bg-light text-dark">{{ profile.department }}</span>{% endif %}
-          {% if profile.year %}<span class="badge bg-light text-dark">Year {{ profile.year }}</span>{% endif %}
-        </div>
-      {% endif %}
-    </div>
-    <div class="col-md-4 text-md-end mt-3 mt-md-0">
-      {% if profile.id_card_path %}
-        <a href="/media/{{ profile.id_card_path }}" target="_blank"
-           class="btn btn-sm btn-outline-secondary">View ID Card</a>
-      {% endif %}
-    </div>
+<div class="dashboard-visual">
+  <img class="slide" src="{% static 'images/img1.jpeg' %}" alt="LPU campus">
+  <img class="slide" src="{% static 'images/img2.jpeg' %}" alt="LPU campus">
+  <img class="slide" src="{% static 'images/img3.jpeg' %}" alt="LPU campus">
+  <img class="slide" src="{% static 'images/img4.jpeg' %}" alt="LPU campus">
+  <div class="dashboard-visual-content">
+    <span class="hero-badge">LPU NEXUS DASHBOARD</span>
+    <h2 class="mb-1">Your campus at a glance</h2>
+    <p class="mb-0">Navigate, report, and help shape a better LPU.</p>
   </div>
 </div>
 
+<!-- HERO HEADER -->
+<div class="hero-header">
+  <span class="hero-badge">STUDENT</span>
+  <h3>Hello, {{ user.full_name }}</h3>
+  <p>{{ user.email }}
+    {% if profile %}
+      &nbsp;•&nbsp; Reg No: <strong style="color:var(--lpu-gold);">{{ profile.registration_number }}</strong>
+      {% if profile.department %}&nbsp;•&nbsp; {{ profile.department }}{% endif %}
+      {% if profile.year %}&nbsp;•&nbsp; Year {{ profile.year }}{% endif %}
+    {% endif %}
+  </p>
+</div>
+
+<!-- STATS -->
 <div class="row g-3 mb-4">
-  <div class="col-md-3">
-    <div class="card card-nx p-3 text-center">
-      <div class="fs-3 fw-bold">{{ stats.my_reports }}</div>
-      <div class="text-muted small">My Reports</div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card-lpu">
+      <div class="stat-num">{{ stats.my_reports }}</div>
+      <div class="stat-label">My Reports</div>
     </div>
   </div>
-  <div class="col-md-3">
-    <div class="card card-nx p-3 text-center">
-      <div class="fs-3 fw-bold text-warning">{{ stats.affected_confirmations }}</div>
-      <div class="text-muted small">"I'm Affected Too"</div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card-lpu">
+      <div class="stat-num" style="color:var(--lpu-gold);">{{ stats.affected_confirmations }}</div>
+      <div class="stat-label">"I'm Affected Too"</div>
     </div>
   </div>
-  <div class="col-md-3">
-    <div class="card card-nx p-3 text-center">
-      <div class="fs-3 fw-bold text-info">{{ stats.my_ideas }}</div>
-      <div class="text-muted small">My Ideas</div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card-lpu">
+      <div class="stat-num" style="color:var(--nx-blue);">{{ stats.my_ideas }}</div>
+      <div class="stat-label">My Ideas</div>
     </div>
   </div>
-  <div class="col-md-3">
-    <div class="card card-nx p-3 text-center">
-      <div class="fs-3 fw-bold text-danger">{{ stats.open_emergencies }}</div>
-      <div class="text-muted small">Open Emergencies</div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card-lpu">
+      <div class="stat-num" style="color:var(--nx-coral);">{{ stats.open_emergencies }}</div>
+      <div class="stat-label">Open Emergencies</div>
     </div>
   </div>
 </div>
+
 <!-- QUICK NAVIGATION WIDGET -->
-<div class="card card-nx p-3 mb-4" style="border-top:3px solid var(--nx-orange);">
+<div class="card-lpu mb-4 card-accent-orange">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h6 class="mb-0">🗺️ Quick Navigation</h6>
+    <h6 class="mb-0 fw-bold"><i class="bi bi-map me-1" aria-hidden="true"></i>Quick Navigation</h6>
     <a href="{% url 'navigation:map' %}" class="btn btn-sm btn-outline-secondary">Full Map</a>
   </div>
 
   <div class="row g-2 align-items-end">
     <div class="col-md-4">
-      <label class="form-label small text-muted mb-1">From</label>
-      <input list="quick-loc-list" id="q-from" class="form-control form-control-sm"
+      <label class="form-label-lpu mb-1">From</label>
+      <input list="quick-loc-list" id="q-from" class="form-control form-control-lpu"
              placeholder="e.g. Block 34 (CSE)">
     </div>
     <div class="col-md-4">
-      <label class="form-label small text-muted mb-1">To</label>
-      <input list="quick-loc-list" id="q-to" class="form-control form-control-sm"
+      <label class="form-label-lpu mb-1">To</label>
+      <input list="quick-loc-list" id="q-to" class="form-control form-control-lpu"
              placeholder="e.g. Central Library (Block 37)">
     </div>
     <div class="col-md-2">
-      <button id="q-find" class="btn btn-nx btn-sm w-100">Find</button>
+      <button id="q-find" class="btn btn-lpu w-100 py-2">Find</button>
     </div>
     <div class="col-md-2">
-      <button id="q-my-loc" class="btn btn-outline-primary btn-sm w-100"
-              title="Use my current location">📍</button>
+      <button id="q-my-loc" class="btn btn-outline-primary w-100 py-2" title="Use my current location"><i class="bi bi-crosshair" aria-hidden="true"></i></button>
     </div>
   </div>
 
   <div id="q-result" class="mt-3 small d-none">
     <div class="d-flex justify-content-between flex-wrap gap-2">
-      <span>🚶 <strong id="q-time">—</strong></span>
-      <span>📏 <span id="q-distance">—</span></span>
-      <span>🚦 <span id="q-congestion" class="congestion-badge">—</span></span>
+      <span><i class="bi bi-person-walking me-1" aria-hidden="true"></i><strong id="q-time">—</strong></span>
+      <span><i class="bi bi-rulers me-1" aria-hidden="true"></i><span id="q-distance">—</span></span>
+      <span><i class="bi bi-stoplights me-1" aria-hidden="true"></i><span id="q-congestion" class="congestion-badge">—</span></span>
     </div>
     <div id="q-departure" class="text-muted mt-1 d-none">
       Leave at: <strong id="q-departure-time">—</strong>
     </div>
-    <a id="q-open-map" class="btn btn-sm btn-nx mt-2 w-100 d-none" href="#">
+    <a id="q-open-map" class="btn btn-gold mt-2 w-100 d-none" href="#">
       Open in Full Map →
     </a>
   </div>
@@ -99,60 +100,56 @@
   <div id="q-error" class="alert alert-danger py-1 small mt-2 d-none"></div>
 </div>
 
-<datalist id="quick-loc-list"></datalist>
-
-<h5 class="mb-3">What do you want to do?</h5>
+<!-- ACTION GRID -->
+<h5 class="mb-3 fw-bold">What do you want to do?</h5>
 <div class="row g-3">
   <div class="col-md-4">
-    <div class="card card-nx p-3 h-100">
-      <h6>📢 Report a Problem</h6>
+    <div class="card-lpu h-100">
+      <h6><i class="bi bi-megaphone me-1" aria-hidden="true"></i>Report a Problem</h6>
       <p class="small text-muted">Wi-Fi, water, electricity, cleanliness, hostel, transport…</p>
       <span class="badge bg-secondary">Next module</span>
     </div>
   </div>
   <div class="col-md-4">
-    <div class="card card-nx p-3 h-100">
-      <h6>💡 Share an Idea</h6>
+    <div class="card-lpu h-100">
+      <h6><i class="bi bi-lightbulb me-1" aria-hidden="true"></i>Share an Idea</h6>
       <p class="small text-muted">Propose a solution to a real campus problem.</p>
       <span class="badge bg-secondary">Next module</span>
     </div>
   </div>
-
-  <!-- ✅ SMART NAVIGATION CARD (live now) -->
   <div class="col-md-4">
     <a href="{% url 'navigation:map' %}" class="text-decoration-none">
-      <div class="card card-nx p-3 h-100" style="border-left:4px solid var(--nx-orange);">
-        <h6 class="text-dark">🗺️ Smart Campus Navigation</h6>
-        <p class="small text-muted mb-2">
-          Peak-time aware routes, live GPS tracking, turn-by-turn directions.
-        </p>
-        <span class="badge" style="background:var(--nx-orange);">Open Now →</span>
+      <div class="card-lpu h-100 card-accent-gold">
+        <h6 class="text-dark"><i class="bi bi-map me-1" aria-hidden="true"></i>Smart Navigation</h6>
+        <p class="small text-muted mb-2">Peak-time aware routes, live GPS tracking, turn-by-turn.</p>
+        <span class="badge-lpu">Open Now →</span>
       </div>
     </a>
   </div>
-
   <div class="col-md-4">
-    <div class="card card-nx p-3 h-100" style="border-left:4px solid var(--nx-coral)">
-      <h6 class="text-danger">🚨 Emergency</h6>
+    <div class="card-lpu h-100 card-accent-coral">
+      <h6 class="text-danger"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Emergency</h6>
       <p class="small text-muted">Medical, Fire, Security, Accident.</p>
       <span class="badge bg-secondary">Next module</span>
     </div>
   </div>
 </div>
+
+<datalist id="quick-loc-list"></datalist>
 {% endblock %}
+
 {% block extra_js %}
 <script>
   let quickLocations = [];
   let quickUserPos = null;
 
   const congStyles = {
-    low: 'background:#dcfce7;color:#166534;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700;text-transform:uppercase;',
-    moderate: 'background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700;text-transform:uppercase;',
-    high: 'background:#ffedd5;color:#9a3412;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700;text-transform:uppercase;',
-    severe: 'background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700;text-transform:uppercase;',
+    low:      'background:#dcfce7;color:#166534;',
+    moderate: 'background:#fef9c3;color:#854d0e;',
+    high:     'background:#ffedd5;color:#9a3412;',
+    severe:   'background:#fee2e2;color:#991b1b;',
   };
 
-  // Load locations into datalist
   fetch("{% url 'navigation:api_locations' %}")
     .then(r => r.json())
     .then(data => {
@@ -165,16 +162,14 @@
       });
     });
 
-  // 📍 Use my location
   document.getElementById('q-my-loc').addEventListener('click', () => {
     if (!navigator.geolocation) { alert('Geolocation not supported.'); return; }
     navigator.geolocation.getCurrentPosition(pos => {
       quickUserPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      document.getElementById('q-from').value = '📍 My location';
+      document.getElementById('q-from').value = 'My location';
     }, err => alert('Location error: ' + err.message), { enableHighAccuracy: true });
   });
 
-  // Find route
   document.getElementById('q-find').addEventListener('click', () => {
     const fromText = document.getElementById('q-from').value.trim();
     const toText = document.getElementById('q-to').value.trim();
@@ -197,7 +192,7 @@
     const body = new URLSearchParams({ to: toLoc.name });
     let endpoint = "{% url 'navigation:api_route' %}";
 
-    if (fromText.startsWith('📍') && quickUserPos) {
+    if (fromText === 'My location' && quickUserPos) {
       endpoint = "{% url 'navigation:api_route_from_coords' %}";
       body.append('from_lon', quickUserPos.lng);
       body.append('from_lat', quickUserPos.lat);
@@ -212,7 +207,7 @@
     }
 
     errBox.textContent = 'Finding route…';
-    errBox.classList.remove('d-none');
+    errBox.className = 'alert alert-info py-1 small mt-2';
 
     fetch(endpoint, {
       method: 'POST',
@@ -226,7 +221,7 @@
       .then(data => {
         if (data.error) {
           errBox.textContent = data.error;
-          errBox.classList.remove('d-none');
+          errBox.className = 'alert alert-danger py-1 small mt-2';
           document.getElementById('q-result').classList.add('d-none');
           return;
         }
@@ -240,7 +235,7 @@
 
         const badge = document.getElementById('q-congestion');
         badge.textContent = data.congestion.level;
-        badge.setAttribute('style', congStyles[data.congestion.level] || congStyles.low);
+        badge.setAttribute('style', congStyles[data.congestion.level] + 'padding:4px 12px;border-radius:999px;font-size:.72rem;font-weight:700;text-transform:uppercase;');
 
         if (data.recommended_departure) {
           document.getElementById('q-departure').classList.remove('d-none');
@@ -252,16 +247,15 @@
           document.getElementById('q-departure').classList.add('d-none');
         }
 
-        // "Open in Full Map" — pass from/to as query params
         const url = new URL("{% url 'navigation:map' %}", window.location.origin);
-        url.searchParams.set('from', fromText.startsWith('📍') ? '📍 My location' : body.get('from'));
+        url.searchParams.set('from', fromText === 'My location' ? 'My location' : body.get('from'));
         url.searchParams.set('to', toLoc.name);
         document.getElementById('q-open-map').href = url.toString();
         document.getElementById('q-open-map').classList.remove('d-none');
       })
       .catch(() => {
         errBox.textContent = 'Network error.';
-        errBox.classList.remove('d-none');
+        errBox.className = 'alert alert-danger py-1 small mt-2';
       });
   });
 

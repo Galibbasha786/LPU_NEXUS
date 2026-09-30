@@ -1,79 +1,126 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Student Registration • LPU Nexus{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-7 col-lg-6">
-    <div class="card card-nx p-4">
-      <h3 class="mb-1">Student Registration</h3>
-      <p class="text-muted small mb-4">
-        Staff & admin accounts are created by the administrator.
-      </p>
+<div class="login-wrapper" style="margin:-24px -12px;">
+  <div class="auth-shell">
+    <div class="auth-visual">
+      <img class="slide" src="{% static 'images/img1.jpeg' %}" alt="LPU campus">
+      <img class="slide" src="{% static 'images/img2.jpeg' %}" alt="LPU campus">
+      <img class="slide" src="{% static 'images/img3.jpeg' %}" alt="LPU campus">
+      <img class="slide" src="{% static 'images/img4.jpeg' %}" alt="LPU campus">
+      <div class="auth-visual-copy">
+        <span class="hero-badge">JOIN LPU NEXUS</span>
+        <h1>Make campus<br>better together.</h1>
+        <p>One account for campus ideas, reports, navigation, and emergency support.</p>
+      </div>
+    </div>
+    <div class="auth-form-panel">
+      <div class="login-card">
+        <div class="login-header">
+          <div class="auth-logos">
+            <img src="{% static 'images/lpulogo.png' %}" alt="LPU" class="logo-remove-white">
+            <img src="{% static 'images/logo.png' %}" alt="LPU Nexus">
+          </div>
+          <h4>CREATE YOUR <span>ACCOUNT</span></h4>
+          <p class="tagline">Join the connected LPU campus community.</p>
+        </div>
+
+    <div>
+
+      <div class="alert alert-info small py-2">
+        <strong><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Note:</strong> Staff &amp; admin accounts are created by the administrator.
+      </div>
 
       <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
         <div class="mb-3">
-          <label class="form-label">Full Name *</label>
-          <input type="text" name="full_name" class="form-control" required
+          <label class="form-label-lpu">Full Name *</label>
+          <input type="text" name="full_name" class="form-control form-control-lpu" required
                  value="{{ form_data.full_name|default:'' }}">
         </div>
 
         <div class="mb-3">
-          <label class="form-label">LPU Registration Number *</label>
-          <input type="text" name="registration_number" class="form-control" required
+          <label class="form-label-lpu">LPU Registration Number *</label>
+          <input type="text" name="registration_number" class="form-control form-control-lpu" required
                  placeholder="e.g. 12345678"
                  value="{{ form_data.registration_number|default:'' }}">
           <div class="form-text">Your LPU UID / registration number.</div>
         </div>
 
         <div class="mb-3">
-          <label class="form-label">Email *</label>
-          <input type="email" name="email" class="form-control" required
+          <label class="form-label-lpu">Email *</label>
+          <input type="email" name="email" class="form-control form-control-lpu" required
                  value="{{ form_data.email|default:'' }}">
         </div>
 
         <div class="row">
           <div class="col-md-6 mb-3">
-            <label class="form-label">Department</label>
-            <input type="text" name="department" class="form-control"
+            <label class="form-label-lpu">Recovery question *</label>
+            <select name="recovery_question" class="form-select form-control-lpu" required>
+              <option value="">Choose a question</option>
+              <option value="pet" {% if form_data.recovery_question == 'pet' %}selected{% endif %}>What is your pet's name?</option>
+              <option value="movie" {% if form_data.recovery_question == 'movie' %}selected{% endif %}>What is your favorite movie?</option>
+              <option value="inspiration" {% if form_data.recovery_question == 'inspiration' %}selected{% endif %}>Who is your inspiration?</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label-lpu">Recovery answer</label>
+            <input type="text" name="recovery_answer" class="form-control form-control-lpu"
+                   value="{{ form_data.recovery_answer|default:'' }}" autocomplete="off">
+            <div class="form-text">Optional. Leave blank to use an empty answer.</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label-lpu">Department</label>
+            <input type="text" name="department" class="form-control form-control-lpu"
                    placeholder="CSE / ECE / ..."
                    value="{{ form_data.department|default:'' }}">
           </div>
           <div class="col-md-6 mb-3">
-            <label class="form-label">Year</label>
-            <input type="text" name="year" class="form-control"
+            <label class="form-label-lpu">Year</label>
+            <input type="text" name="year" class="form-control form-control-lpu"
                    placeholder="1 / 2 / 3 / 4"
                    value="{{ form_data.year|default:'' }}">
           </div>
         </div>
 
         <div class="mb-3">
-          <label class="form-label">LPU ID Card Image *</label>
-          <input type="file" name="id_card" class="form-control"
+          <label class="form-label-lpu">LPU ID Card Image *</label>
+          <input type="file" name="id_card" class="form-control form-control-lpu"
                  accept=".jpg,.jpeg,.png,.webp,.pdf" required>
-          <div class="form-text">
-            JPG, PNG, WEBP or PDF — max 5 MB. Required for verification.
-          </div>
+          <div class="form-text">JPG, PNG, WEBP or PDF, max 5 MB. The printed name and UID must match the details above.</div>
         </div>
 
         <div class="row">
           <div class="col-md-6 mb-3">
-            <label class="form-label">Password *</label>
-            <input type="password" name="password" class="form-control" required minlength="6">
+            <label class="form-label-lpu">Password *</label>
+            <input type="password" name="password" class="form-control form-control-lpu"
+                   required minlength="6">
           </div>
           <div class="col-md-6 mb-3">
-            <label class="form-label">Confirm Password *</label>
-            <input type="password" name="confirm_password" class="form-control" required minlength="6">
+            <label class="form-label-lpu">Confirm Password *</label>
+            <input type="password" name="confirm_password" class="form-control form-control-lpu"
+                   required minlength="6">
           </div>
         </div>
 
-        <button class="btn btn-nx w-100">Create Student Account</button>
+        <button type="submit" class="btn btn-lpu w-100 mt-2">
+          <i class="bi bi-mortarboard me-1" aria-hidden="true"></i>Create Student Account
+        </button>
       </form>
 
       <p class="mt-3 mb-0 text-center small">
-        Already have an account? <a href="{% url 'accounts:login' %}">Log in</a>
+        Already have an account?
+        <a href="{% url 'accounts:login' %}" class="text-decoration-none"
+           style="color:var(--lpu-maroon);font-weight:700;">Log in</a>
       </p>
+    </div>
+      </div>
     </div>
   </div>
 </div>

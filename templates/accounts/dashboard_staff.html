@@ -1,14 +1,26 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Staff Dashboard • LPU Nexus{% endblock %}
 
 {% block content %}
+<div class="dashboard-visual">
+  <img class="slide" src="{% static 'images/img1.jpeg' %}" alt="LPU campus">
+  <img class="slide" src="{% static 'images/img2.jpeg' %}" alt="LPU campus">
+  <img class="slide" src="{% static 'images/img3.jpeg' %}" alt="LPU campus">
+  <img class="slide" src="{% static 'images/img4.jpeg' %}" alt="LPU campus">
+  <div class="dashboard-visual-content">
+    <span class="hero-badge">LPU NEXUS RESPONSE</span>
+    <h2 class="mb-1">Ready for the next campus signal</h2>
+    <p class="mb-0">See what needs attention and keep LPU moving.</p>
+  </div>
+</div>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h3 class="mb-0">Staff / Responder Dashboard</h3>
   <span class="badge bg-warning text-dark">{{ user.role|upper }}</span>
 </div>
 
 <div class="card card-nx p-3 mb-3">
-  <strong>Hello, {{ user.full_name }} 👋</strong>
+  <strong>Hello, {{ user.full_name }}</strong>
   <span class="text-muted small">{{ user.email }}</span>
 </div>
 
@@ -41,6 +53,6 @@
 
 <h5 class="mb-3">Response Queue</h5>
 <div class="card card-nx p-4 text-center text-muted">
-  <p class="mb-0">🔧 Problem assignment & emergency response queue arrives with the <strong>Problems</strong> and <strong>Emergencies</strong> modules.</p>
+  <p class="mb-0"><i class="bi bi-tools me-1" aria-hidden="true"></i>Problem assignment &amp; emergency response queue arrives with the <strong>Problems</strong> and <strong>Emergencies</strong> modules.</p>
 </div>
 {% endblock %}

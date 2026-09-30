@@ -10,12 +10,12 @@ class Command(BaseCommand):
         user = create_admin_if_missing(password='admin123')
         if user:
             self.stdout.write(self.style.SUCCESS(
-                f"✅ Admin created: {FIXED_ADMIN_EMAIL} / admin123"
+                f"[OK] Admin created: {FIXED_ADMIN_EMAIL} / admin123"
             ))
         else:
             self.stdout.write(self.style.WARNING(
-                f"⚠️  Admin already exists: {FIXED_ADMIN_EMAIL}"
+                f"[WARNING] Admin already exists: {FIXED_ADMIN_EMAIL}"
             ))
         self.stdout.write(self.style.SUCCESS(
-            "\n🎉 Login and change the password immediately."
+            "\n[NOTICE] Login and change the password immediately."
         ))

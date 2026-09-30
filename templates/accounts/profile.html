@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}My Profile | LPU Nexus{% endblock %}
+
+{% block content %}
+<main class="profile-page">
+  <header class="hero-header profile-heading">
+    <div>
+      <span class="hero-badge"><i class="bi bi-person-badge me-1" aria-hidden="true"></i>ACCOUNT</span>
+      <h1>Profile and settings</h1>
+      <p>{{ user.email }}</p>
+    </div>
+    <span class="profile-role">{{ user.role }}</span>
+  </header>
+
+  <div class="profile-grid">
+    <section class="profile-section" aria-labelledby="details-heading">
+      <h2 id="details-heading"><i class="bi bi-person-lines-fill me-2" aria-hidden="true"></i>Personal details</h2>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_details">
+
+        <label class="form-label-lpu" for="profile-name">Full name</label>
+        <input id="profile-name" class="form-control form-control-lpu mb-3" type="text" name="full_name" value="{{ form_data.full_name|default:user.full_name }}" required maxlength="120">
+
+        <label class="form-label-lpu" for="profile-email">Email address</label>
+        <input id="profile-email" class="form-control form-control-lpu mb-3" type="email" name="email" value="{{ form_data.email|default:user.email }}" required maxlength="254">
+
+        {% if user.role == 'student' %}
+          <label class="form-label-lpu">LPU registration number</label>
+          <div class="profile-readonly mb-3">{{ profile.registration_number|default:'Not available' }}</div>
+          <label class="form-label-lpu" for="profile-department">Department</label>
+          <input id="profile-department" class="form-control form-control-lpu mb-3" type="text" name="department" value="{{ form_data.department|default:profile.department }}" maxlength="120">
+          <label class="form-label-lpu" for="profile-year">Year</label>
+          <input id="profile-year" class="form-control form-control-lpu mb-3" type="text" name="year" value="{{ form_data.year|default:profile.year }}" maxlength="30">
+        {% else %}
+          <label class="form-label-lpu" for="profile-department">Department</label>
+          <input id="profile-department" class="form-control form-control-lpu mb-3" type="text" name="department" value="{{ form_data.department|default:user.department }}" maxlength="120">
+          <label class="form-label-lpu" for="profile-designation">Designation</label>
+          <input id="profile-designation" class="form-control form-control-lpu mb-3" type="text" name="designation" value="{{ form_data.designation|default:user.designation }}" maxlength="120">
+          <label class="form-label-lpu" for="profile-phone">Phone</label>
+          <input id="profile-phone" class="form-control form-control-lpu mb-3" type="tel" name="phone" value="{{ form_data.phone|default:user.phone }}" maxlength="40">
+        {% endif %}
+
+        <button class="btn btn-lpu mt-2" type="submit"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Save details</button>
+      </form>
+    </section>
+
+    <section class="profile-section" aria-labelledby="password-heading">
+      <h2 id="password-heading"><i class="bi bi-shield-lock me-2" aria-hidden="true"></i>Change password</h2>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="change_password">
+
+        <label class="form-label-lpu" for="current-password">Current password</label>
+        <input id="current-password" class="form-control form-control-lpu mb-3" type="password" name="current_password" autocomplete="current-password" required>
+
+        <label class="form-label-lpu" for="new-password">New password</label>
+        <input id="new-password" class="form-control form-control-lpu mb-3" type="password" name="new_password" minlength="6" autocomplete="new-password" required>
+
+        <label class="form-label-lpu" for="confirm-password">Confirm new password</label>
+        <input id="confirm-password" class="form-control form-control-lpu mb-3" type="password" name="confirm_password" minlength="6" autocomplete="new-password" required>
+
+        <button class="btn btn-lpu mt-2" type="submit"><i class="bi bi-key me-1" aria-hidden="true"></i>Update password</button>
+      </form>
+    </section>
+  </div>
+
+  {% if user.role == 'student' and profile.id_card_path %}
+    <section class="profile-section">
+      <h2><i class="bi bi-card-image me-2" aria-hidden="true"></i>Verified LPU ID card</h2>
+      <a href="{% get_media_prefix %}{{ profile.id_card_path }}" target="_blank" rel="noopener noreferrer">View uploaded ID card</a>
+    </section>
+  {% endif %}
+
+  <section class="profile-danger" aria-labelledby="delete-heading">
+    <h2 id="delete-heading">Delete account</h2>
+    <p>Deleting your account removes your sign-in and profile details. This action cannot be undone.</p>
+    <form method="post" class="row g-3 align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="delete_account">
+      <div class="col-md-5">
+        <label class="form-label-lpu" for="delete-password">Confirm your password</label>
+        <input id="delete-password" class="form-control form-control-lpu" type="password" name="delete_password" autocomplete="current-password" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label-lpu" for="delete-confirmation">Type DELETE to confirm</label>
+        <input id="delete-confirmation" class="form-control form-control-lpu" type="text" name="confirmation" autocomplete="off" required>
+      </div>
+      <div class="col-md-3">
+        <button class="btn btn-danger w-100" type="submit"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete account</button>
+      </div>
+    </form>
+  </section>
+</main>
+{% endblock %}

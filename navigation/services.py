@@ -171,8 +171,6 @@ def find_location(name_or_id):
     if not name_clean:
         return None
 
-    # Strip location emoji prefix if present
-    name_clean = name_clean.replace("📍", "").strip()
     # Remove "Your location" (used for live GPS)
     if name_clean.lower() in ("your location", "my location", "current location"):
         return None  # caller should use coords-based route

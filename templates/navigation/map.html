@@ -145,7 +145,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h3 class="mb-0">🗺️ Smart Campus Navigation</h3>
+  <h3 class="mb-0"><i class="bi bi-map me-1" aria-hidden="true"></i>Smart Campus Navigation</h3>
   <span class="badge bg-dark">Peak-Time Aware</span>
 </div>
 
@@ -163,7 +163,7 @@
         <h6>FIND YOUR WAY</h6>
 
         <button id="btn-locate" class="btn btn-sm btn-outline-primary w-100 mb-3">
-          📍 Use My Current Location
+          <i class="bi bi-crosshair me-1" aria-hidden="true"></i>Use My Current Location
         </button>
 
         <div class="mb-3">
@@ -239,7 +239,7 @@
   <div class="col-lg-8" style="position: relative;">
     <div id="map"></div>
     <div id="tracking-hud" class="tracking-hud">
-      🎯 Navigating — <span id="hud-eta">—</span> &nbsp;
+      <i class="bi bi-compass me-1" aria-hidden="true"></i>Navigating — <span id="hud-eta">—</span> &nbsp;
       <span class="compass-arrow" id="compass-arrow">↑</span>
     </div>
   </div>
@@ -327,9 +327,9 @@ const darkLayer = L.tileLayer(
 satelliteLayer.addTo(map);
 
 L.control.layers({
-  "🛰️ Satellite": satelliteLayer,
-  "🗺️ Street": streetLayer,
-  "🌙 Dark": darkLayer,
+  "Satellite": satelliteLayer,
+  "Street": streetLayer,
+  "Dark": darkLayer,
 }, null, { position: 'topright' }).addTo(map);
 
 const markerLayer = L.layerGroup().addTo(map);
@@ -393,7 +393,7 @@ document.getElementById('btn-locate').addEventListener('click', () => {
     userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
     updateUserMarker();
     map.setView([userPos.lat, userPos.lng], 18);
-    document.getElementById('from-loc').value = '📍 Your location';
+    document.getElementById('from-loc').value = 'Your location';
   }, err => alert('Could not get location: ' + err.message), {
     enableHighAccuracy: true, timeout: 8000
   });
@@ -431,7 +431,7 @@ document.getElementById('find-route').addEventListener('click', () => {
 
   let endpoint = "{% url 'navigation:api_route' %}";
 
-  if (fromText.startsWith('📍') && userPos) {
+  if (fromText === 'Your location' && userPos) {
     endpoint = "{% url 'navigation:api_route_from_coords' %}";
     body.append('from_lon', userPos.lng);
     body.append('from_lat', userPos.lat);
@@ -480,7 +480,7 @@ function renderRoute(data) {
   map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
 
   const [dlon, dlat] = data.to.coordinates;
-  destMarker = L.marker([dlat, dlon]).addTo(map).bindPopup('🎯 ' + data.to.name).openPopup();
+  destMarker = L.marker([dlat, dlon]).addTo(map).bindPopup(data.to.name).openPopup();
 
   document.getElementById('r-distance').textContent = (data.distance_m / 1000).toFixed(2) + ' km';
   document.getElementById('r-time').textContent = Math.round(data.total_duration_s / 60) + ' min';
@@ -562,14 +562,14 @@ function renderSteps(data) {
 }
 
 function iconForManeuver(type, modifier) {
-  if (type === 'arrive') return '🏁';
-  if (type === 'depart') return '🚶';
-  if (modifier.includes('left')) return '⬅️';
-  if (modifier.includes('right')) return '➡️';
-  if (modifier.includes('uturn')) return '↩️';
-  if (type === 'roundabout' || type === 'rotary') return '🔄';
-  if (type === 'merge') return '🔀';
-  return '⬆️';
+  if (type === 'arrive') return '<i class="bi bi-flag-fill" aria-hidden="true"></i>';
+  if (type === 'depart') return '<i class="bi bi-person-walking" aria-hidden="true"></i>';
+  if (modifier.includes('left')) return '<i class="bi bi-arrow-left" aria-hidden="true"></i>';
+  if (modifier.includes('right')) return '<i class="bi bi-arrow-right" aria-hidden="true"></i>';
+  if (modifier.includes('uturn')) return '<i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>';
+  if (type === 'roundabout' || type === 'rotary') return '<i class="bi bi-arrow-repeat" aria-hidden="true"></i>';
+  if (type === 'merge') return '<i class="bi bi-sign-merge-right" aria-hidden="true"></i>';
+  return '<i class="bi bi-arrow-up" aria-hidden="true"></i>';
 }
 
 function instructionForManeuver(type, modifier, name, distance) {
@@ -777,7 +777,7 @@ document.getElementById('obs-submit').addEventListener('click', () => {
   const useMyLoc = document.getElementById('obs-use-my-loc').checked;
 
   if (!userPos && useMyLoc) {
-    alert('📍 Waiting for GPS… please try again in a moment, or uncheck "Use my current location".');
+    alert('Waiting for GPS. Please try again in a moment, or uncheck "Use my current location".');
     return;
   }
 

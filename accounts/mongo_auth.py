@@ -1,4 +1,5 @@
 # accounts/mongo_auth.py
+import re
 from django.contrib.auth.hashers import make_password, check_password
 from core.mongo import users, student_profiles
 from core.utils import now, to_object_id
@@ -11,14 +12,16 @@ FIXED_ADMIN_EMAIL = "syedsunnygalibbasha786@gmail.com"
 
 
 def create_student(email, password, full_name, registration_number,
-                   department='', year='', id_card_path=''):
+                   department='', year='', id_card_path='',
+                   recovery_question='', recovery_answer=''):
     """Self-registration path. Role is forced to 'student'."""
     email = email.strip().lower()
 
     if users().find_one({'email': email}):
         return None, "Email already registered."
 
-    if users().find_one({'registration_number': registration_number}):
+    registration_number = registration_number.strip()
+    if student_profiles().find_one({'registration_number': registration_number}):
         return None, "This LPU registration number is already registered."
 
     if len(password) < 6:
@@ -33,6 +36,8 @@ def create_student(email, password, full_name, registration_number,
         'full_name': full_name.strip(),
         'role': 'student',
         'active': True,
+        'recovery_question': recovery_question,
+        'recovery_answer_hash': make_password(recovery_answer.strip().casefold()),
         'created_at': now(),
         'updated_at': now(),
     }
@@ -97,9 +102,30 @@ def create_admin_if_missing(password='admin123'):
     return user_doc
 
 
-def authenticate_user(email, password):
-    email = email.strip().lower()
-    user = users().find_one({'email': email})
+def find_user_by_identifier(identifier):
+    identifier = identifier.strip().lower()
+    if not identifier:
+        return None
+
+    profile = student_profiles().find_one({
+        'registration_number': {'$regex': f'^{re.escape(identifier)}$', '$options': 'i'}
+    })
+    if profile:
+        user = users().find_one({'_id': profile['user_id']})
+        if user:
+            return user
+
+    user = users().find_one({'email': identifier})
+    if user or '@' in identifier:
+        return user
+
+    return users().find_one({
+        'email': {'$regex': f'^{re.escape(identifier)}@', '$options': 'i'}
+    })
+
+
+def authenticate_user(identifier, password):
+    user = find_user_by_identifier(identifier)
     if not user:
         return None
     if not user.get('active', True):
@@ -107,6 +133,11 @@ def authenticate_user(email, password):
     if not check_password(password, user['password_hash']):
         return None
     return user
+
+
+def verify_recovery_answer(user, answer):
+    answer_hash = user.get('recovery_answer_hash')
+    return bool(answer_hash and check_password(answer.strip().casefold(), answer_hash))
 
 
 def get_user_by_id(user_id):
@@ -125,6 +156,60 @@ def set_user_password(user_id, new_password):
             'updated_at': now(),
         }}
     )
+
+
+def verify_current_password(user, password):
+    return bool(user and check_password(password, user.get('password_hash', '')))
+
+
+def update_account_details(user_id, full_name, email, department='', year='',
+                           designation='', phone=''):
+    oid = to_object_id(user_id)
+    if not oid:
+        return False, 'Account could not be found.'
+
+    email = email.strip().lower()
+    if users().find_one({'email': email, '_id': {'$ne': oid}}):
+        return False, 'That email address is already in use.'
+
+    user = users().find_one({'_id': oid})
+    if not user:
+        return False, 'Account could not be found.'
+
+    updates = {
+        'full_name': full_name.strip(),
+        'email': email,
+        'updated_at': now(),
+    }
+    if user.get('role') == 'staff':
+        updates.update({
+            'department': department.strip(),
+            'designation': designation.strip(),
+            'phone': phone.strip(),
+        })
+    users().update_one({'_id': oid}, {'$set': updates})
+
+    if user.get('role') == 'student':
+        student_profiles().update_one(
+            {'user_id': oid},
+            {'$set': {
+                'department': department.strip(),
+                'year': year.strip(),
+            }}
+        )
+    return True, None
+
+
+def delete_account(user_id, password):
+    oid = to_object_id(user_id)
+    user = users().find_one({'_id': oid}) if oid else None
+    if not verify_current_password(user, password):
+        return None
+
+    users().delete_one({'_id': oid})
+    if user.get('role') == 'student':
+        student_profiles().delete_one({'user_id': oid})
+    return user
 
 
 def get_student_profile(user_id):
