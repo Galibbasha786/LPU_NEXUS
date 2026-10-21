@@ -8,6 +8,7 @@ urlpatterns = [
     path('core/', include('core.urls')),
     path('navigation/', include('navigation.urls')),   # ← ADD THIS
     path('', include('accounts.urls')),
+        path("crisis/", include("crisis.urls")),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Report Emergency • LPU Nexus{% endblock %}
+{% block content %}
+
+<div class="hero-header" style="background:linear-gradient(135deg,#7f1d1d,#4c0519);">
+  <span class="hero-badge" style="background:#fecaca; color:#7f1d1d;">EMERGENCY REPORT</span>
+  <h3>Report a Campus Emergency</h3>
+  <p>Staff will verify and respond. False reports are logged.</p>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <form method="post" enctype="multipart/form-data" class="card-lpu card-accent-coral">
+      {% csrf_token %}
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label-lpu">Category *</label>
+          <select name="category" class="form-control form-control-lpu" required>
+            {% for val, label in categories %}
+              <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label-lpu">Severity *</label>
+          <select name="severity" class="form-control form-control-lpu" required>
+            {% for val, label in severities %}
+              <option value="{{ val }}" {% if val == 'medium' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label-lpu">Description *</label>
+        <textarea name="description" class="form-control form-control-lpu" rows="4" required
+                  placeholder="What's happening? Be specific."></textarea>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label-lpu">Location (text)</label>
+        <input type="text" name="location_text" class="form-control form-control-lpu"
+               placeholder="e.g. Near Block 34 entrance">
+      </div>
+
+      <div class="mb-3">
+        <button type="button" id="get-loc" class="btn btn-outline-primary btn-sm">
+          📍 Attach My Current Location
+        </button>
+        <span id="loc-status" class="small text-muted ms-2">Not attached</span>
+        <input type="hidden" name="lon" id="loc-lon">
+        <input type="hidden" name="lat" id="loc-lat">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label-lpu">Photo / Video (optional)</label>
+        <input type="file" name="media" class="form-control form-control-lpu"
+               accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.webm,.mov">
+        <div class="form-text">Max 8 MB image / 40 MB video.</div>
+      </div>
+
+      <button type="submit" class="btn btn-lpu w-100" style="background:linear-gradient(135deg,#dc2626,#7f1d1d);">
+        🚨 Submit Emergency Report
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.getElementById('get-loc').addEventListener('click', () => {
+    if (!navigator.geolocation) return alert('Geolocation not supported.');
+    navigator.geolocation.getCurrentPosition(pos => {
+      document.getElementById('loc-lon').value = pos.coords.longitude;
+      document.getElementById('loc-lat').value = pos.coords.latitude;
+      document.getElementById('loc-status').textContent =
+        '📍 ' + pos.coords.latitude.toFixed(5) + ', ' + pos.coords.longitude.toFixed(5);
+      document.getElementById('loc-status').className = 'small text-success ms-2';
+    }, err => alert('Location error: ' + err.message), { enableHighAccuracy: true });
+  });
+</script>
+{% endblock %}

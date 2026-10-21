@@ -52,7 +52,13 @@
 </div>
 
 <h5 class="mb-3">Response Queue</h5>
-<div class="card card-nx p-4 text-center text-muted">
-  <p class="mb-0"><i class="bi bi-tools me-1" aria-hidden="true"></i>Problem assignment &amp; emergency response queue arrives with the <strong>Problems</strong> and <strong>Emergencies</strong> modules.</p>
+<div class="card-lpu card-accent-coral">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h6 class="mb-0">🚨 Incident Response</h6>
+    <a href="{% url 'crisis:staff_queue' %}" class="btn btn-lpu btn-sm">Open Queue</a>
+  </div>
+  <p class="small text-muted mb-0">
+    Verify reports, assign responders, publish verified announcements.
+  </p>
 </div>
 {% endblock %}

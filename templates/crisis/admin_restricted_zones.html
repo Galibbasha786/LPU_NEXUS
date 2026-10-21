@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}Restricted Zones • LPU Nexus{% endblock %}
+{% block content %}
+
+<div class="hero-header" style="background:linear-gradient(135deg,#78350f,#451a03);">
+  <span class="hero-badge" style="background:#fed7aa;color:#78350f;">ADMIN</span>
+  <h3>Restricted Zones</h3>
+  <p>Mark dangerous areas — navigation will avoid them.</p>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <form method="post" class="card-lpu">
+      {% csrf_token %}
+      <h6>Add Zone</h6>
+
+      <div class="mb-3">
+        <label class="form-label-lpu">Name *</label>
+        <input type="text" name="name" class="form-control form-control-lpu" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label-lpu">Reason</label>
+        <input type="text" name="reason" class="form-control form-control-lpu">
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label-lpu">Longitude *</label>
+          <input type="number" step="any" name="lon" class="form-control form-control-lpu" required>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label-lpu">Latitude *</label>
+          <input type="number" step="any" name="lat" class="form-control form-control-lpu" required>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label-lpu">Radius (m)</label>
+          <input type="number" name="radius_m" class="form-control form-control-lpu" value="100">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label-lpu">Expires in (hours)</label>
+          <input type="number" name="expires_in_hours" class="form-control form-control-lpu">
+        </div>
+      </div>
+
+      <button class="btn btn-lpu w-100">🚫 Add Restricted Zone</button>
+    </form>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card-lpu">
+      <h6>Active & Past Zones</h6>
+      {% if zones %}
+        <table class="table small align-middle">
+          <thead><tr><th>Name</th><th>Radius</th><th>Status</th><th>Created</th><th></th></tr></thead>
+          <tbody>
+            {% for z in zones %}
+              <tr>
+                <td>{{ z.name }}<br><span class="text-muted small">{{ z.reason|default:"—" }}</span></td>
+                <td>{{ z.radius_m }} m</td>
+                <td>
+                  {% if z.active %}<span class="badge bg-danger">Active</span>
+                  {% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}
+                </td>
+                <td class="text-muted">{{ z.created_at|slice:":16" }}</td>
+                <td>
+                  {% if z.active %}
+                    <form method="post" action="{% url 'crisis:admin_deactivate_zone' z.id %}" style="display:inline;">
+                      {% csrf_token %}
+                      <button class="btn btn-sm btn-outline-danger">Deactivate</button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-muted text-center py-4 mb-0">No zones yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

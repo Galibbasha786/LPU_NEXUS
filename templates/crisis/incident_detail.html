@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Incident • LPU Nexus{% endblock %}
+{% block content %}
+
+<div class="hero-header">
+  <span class="hero-badge">{{ incident.category|upper }}</span>
+  <h3>{{ incident.description|truncatechars:80 }}</h3>
+  <p>
+    Status: <strong>{{ incident.status }}</strong> &nbsp;•&nbsp;
+    Severity: <strong>{{ incident.severity }}</strong> &nbsp;•&nbsp;
+    {% if incident.verified %}✅ Verified{% else %}⏳ Unverified{% endif %}
+  </p>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card-lpu mb-3">
+      <h6>Details</h6>
+      <p>{{ incident.description }}</p>
+      <p class="small text-muted mb-0">
+        📍 {{ incident.location.text|default:"No location" }}<br>
+        🕒 {{ incident.created_at|slice:":19" }}
+      </p>
+      {% if incident.media_path %}
+        <hr>
+        {% if '.mp4' in incident.media_path or '.webm' in incident.media_path %}
+          <video controls style="width:100%;border-radius:10px;" src="/media/{{ incident.media_path }}"></video>
+        {% else %}
+          <img src="/media/{{ incident.media_path }}" style="width:100%;border-radius:10px;">
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <div class="card-lpu">
+      <h6>Timeline</h6>
+      <ul class="list-unstyled small mb-0">
+        {% for t in timeline %}
+          <li class="mb-2 pb-2 border-bottom">
+            <strong>{{ t.kind|title }}</strong>
+            <span class="text-muted">— {{ t.created_at|slice:":19" }}</span><br>
+            {{ t.message }}
+          </li>
+        {% empty %}
+          <li class="text-muted">No updates yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    {% if can_manage %}
+      <div class="card-lpu mb-3 card-accent-orange">
+        <h6>Staff Actions</h6>
+
+        {% if not incident.verified %}
+          <form method="post" action="{% url 'crisis:staff_verify' incident.id %}" class="mb-2">
+            {% csrf_token %}
+            <button class="btn btn-lpu w-100">✅ Verify Incident</button>
+          </form>
+        {% endif %}
+
+        <form method="post" action="{% url 'crisis:staff_update_status' incident.id %}" class="mb-2">
+          {% csrf_token %}
+          <label class="form-label-lpu">Update Status</label>
+          <select name="status" class="form-control form-control-lpu mb-2">
+            {% for val, label in statuses %}
+              <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+          <input type="text" name="note" class="form-control form-control-lpu mb-2" placeholder="Note (optional)">
+          <button class="btn btn-gold w-100">Update Status</button>
+        </form>
+
+        <form method="post" action="{% url 'crisis:staff_add_note' incident.id %}">
+          {% csrf_token %}
+          <label class="form-label-lpu">Add Note</label>
+          <textarea name="note" class="form-control form-control-lpu mb-2" rows="2"></textarea>
+          <button class="btn btn-outline-secondary w-100">Add Note</button>
+        </form>
+      </div>
+    {% endif %}
+
+    <div class="card-lpu">
+      <h6>Meta</h6>
+      <p class="small mb-1"><strong>Reported:</strong> {{ incident.created_at|slice:":19" }}</p>
+      {% if incident.verified_at %}
+        <p class="small mb-1"><strong>Verified:</strong> {{ incident.verified_at|slice:":19" }}</p>
+      {% endif %}
+      {% if incident.assigned_to %}
+        <p class="small mb-0"><strong>Assigned to:</strong> {{ incident.assigned_to }}</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

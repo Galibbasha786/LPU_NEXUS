@@ -15,7 +15,69 @@
     <p class="mb-0">Navigate, report, and help shape a better LPU.</p>
   </div>
 </div>
+<!-- LIVE ALERTS (from staff announcements) -->
+<div id="student-alerts"></div>
 
+<!-- CRISIS BANNER (if crisis mode is on) -->
+<div id="student-crisis-banner"></div>
+
+<script>
+(function loadAlerts() {
+  fetch("{% url 'crisis:api_active_alerts' %}")
+    .then(r => r.json())
+    .then(data => {
+      const box = document.getElementById('student-alerts');
+      const banner = document.getElementById('student-crisis-banner');
+      box.innerHTML = '';
+      banner.innerHTML = '';
+
+      // Crisis banner
+      if (data.crisis_mode) {
+        const div = document.createElement('div');
+        div.className = 'alert alert-danger';
+        div.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <strong>🚨 CAMPUS CRISIS MODE ACTIVE</strong>
+              <div class="small">${data.crisis_message || 'Follow official instructions.'}</div>
+            </div>
+            <span class="badge bg-dark text-uppercase">${data.crisis_level}</span>
+          </div>
+        `;
+        banner.appendChild(div);
+      }
+
+      // Announcements
+      if (data.announcements && data.announcements.length) {
+        data.announcements.forEach(a => {
+          const borderColor =
+            a.severity === 'critical' ? '#dc2626' :
+            a.severity === 'high'     ? '#ea580c' :
+            a.severity === 'medium'   ? '#f59e0b' :
+            a.severity === 'low'      ? '#84cc16' :
+                                        '#3b82f6';
+
+          const div = document.createElement('div');
+          div.className = 'card-lpu mb-2';
+          div.style.borderLeft = '5px solid ' + borderColor;
+          div.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+              <strong>📢 ${a.title}</strong>
+              <span class="badge bg-dark text-uppercase">${a.severity}</span>
+            </div>
+            <p class="small mb-1 mt-2">${a.body}</p>
+            <div class="small text-muted">
+              ${a.kind} • ${a.created_at.slice(0, 16).replace('T', ' ')}
+              ${a.expires_at ? ' • expires ' + a.expires_at.slice(0, 16).replace('T', ' ') : ''}
+            </div>
+          `;
+          box.appendChild(div);
+        });
+      }
+    })
+    .catch(err => console.warn('Alerts load failed:', err));
+})();
+</script>
 <!-- HERO HEADER -->
 <div class="hero-header">
   <span class="hero-badge">STUDENT</span>
@@ -99,6 +161,34 @@
 
   <div id="q-error" class="alert alert-danger py-1 small mt-2 d-none"></div>
 </div>
+<div id="student-alerts" class="mb-4"></div>
+
+<script>
+  fetch("{% url 'crisis:api_active_alerts' %}")
+    .then(r => r.json())
+    .then(data => {
+      const box = document.getElementById('student-alerts');
+      if (!data.announcements || !data.announcements.length) return;
+      data.announcements.forEach(a => {
+        const sevColors = {
+          info: '#dbeafe', low: '#dcfce7', medium: '#fef3c7',
+          high: '#fed7aa', critical: '#fecaca'
+        };
+        const div = document.createElement('div');
+        div.className = 'card-lpu mb-2';
+        div.style.borderLeft = '5px solid ' + (a.severity === 'critical' ? '#dc2626' : '#f59e0b');
+        div.innerHTML = `
+          <div class="d-flex justify-content-between">
+            <strong>${a.title}</strong>
+            <span class="badge bg-dark">${a.severity}</span>
+          </div>
+          <p class="small mb-0 mt-1">${a.body}</p>
+          <div class="small text-muted mt-1">${a.created_at.slice(0, 16)}</small>
+        `;
+        box.appendChild(div);
+      });
+    });
+</script>
 
 <!-- ACTION GRID -->
 <h5 class="mb-3 fw-bold">What do you want to do?</h5>
@@ -110,6 +200,15 @@
       <span class="badge bg-secondary">Next module</span>
     </div>
   </div>
+  <div class="col-md-4">
+  <a href="{% url 'crisis:student_report' %}" class="text-decoration-none">
+    <div class="card-lpu h-100" style="border-top:4px solid #dc2626;">
+      <h6 class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Report Emergency</h6>
+      <p class="small text-muted">Medical, Fire, Security, Accident — reported directly to staff.</p>
+      <span class="badge" style="background:#dc2626;">Report Now →</span>
+    </div>
+  </a>
+</div>
   <div class="col-md-4">
     <div class="card-lpu h-100">
       <h6><i class="bi bi-lightbulb me-1" aria-hidden="true"></i>Share an Idea</h6>

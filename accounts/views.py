@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.views.decorators.http import require_http_methods
-
+from crisis.services import crisis_stats
 from .mongo_auth import (
     create_student, create_staff, authenticate_user,
     list_staff, list_students, get_student_profile, find_user_by_identifier,
@@ -368,22 +368,26 @@ def admin_dashboard(request):
     staff_list = list_staff()
     student_count = users().count_documents({'role': 'student'})
 
+    from crisis.services import crisis_stats
+    crisis_st = crisis_stats()
+
     stats = {
         'total_problems': 0,
         'open_problems': 0,
         'total_ideas': 0,
-        'active_emergencies': 0,
+        'active_emergencies': crisis_st.get('total_open', 0),
         'total_users': users().count_documents({}),
         'total_students': student_count,
         'total_staff': len(staff_list),
+        'crisis_mode': crisis_st.get('crisis_mode', False),   # ← ADD
     }
     from core.utils import serialize_list
     return render(request, 'accounts/dashboard_admin.html', {
         'user': user,
         'stats': stats,
         'staff_list': serialize_list(staff_list),
+        'crisis_stats': crisis_st,
     })
-
 
 @login_required_mongo
 @role_required('admin')

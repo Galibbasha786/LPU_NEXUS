@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}My Reports • LPU Nexus{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">My Incident Reports</h3>
+  <a href="{% url 'crisis:student_report' %}" class="btn btn-lpu">+ New Report</a>
+</div>
+
+{% if incidents %}
+<div class="row g-3">
+  {% for inc in incidents %}
+    <div class="col-md-6">
+      <a href="{% url 'crisis:incident_detail' inc.id %}" class="text-decoration-none">
+        <div class="card-lpu h-100">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="badge" style="background:#fecaca;color:#7f1d1d;">{{ inc.category }}</span>
+            <span class="badge bg-{% if inc.status == 'resolved' %}success{% elif inc.status == 'reported' %}secondary{% else %}warning text-dark{% endif %}">
+              {{ inc.status }}
+            </span>
+          </div>
+          <p class="small text-dark mb-1">{{ inc.description|truncatechars:120 }}</p>
+          <div class="small text-muted">
+            {{ inc.location.text|default:"No location" }} &nbsp;•&nbsp; {{ inc.created_at|slice:":16" }}
+          </div>
+          {% if not inc.verified %}
+            <span class="badge bg-warning text-dark mt-2">⏳ Awaiting Verification</span>
+          {% else %}
+            <span class="badge bg-success mt-2">✅ Verified</span>
+          {% endif %}
+        </div>
+      </a>
+    </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card-lpu text-center py-5">
+  <div style="font-size:3rem;">📭</div>
+  <p class="text-muted mb-3">You haven't reported any incidents.</p>
+  <a href="{% url 'crisis:student_report' %}" class="btn btn-lpu">Report an Incident</a>
+</div>
+{% endif %}
+{% endblock %}

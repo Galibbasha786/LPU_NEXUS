@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}New Announcement • LPU Nexus{% endblock %}
+{% block content %}
+
+<div class="hero-header" style="background:linear-gradient(135deg,#065f46,#047857);">
+  <span class="hero-badge" style="background:#d1fae5;color:#065f46;">VERIFIED INFO</span>
+  <h3>Publish Announcement</h3>
+  <p>Only verified info reaches students.</p>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <form method="post" class="card-lpu">
+      {% csrf_token %}
+
+      <div class="mb-3">
+        <label class="form-label-lpu">Title *</label>
+        <input type="text" name="title" class="form-control form-control-lpu" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label-lpu">Message *</label>
+        <textarea name="body" class="form-control form-control-lpu" rows="5" required></textarea>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label-lpu">Kind</label>
+          <select name="kind" class="form-control form-control-lpu">
+            <option value="advisory">Advisory</option>
+            <option value="alert">Alert</option>
+            <option value="restriction">Restriction</option>
+            <option value="update">Update</option>
+            <option value="all_clear">All Clear</option>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label-lpu">Severity</label>
+          <select name="severity" class="form-control form-control-lpu">
+            <option value="info">Info</option>
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label-lpu">Expires in (hours)</label>
+          <input type="number" name="expires_in_hours" class="form-control form-control-lpu" placeholder="e.g. 6">
+        </div>
+      </div>
+
+      <button class="btn btn-lpu w-100">📢 Publish to All Students</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

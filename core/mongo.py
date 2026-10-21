@@ -37,6 +37,12 @@ def notifications():      return get_db()['notifications']
 def navigation_routes():  return get_db()['navigation_routes']
 def route_history():      return get_db()['route_history']
 def obstacles():          return get_db()['obstacles']
+def incidents():        return get_db()['incidents']
+def incident_updates(): return get_db()['incident_updates']
+def announcements():    return get_db()['announcements']
+def restricted_zones(): return get_db()['restricted_zones']
+def crisis_state():     return get_db()['crisis_state']
+def audit_log():        return get_db()['audit_log']
 
 def init_indexes():
     """Create MongoDB indexes. Safe to call repeatedly."""
@@ -88,6 +94,27 @@ def init_indexes():
         notifications().create_index(
             [("user_id", ASCENDING), ("read", ASCENDING)]
         )
+                # Crisis
+        incidents().create_index([("status", ASCENDING)])
+        incidents().create_index([("category", ASCENDING)])
+        incidents().create_index([("severity", ASCENDING)])
+        incidents().create_index([("created_at", DESCENDING)])
+        incidents().create_index([("reported_by", ASCENDING)])
+        incidents().create_index([("verified", ASCENDING)])
+        incidents().create_index([("location.coordinates", "2dsphere")])
+
+        incident_updates().create_index([("incident_id", ASCENDING), ("created_at", ASCENDING)])
+
+        announcements().create_index([("published", ASCENDING)])
+        announcements().create_index([("created_at", DESCENDING)])
+        announcements().create_index([("severity", ASCENDING)])
+
+        restricted_zones().create_index([("active", ASCENDING)])
+        restricted_zones().create_index([("coordinates", "2dsphere")])
+
+        audit_log().create_index([("actor_id", ASCENDING)])
+        audit_log().create_index([("at", DESCENDING)])
+        audit_log().create_index([("action", ASCENDING)])
 
         logger.info("✅ MongoDB indexes ensured")
     except Exception as e:
