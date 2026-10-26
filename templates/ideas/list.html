@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Campus Ideas • LPU Nexus{% endblock %}
+{% block content %}
+<div class="hero-header"><span class="hero-badge">STUDENT INNOVATION</span><h3>Ideas that move campus forward</h3><p>Every idea becomes a seven-day poll. Vote, discuss, and help the admin team prioritize.</p></div>
+<div class="row g-3">
+  <div class="col-lg-4">
+    <form method="post" class="card-lpu card-accent-gold">
+      {% csrf_token %}<h5>Share an idea</h5>
+      <label class="form-label-lpu" for="idea-title">Idea title</label><input id="idea-title" name="title" maxlength="140" class="form-control form-control-lpu mb-3" required value="{{ request.POST.title }}">
+      <label class="form-label-lpu" for="idea-category">Category</label><select id="idea-category" name="category" class="form-control form-control-lpu mb-3" required><option value="">Choose a category</option>{% for value,label in categories %}<option value="{{ value }}" {% if request.POST.category == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      <label class="form-label-lpu" for="idea-description">Describe your idea</label><textarea id="idea-description" name="description" maxlength="5000" rows="5" class="form-control form-control-lpu" required>{{ request.POST.description }}</textarea>
+      <p class="small text-muted mt-2 mb-3">Your name and email are available to admins so they can follow up.</p>
+      <button class="btn btn-lpu w-100">Publish seven-day poll</button>
+    </form>
+  </div>
+  <div class="col-lg-8">
+    <div class="d-flex justify-content-between align-items-center mb-3"><h4 class="mb-0">Campus polls</h4><span class="small text-muted">{{ ideas|length }} recent ideas</span></div>
+    <div class="row g-3">
+      {% for idea in ideas %}
+        <div class="col-12">
+          <article class="card-lpu">
+            <div class="d-flex justify-content-between gap-2"><div><span class="badge bg-light text-dark">{{ idea.category|title }}</span><h5 class="mt-2"><a class="text-decoration-none text-reset" href="{% url 'ideas:detail' idea.id %}">{{ idea.title }}</a></h5></div><span class="badge bg-{% if idea.status == 'poll_open' %}success{% elif idea.status == 'pending_review' %}warning text-dark{% else %}secondary{% endif %} align-self-start">{{ idea.status|title|cut:"_" }}</span></div>
+            <p>{{ idea.description|truncatechars:220 }}</p>
+            <div class="d-flex flex-wrap justify-content-between gap-2 small text-muted"><span>Proposed by {{ idea.author_name }}</span><span>{{ idea.vote_totals.support }} support · {{ idea.vote_totals.against }} against · {{ idea.comments|length }} comments</span><span>{% if idea.status == 'poll_open' %}Poll closes {{ idea.poll_ends_at|slice:":16" }}{% else %}Poll closed{% endif %}</span></div>
+            <a href="{% url 'ideas:detail' idea.id %}" class="btn btn-outline-primary btn-sm mt-3">Open poll and discussion</a>
+          </article>
+        </div>
+      {% empty %}<div class="col-12"><div class="card-lpu text-center py-5"><h5>Be the first to share an idea</h5><p class="text-muted mb-0">Your poll will be visible to students for one week.</p></div></div>{% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

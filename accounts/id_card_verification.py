@@ -1,3 +1,4 @@
+import re
 import unicodedata
 
 
@@ -14,6 +15,38 @@ def normalize_id_text(value):
     return ''.join(character for character in value if character.isalnum())
 
 
+def registration_number_matches(recognized_text, registration_number):
+    expected = normalize_id_text(registration_number)
+    if not expected:
+        return False
+
+    normalized_text = normalize_id_text(recognized_text)
+    if expected in normalized_text:
+        return True
+
+    if not expected.isdigit():
+        return False
+
+    digit_confusions = str.maketrans({
+        'o': '0', 'q': '9', 'i': '1', 'l': '1', '|': '1', '!': '1',
+        's': '5', 'b': '8', 'z': '2',
+    })
+    number_like = re.compile(r'^[0-9oqil|!sbz]+$')
+    for line in recognized_text.casefold().splitlines():
+        tokens = re.findall(r'[a-z0-9|!]+', line)
+        candidate_tokens = []
+        for token in tokens + ['']:
+            if number_like.fullmatch(token):
+                candidate_tokens.append(token)
+                continue
+            if candidate_tokens:
+                candidate = ''.join(candidate_tokens).translate(digit_confusions)
+                if candidate == expected:
+                    return True
+                candidate_tokens = []
+    return False
+
+
 def _prepare_image(image):
     from PIL import ImageOps
 
@@ -27,7 +60,8 @@ def _extract_image_text(image, pytesseract, registration_number):
 
     image = ImageOps.autocontrast(image.convert('L'))
     recognized_text = [
-        pytesseract.image_to_string(image, lang='eng', config='--oem 3 --psm 6', timeout=12)
+        pytesseract.image_to_string(image, lang='eng', config='--oem 3 --psm 6', timeout=12),
+        pytesseract.image_to_string(image, lang='eng', config='--oem 3 --psm 11', timeout=12),
     ]
     normalized_registration_number = normalize_id_text(registration_number)
     if not normalized_registration_number:
@@ -118,13 +152,12 @@ def _extract_card_text(uploaded_file, registration_number=''):
 
 
 def verify_student_id_card(uploaded_file, full_name, registration_number):
-    recognized_text = normalize_id_text(_extract_card_text(uploaded_file, registration_number))
+    extracted_text = _extract_card_text(uploaded_file, registration_number)
+    recognized_text = normalize_id_text(extracted_text)
     normalized_name = normalize_id_text(full_name)
-    normalized_registration_number = normalize_id_text(registration_number)
     return {
         'name_matches': bool(normalized_name and normalized_name in recognized_text),
-        'registration_number_matches': bool(
-            normalized_registration_number
-            and normalized_registration_number in recognized_text
+        'registration_number_matches': registration_number_matches(
+            extracted_text, registration_number,
         ),
     }

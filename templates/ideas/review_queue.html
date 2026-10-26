@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Idea Review • LPU Nexus{% endblock %}
+{% block content %}
+<div class="hero-header"><span class="hero-badge">ADMIN REVIEW</span><h3>Ideas ready for review</h3><p>Polls close automatically after seven days. Review vote results and comments before deciding.</p></div>
+<div class="row g-3">
+  {% for idea in ideas %}
+    <div class="col-12"><article class="card-lpu"><div class="d-flex justify-content-between flex-wrap gap-2"><div><h5><a class="text-decoration-none text-reset" href="{% url 'ideas:detail' idea.id %}">{{ idea.title }}</a></h5><p>{{ idea.description|truncatechars:200 }}</p></div><span class="badge bg-warning text-dark align-self-start">Pending review</span></div><div class="small text-muted mb-3">Started by {{ idea.author_name }} · <a href="mailto:{{ idea.author_email }}">{{ idea.author_email }}</a> · Registration {{ idea.author_registration_number|default:"not available" }} · {{ idea.vote_totals.support }} support / {{ idea.vote_totals.against }} against · {{ idea.comments|length }} comments</div><a class="btn btn-lpu btn-sm" href="{% url 'ideas:detail' idea.id %}">Review idea and comments</a></article></div>
+  {% empty %}<div class="col-12"><div class="card-lpu text-center py-5"><h5>Nothing to review</h5><p class="text-muted mb-0">Expired polls will appear here automatically.</p></div></div>{% endfor %}
+</div>
+{% endblock %}

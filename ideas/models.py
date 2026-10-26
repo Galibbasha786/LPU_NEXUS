@@ -1,3 +1,3 @@
 from django.db import models
 
-# Create your models here.
+# Ideas and poll votes are persisted in MongoDB; see services.py.

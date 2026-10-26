@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Sign In • LPU Nexus{% endblock %}
+{% block content_container_class %}container-fluid p-0{% endblock %}
 
 {% block content %}
 <div class="login-wrapper">
@@ -35,7 +36,7 @@
          <input type="text" name="identifier" class="form-control form-control-lpu"
            placeholder="LPU UID"
            value="{{ request.POST.identifier|default:'' }}"
-               required autofocus>
+               required>
       </div>
 
       <div class="mb-3 password-wrap">

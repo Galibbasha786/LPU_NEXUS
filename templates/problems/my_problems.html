@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}My Problem Reports • LPU Nexus{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+  <div><span class="hero-badge">MY CAMPUS REPORTS</span><h3 class="mt-2">Problem reports</h3></div>
+  <a class="btn btn-lpu" href="{% url 'problems:report' %}">Report a problem</a>
+</div>
+<div class="row g-3">
+  {% for problem in problem_list %}
+    <div class="col-lg-6">
+      <a class="text-decoration-none text-reset" href="{% url 'problems:detail' problem.id %}">
+        <article class="card-lpu h-100">
+          <div class="d-flex justify-content-between gap-2">
+            <h5>{{ problem.title }}</h5>
+            <span class="badge bg-secondary align-self-start">{{ problem.status|title }}</span>
+          </div>
+          <p class="small text-muted mb-2">{{ problem.category|title }}{% if problem.location %} · {{ problem.location }}{% endif %}</p>
+          <p class="mb-2">{{ problem.description|truncatechars:180 }}</p>
+          <span class="small text-muted">Updated {{ problem.updated_at|slice:":16" }}</span>
+        </article>
+      </a>
+    </div>
+  {% empty %}
+    <div class="col-12"><div class="card-lpu text-center py-5"><h5>No reports yet</h5><p class="text-muted">Tell staff about something on campus that needs attention.</p><a class="btn btn-lpu" href="{% url 'problems:report' %}">Create your first report</a></div></div>
+  {% endfor %}
+</div>
+{% endblock %}

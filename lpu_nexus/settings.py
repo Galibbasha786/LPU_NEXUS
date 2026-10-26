@@ -90,6 +90,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # --- MongoDB (via PyMongo — Django ORM not used for app data) ---
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
 MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'lpu_nexus')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
 
 # --- Email (dev) ---
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

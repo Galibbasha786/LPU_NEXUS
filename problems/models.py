@@ -1,3 +1,3 @@
 from django.db import models
 
-# Create your models here.
+# Problem reports are persisted in MongoDB; see services.py.

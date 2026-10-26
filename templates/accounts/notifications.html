@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Notifications • LPU Nexus{% endblock %}
+{% block content %}
+<div class="hero-header"><span class="hero-badge">CAMPUS UPDATES</span><h3>Notifications</h3><p>{{ unread_count }} unread notification{{ unread_count|pluralize }} for your account.</p></div>
+<div class="row g-3">
+  {% if can_send %}
+    <div class="col-lg-4">
+      <form method="post" class="card-lpu card-accent-gold notification-compose">
+        {% csrf_token %}<h5>Send a notification</h5>
+        {% if is_admin %}<label class="form-label-lpu" for="audience">Send to</label><select id="audience" name="audience" class="form-control form-control-lpu mb-3"><option value="students">Students</option><option value="staff">Staff</option><option value="both">Students and staff</option></select>{% else %}<input type="hidden" name="audience" value="students"><div class="alert alert-info small">Staff notifications can be sent to students only.</div>{% endif %}
+        <label class="form-label-lpu" for="notification-title">Title</label><input id="notification-title" name="title" maxlength="140" class="form-control form-control-lpu mb-3" required>
+        <label class="form-label-lpu" for="notification-body">Message</label><textarea id="notification-body" name="body" rows="5" maxlength="3000" class="form-control form-control-lpu mb-3" required></textarea>
+        <button class="btn btn-lpu w-100">Send notification</button>
+      </form>
+    </div>
+  {% endif %}
+  <div class="{% if can_send %}col-lg-8{% else %}col-12{% endif %}">
+    <div class="d-flex justify-content-between align-items-center gap-3 mb-3"><div><h4 class="mb-1">Inbox</h4><p class="small text-muted mb-0">Campus notices and updates, all in one place.</p></div><span class="badge bg-primary">{{ unread_count }} unread</span></div>
+    <div class="notification-list">
+    {% for item in notifications %}
+      <article class="card-lpu notification-card {% if not item.read %}is-unread{% endif %}">
+        <div class="d-flex justify-content-between gap-2"><div><span class="badge bg-light text-dark">{{ item.kind|title }}</span><h5 class="mt-2 mb-1">{{ item.title }}</h5></div>{% if not item.read %}<span class="badge bg-primary align-self-start">New</span>{% endif %}</div>
+        <p class="mb-2">{{ item.body|linebreaksbr }}</p><div class="d-flex justify-content-between align-items-center small text-muted"><span>From {{ item.sender_name|default:"LPU Nexus" }} · {{ item.created_at|slice:":16" }}</span>
+          {% if not item.read %}<form method="post" action="{% url 'accounts:notification_read' item.id %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary">Mark read</button></form>{% endif %}
+        </div>
+        {% if item.target_url %}<a class="small d-inline-block mt-2" href="{{ item.target_url }}">Open related item →</a>{% endif %}
+      </article>
+    {% empty %}<div class="card-lpu text-center py-5"><h5>Your inbox is clear</h5><p class="text-muted mb-0">Campus updates and report notifications will show here.</p></div>{% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

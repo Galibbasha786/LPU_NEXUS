@@ -16,7 +16,7 @@
   </div>
 </div>
 <!-- LIVE ALERTS (from staff announcements) -->
-<div id="student-alerts"></div>
+<div id="student-alerts" aria-live="polite"></div>
 
 <!-- CRISIS BANNER (if crisis mode is on) -->
 <div id="student-crisis-banner"></div>
@@ -24,55 +24,82 @@
 <script>
 (function loadAlerts() {
   fetch("{% url 'crisis:api_active_alerts' %}")
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) throw new Error('Unable to load campus alerts.');
+      return r.json();
+    })
     .then(data => {
       const box = document.getElementById('student-alerts');
       const banner = document.getElementById('student-crisis-banner');
-      box.innerHTML = '';
-      banner.innerHTML = '';
+      box.replaceChildren();
+      banner.replaceChildren();
 
       // Crisis banner
       if (data.crisis_mode) {
-        const div = document.createElement('div');
-        div.className = 'alert alert-danger';
-        div.innerHTML = `
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <strong>🚨 CAMPUS CRISIS MODE ACTIVE</strong>
-              <div class="small">${data.crisis_message || 'Follow official instructions.'}</div>
-            </div>
-            <span class="badge bg-dark text-uppercase">${data.crisis_level}</span>
-          </div>
-        `;
-        banner.appendChild(div);
+        const crisis = document.createElement('div');
+        crisis.className = 'crisis-banner mb-3';
+        const message = document.createElement('div');
+        const heading = document.createElement('strong');
+        heading.textContent = 'Campus crisis mode active';
+        const details = document.createElement('p');
+        details.className = 'small mb-0 mt-1';
+        details.textContent = data.crisis_message || 'Follow official instructions.';
+        message.append(heading, details);
+        const level = document.createElement('span');
+        level.className = 'badge bg-dark text-uppercase';
+        level.textContent = data.crisis_level || 'Active';
+        crisis.append(message, level);
+        banner.appendChild(crisis);
       }
 
       // Announcements
-      if (data.announcements && data.announcements.length) {
-        data.announcements.forEach(a => {
-          const borderColor =
-            a.severity === 'critical' ? '#dc2626' :
-            a.severity === 'high'     ? '#ea580c' :
-            a.severity === 'medium'   ? '#f59e0b' :
-            a.severity === 'low'      ? '#84cc16' :
-                                        '#3b82f6';
+      const activeAnnouncements = Array.isArray(data.announcements) ? data.announcements : [];
+      if (activeAnnouncements.length) {
+        const announcements = document.createElement('section');
+        announcements.className = 'campus-alerts mb-4';
+        const heading = document.createElement('h5');
+        heading.className = 'campus-alerts-heading';
+        heading.textContent = 'Campus alerts';
+        announcements.appendChild(heading);
 
-          const div = document.createElement('div');
-          div.className = 'card-lpu mb-2';
-          div.style.borderLeft = '5px solid ' + borderColor;
-          div.innerHTML = `
-            <div class="d-flex justify-content-between align-items-start">
-              <strong>📢 ${a.title}</strong>
-              <span class="badge bg-dark text-uppercase">${a.severity}</span>
-            </div>
-            <p class="small mb-1 mt-2">${a.body}</p>
-            <div class="small text-muted">
-              ${a.kind} • ${a.created_at.slice(0, 16).replace('T', ' ')}
-              ${a.expires_at ? ' • expires ' + a.expires_at.slice(0, 16).replace('T', ' ') : ''}
-            </div>
-          `;
-          box.appendChild(div);
+        const list = document.createElement('div');
+        list.className = 'campus-alert-list';
+        activeAnnouncements.slice(0, 3).forEach(alert => {
+          const severity = ['critical', 'high', 'medium', 'low', 'info'].includes(alert.severity)
+            ? alert.severity
+            : 'info';
+          const card = document.createElement('article');
+          card.className = `campus-alert-card severity-${severity}`;
+
+          const titleRow = document.createElement('div');
+          titleRow.className = 'd-flex justify-content-between align-items-start gap-3';
+          const title = document.createElement('strong');
+          title.textContent = alert.title || 'Campus update';
+          const badge = document.createElement('span');
+          badge.className = `badge severity-badge severity-badge-${severity}`;
+          badge.textContent = severity;
+          titleRow.append(title, badge);
+
+          const body = document.createElement('p');
+          body.className = 'small mb-1 mt-2';
+          body.textContent = alert.body || '';
+          const timestamp = document.createElement('time');
+          timestamp.className = 'small text-muted';
+          timestamp.textContent = alert.created_at
+            ? alert.created_at.slice(0, 16).replace('T', ' ')
+            : '';
+          card.append(titleRow, body, timestamp);
+          list.appendChild(card);
         });
+
+        announcements.appendChild(list);
+        if (activeAnnouncements.length > 3) {
+          const summary = document.createElement('p');
+          summary.className = 'small text-muted mt-2 mb-0';
+          summary.textContent = `Showing the 3 latest of ${activeAnnouncements.length} active alerts.`;
+          announcements.appendChild(summary);
+        }
+        box.appendChild(announcements);
       }
     })
     .catch(err => console.warn('Alerts load failed:', err));
@@ -161,78 +188,74 @@
 
   <div id="q-error" class="alert alert-danger py-1 small mt-2 d-none"></div>
 </div>
-<div id="student-alerts" class="mb-4"></div>
+<section class="card-lpu mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0">Your notifications</h5>
+    <a href="{% url 'accounts:notifications' %}" class="btn btn-sm btn-outline-primary">Inbox{% if unread_notifications %} · {{ unread_notifications }} new{% endif %}</a>
+  </div>
+  {% for item in latest_notifications|slice:":2" %}
+    <article class="notification-preview">
+      <div class="d-flex justify-content-between align-items-start gap-3">
+        <strong>{{ item.title }}</strong>
+        <time class="small text-muted text-nowrap">{{ item.created_at|slice:":16" }}</time>
+      </div>
+      <p class="small text-muted mb-0 mt-1">{{ item.body|truncatechars:110 }}</p>
+    </article>
+  {% empty %}<p class="small text-muted mb-0">Report updates and campus notices will appear here.</p>{% endfor %}
+</section>
 
-<script>
-  fetch("{% url 'crisis:api_active_alerts' %}")
-    .then(r => r.json())
-    .then(data => {
-      const box = document.getElementById('student-alerts');
-      if (!data.announcements || !data.announcements.length) return;
-      data.announcements.forEach(a => {
-        const sevColors = {
-          info: '#dbeafe', low: '#dcfce7', medium: '#fef3c7',
-          high: '#fed7aa', critical: '#fecaca'
-        };
-        const div = document.createElement('div');
-        div.className = 'card-lpu mb-2';
-        div.style.borderLeft = '5px solid ' + (a.severity === 'critical' ? '#dc2626' : '#f59e0b');
-        div.innerHTML = `
-          <div class="d-flex justify-content-between">
-            <strong>${a.title}</strong>
-            <span class="badge bg-dark">${a.severity}</span>
-          </div>
-          <p class="small mb-0 mt-1">${a.body}</p>
-          <div class="small text-muted mt-1">${a.created_at.slice(0, 16)}</small>
-        `;
-        box.appendChild(div);
-      });
-    });
-</script>
+<section class="card-lpu campus-ai-teaser mb-4">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <span class="ai-feature-icon"><i class="bi bi-stars" aria-hidden="true"></i></span>
+      <div><h5 class="mb-1">Campus AI assistant</h5><p class="small text-muted mb-0">Ask questions about campus map locations and LPU Nexus services.</p></div>
+    </div>
+    <a href="{% url 'campus_ai:assistant' %}" class="btn btn-lpu">Ask Campus AI</a>
+  </div>
+  <p class="small text-muted mt-3 mb-0"><i class="bi bi-shield-check me-1" aria-hidden="true"></i>AI requests require your consent. Obvious identifiers are redacted; never include private details. Emergency reporting remains separate and rules-based.</p>
+</section>
 
 <!-- ACTION GRID -->
 <h5 class="mb-3 fw-bold">What do you want to do?</h5>
 <div class="row g-3">
   <div class="col-md-4">
-    <div class="card-lpu h-100">
-      <h6><i class="bi bi-megaphone me-1" aria-hidden="true"></i>Report a Problem</h6>
-      <p class="small text-muted">Wi-Fi, water, electricity, cleanliness, hostel, transport…</p>
-      <span class="badge bg-secondary">Next module</span>
-    </div>
-  </div>
-  <div class="col-md-4">
-  <a href="{% url 'crisis:student_report' %}" class="text-decoration-none">
-    <div class="card-lpu h-100" style="border-top:4px solid #dc2626;">
-      <h6 class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Report Emergency</h6>
-      <p class="small text-muted">Medical, Fire, Security, Accident — reported directly to staff.</p>
-      <span class="badge" style="background:#dc2626;">Report Now →</span>
-    </div>
-  </a>
-</div>
-  <div class="col-md-4">
-    <div class="card-lpu h-100">
-      <h6><i class="bi bi-lightbulb me-1" aria-hidden="true"></i>Share an Idea</h6>
-      <p class="small text-muted">Propose a solution to a real campus problem.</p>
-      <span class="badge bg-secondary">Next module</span>
-    </div>
-  </div>
-  <div class="col-md-4">
-    <a href="{% url 'navigation:map' %}" class="text-decoration-none">
-      <div class="card-lpu h-100 card-accent-gold">
-        <h6 class="text-dark"><i class="bi bi-map me-1" aria-hidden="true"></i>Smart Navigation</h6>
-        <p class="small text-muted mb-2">Peak-time aware routes, live GPS tracking, turn-by-turn.</p>
-        <span class="badge-lpu">Open Now →</span>
+    <a href="{% url 'problems:report' %}" class="text-decoration-none">
+      <div class="feature-card feature-report h-100">
+        <h6><i class="bi bi-tools me-1" aria-hidden="true"></i>Report a Problem</h6>
+        <p class="small mb-0">Send maintenance and campus issues to the shared staff queue and track progress.</p>
+        <span class="feature-chip">Create report →</span>
       </div>
     </a>
   </div>
   <div class="col-md-4">
-    <div class="card-lpu h-100 card-accent-coral">
-      <h6 class="text-danger"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Emergency</h6>
-      <p class="small text-muted">Medical, Fire, Security, Accident.</p>
-      <span class="badge bg-secondary">Next module</span>
-    </div>
+    <a href="{% url 'crisis:student_report' %}" class="text-decoration-none">
+      <div class="feature-card feature-emergency h-100">
+        <h6><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Report Emergency</h6>
+        <p class="small mb-0">Medical, fire, security, or accident reports go directly to responders.</p>
+        <span class="feature-chip danger">Report now →</span>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{% url 'ideas:list' %}" class="text-decoration-none">
+      <div class="feature-card feature-idea h-100">
+        <h6><i class="bi bi-lightbulb me-1" aria-hidden="true"></i>Share an Idea</h6>
+        <p class="small mb-0">Launch a campus poll and hear student votes and comments for one week.</p>
+        <span class="feature-chip">Explore ideas →</span>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{% url 'navigation:map' %}" class="text-decoration-none">
+      <div class="feature-card feature-navigation h-100">
+        <h6><i class="bi bi-map me-1" aria-hidden="true"></i>Smart Navigation</h6>
+        <p class="small mb-0">Peak-time aware routes, live GPS tracking, turn-by-turn.</p>
+        <span class="feature-chip">Open Now →</span>
+      </div>
+    </a>
   </div>
 </div>
+<div class="mt-3"><a href="{% url 'problems:my_problems' %}" class="btn btn-outline-secondary btn-sm">Track my problem reports ({{ stats.my_reports }})</a><a href="{% url 'ideas:list' %}" class="btn btn-outline-secondary btn-sm ms-2">Browse campus ideas ({{ stats.my_ideas }})</a></div>
 
 <datalist id="quick-loc-list"></datalist>
 {% endblock %}

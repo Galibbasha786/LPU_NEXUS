@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}{{ idea.title }} • LPU Nexus{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start gap-3 mb-3"><div><span class="hero-badge">{{ idea.category|upper }}</span><h3 class="mt-2">{{ idea.title }}</h3><p class="text-muted">Proposed by {{ idea.author_name }} · {{ idea.created_at|slice:":16" }}</p></div><a class="btn btn-outline-secondary" href="{% url 'ideas:list' %}">All ideas</a></div>
+<div class="row g-3">
+  <div class="col-lg-7">
+    <article class="card-lpu mb-3"><div class="d-flex justify-content-between"><h5>Idea</h5><span class="badge bg-{% if idea.status == 'poll_open' %}success{% elif idea.status == 'pending_review' %}warning text-dark{% else %}secondary{% endif %}">{{ idea.status|title|cut:"_" }}</span></div><p>{{ idea.description|linebreaksbr }}</p><div class="small text-muted">Poll opened {{ idea.created_at|slice:":16" }} · {% if idea.status == 'poll_open' %}Closes {{ idea.poll_ends_at|slice:":16" }}{% else %}Voting and comments are closed{% endif %}</div></article>
+    <section class="card-lpu">
+      <div class="d-flex justify-content-between align-items-center"><h5>Student discussion</h5><span class="badge bg-light text-dark">{{ idea.comments|length }} comments</span></div>
+      {% for comment in idea.comments %}<div class="border-top py-3"><div class="d-flex justify-content-between"><strong>{{ comment.author_name }}</strong><span class="small text-muted">{{ comment.created_at|slice:":16" }}</span></div><p class="mb-0 mt-1">{{ comment.body|linebreaksbr }}</p></div>{% empty %}<p class="text-muted border-top pt-3">No comments yet. Start the discussion.</p>{% endfor %}
+      {% if is_student and idea.status == 'poll_open' %}<form method="post" action="{% url 'ideas:comment' idea.id %}" class="border-top pt-3">{% csrf_token %}<label class="form-label-lpu" for="idea-comment">Add your comment</label><textarea id="idea-comment" name="body" rows="3" maxlength="2000" class="form-control form-control-lpu" required></textarea><button class="btn btn-outline-primary mt-2">Post comment</button></form>{% endif %}
+    </section>
+  </div>
+  <div class="col-lg-5">
+    <section class="card-lpu card-accent-gold mb-3">
+      <h5>Campus poll</h5><div class="display-6 fw-bold">{{ vote_totals.total }}</div><p class="text-muted">student vote{{ vote_totals.total|pluralize }}</p>
+      <div class="progress mb-2" role="progressbar" aria-label="Support votes" aria-valuenow="{{ support_percent }}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar bg-success" style="width:{{ support_percent }}%"></div></div>
+      <div class="d-flex justify-content-between small"><span>👍 {{ vote_totals.support }} support</span><span>👎 {{ vote_totals.against }} against</span></div>
+      {% if is_student and idea.status == 'poll_open' and not is_author %}<form method="post" action="{% url 'ideas:vote' idea.id %}" class="d-flex gap-2 mt-3">{% csrf_token %}<button name="vote" value="support" class="btn btn-success flex-fill">{% if user_vote == True %}Update: support{% else %}Support{% endif %}</button><button name="vote" value="against" class="btn btn-outline-secondary flex-fill">{% if user_vote == False %}Update: against{% else %}Against{% endif %}</button></form>{% elif is_author and idea.status == 'poll_open' %}<p class="small text-muted mt-3 mb-0">You started this poll, so you cannot vote on your own idea.</p>{% elif idea.status == 'poll_open' %}<p class="small text-muted mt-3 mb-0">Voting closes {{ idea.poll_ends_at|slice:":16" }}.</p>{% endif %}
+    </section>
+    {% if can_review %}
+      <section class="card-lpu card-accent-orange">
+        <h5>Admin review</h5><p class="small text-muted">Review the proposer, poll outcome, and all comments before deciding.</p>
+        <div class="small mb-3"><strong>Proposer:</strong> {{ idea.author_name }}<br><strong>Email:</strong> <a href="mailto:{{ idea.author_email }}">{{ idea.author_email }}</a><br><strong>Registration:</strong> {{ author_registration_number|default:"Not available" }}</div>
+        {% if idea.status == 'pending_review' %}
+          <form method="post" action="{% url 'ideas:review' idea.id %}">{% csrf_token %}<label class="form-label-lpu">Decision</label><select name="decision" class="form-control form-control-lpu mb-2" required><option value="">Choose</option><option value="accepted">Accept</option><option value="declined">Decline</option></select><label class="form-label-lpu">Message to campus</label><textarea name="decision_note" rows="4" maxlength="3000" class="form-control form-control-lpu mb-3" required></textarea><button class="btn btn-lpu w-100">Save decision & notify students</button></form>
+        {% elif idea.decision_note %}<div class="alert alert-light mb-0"><strong>Decision:</strong> {{ idea.status|title }}<p class="mb-0">{{ idea.decision_note }}</p></div>
+        {% else %}<a class="btn btn-outline-primary w-100" href="{% url 'ideas:review_queue' %}">Open review queue</a>{% endif %}
+      </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% block title %}Report a Problem • LPU Nexus{% endblock %}
+{% block content %}
+<div class="hero-header">
+  <span class="hero-badge">CAMPUS CARE</span>
+  <h3>Report a campus problem</h3>
+  <p>Your report goes into a shared staff queue. You can follow every status update.</p>
+</div>
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <form method="post" class="card-lpu">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label-lpu" for="problem-title">Short title</label>
+        <input id="problem-title" name="title" class="form-control form-control-lpu" maxlength="140" required value="{{ request.POST.title }}">
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label-lpu" for="problem-category">Category</label>
+          <select id="problem-category" name="category" class="form-control form-control-lpu" required>
+            <option value="">Choose a category</option>
+            {% for value, label in categories %}<option value="{{ value }}" {% if request.POST.category == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label-lpu" for="problem-priority">Priority</label>
+          <select id="problem-priority" name="priority" class="form-control form-control-lpu">
+            {% for value, label in priorities %}<option value="{{ value }}" {% if request.POST.priority == value or not request.POST.priority and value == 'normal' %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="mt-3">
+        <label class="form-label-lpu" for="problem-location">Campus location</label>
+        <input id="problem-location" name="location" class="form-control form-control-lpu" maxlength="200" placeholder="Building, block, floor, or nearby landmark" value="{{ request.POST.location }}">
+      </div>
+      <div class="mt-3">
+        <label class="form-label-lpu" for="problem-description">What happened?</label>
+        <textarea id="problem-description" name="description" class="form-control form-control-lpu" rows="6" maxlength="5000" required placeholder="Include details that will help staff investigate.">{{ request.POST.description }}</textarea>
+      </div>
+      <section class="ai-triage-panel mt-4">
+        <div class="d-flex align-items-start gap-2">
+          <span class="ai-feature-icon"><i class="bi bi-stars" aria-hidden="true"></i></span>
+          <div>
+            <h5 class="mb-1">AI report helper <span class="badge text-bg-primary">Gemini</span></h5>
+            <p class="small text-muted mb-3">Get a suggested category, priority, and staff team. Review these suggestions yourself; staff make the final decisions. This is not for emergencies.</p>
+          </div>
+        </div>
+        <label class="ai-consent">
+          <input id="ai-triage-consent" type="checkbox">
+          <span>I agree to send this title and description to Google Gemini for a suggestion. Obvious email addresses, phone numbers, and long IDs are removed first. Do not include names or other private information.</span>
+        </label>
+        <button id="ai-triage-button" type="button" class="btn btn-outline-primary mt-3">
+          <i class="bi bi-magic me-1" aria-hidden="true"></i>Suggest category and priority
+        </button>
+        <div id="ai-triage-status" class="small mt-2" role="status" aria-live="polite"></div>
+        <div id="ai-triage-result" class="ai-triage-result mt-3 d-none" aria-live="polite">
+          <div class="row g-2">
+            <div class="col-sm-6"><span class="small text-muted">Suggested category</span><div id="ai-suggested-category" class="fw-semibold"></div></div>
+            <div class="col-sm-6"><span class="small text-muted">Suggested priority</span><div id="ai-suggested-priority" class="fw-semibold"></div></div>
+            <div class="col-sm-6"><span class="small text-muted">Suggested team</span><div id="ai-suggested-team" class="fw-semibold"></div></div>
+            <div class="col-sm-6"><span class="small text-muted">Similar open reports in this category</span><div id="ai-similar-count" class="fw-semibold"></div></div>
+          </div>
+          <p id="ai-triage-summary" class="small mt-3 mb-1"></p>
+          <p id="ai-triage-reason" class="small text-muted mb-2"></p>
+          <div class="d-flex flex-wrap gap-2">
+            <button id="ai-apply-category" type="button" class="btn btn-sm btn-outline-secondary">Use suggested category</button>
+            <button id="ai-apply-priority" type="button" class="btn btn-sm btn-outline-secondary">Use suggested priority</button>
+          </div>
+        </div>
+      </section>
+      <div class="d-flex flex-wrap gap-2 mt-4">
+        <button class="btn btn-lpu">Submit to staff queue</button>
+        <a class="btn btn-outline-secondary" href="{% url 'accounts:student_dashboard' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+  const button = document.getElementById('ai-triage-button');
+  const consent = document.getElementById('ai-triage-consent');
+  const status = document.getElementById('ai-triage-status');
+  const result = document.getElementById('ai-triage-result');
+  let latestSuggestion = null;
+
+  button.addEventListener('click', async () => {
+    if (!consent.checked) {
+      status.textContent = 'Please opt in before sending report text to Gemini.';
+      status.className = 'small mt-2 text-danger';
+      return;
+    }
+    const title = document.getElementById('problem-title').value.trim();
+    const description = document.getElementById('problem-description').value.trim();
+    const category = document.getElementById('problem-category').value;
+    if (!title || !description || !category) {
+      status.textContent = 'Enter a title, description, and category first.';
+      status.className = 'small mt-2 text-danger';
+      return;
+    }
+
+    button.disabled = true;
+    result.classList.add('d-none');
+    status.textContent = 'Getting a suggestion…';
+    status.className = 'small mt-2 text-muted';
+    const formData = new URLSearchParams({
+      title,
+      description,
+      category,
+      consent: 'on',
+    });
+    try {
+      const response = await fetch("{% url 'campus_ai:triage' %}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: formData,
+        credentials: 'same-origin',
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not get a suggestion.');
+      latestSuggestion = data.suggestion;
+      document.getElementById('ai-suggested-category').textContent =
+        latestSuggestion.category.replaceAll('_', ' ');
+      document.getElementById('ai-suggested-priority').textContent =
+        latestSuggestion.priority;
+      document.getElementById('ai-suggested-team').textContent =
+        latestSuggestion.suggested_team;
+      document.getElementById('ai-similar-count').textContent =
+        latestSuggestion.similar_open_reports;
+      document.getElementById('ai-triage-summary').textContent =
+        latestSuggestion.summary;
+      document.getElementById('ai-triage-reason').textContent =
+        latestSuggestion.reason;
+      result.classList.remove('d-none');
+      status.textContent = 'Suggestions are ready. Review before using them.';
+      status.className = 'small mt-2 text-success';
+    } catch (error) {
+      status.textContent = error.message || 'AI suggestions are unavailable. Please try again.';
+      status.className = 'small mt-2 text-danger';
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.getElementById('ai-apply-category').addEventListener('click', () => {
+    if (latestSuggestion) {
+      document.getElementById('problem-category').value = latestSuggestion.category;
+    }
+  });
+  document.getElementById('ai-apply-priority').addEventListener('click', () => {
+    if (latestSuggestion) {
+      document.getElementById('problem-priority').value = latestSuggestion.priority;
+    }
+  });
+})();
+</script>
+{% endblock %}

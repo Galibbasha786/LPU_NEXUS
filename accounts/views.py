@@ -2,6 +2,7 @@
 import os
 import re
 import uuid
+from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.shortcuts import render, redirect
@@ -165,20 +166,48 @@ def forgot_password_view(request):
             request.session.pop('password_reset_verified', None)
             identifier = request.POST.get('identifier', '').strip()
             user = find_user_by_identifier(identifier)
-            if not user or not user.get('recovery_answer_hash') or not user.get('recovery_question'):
+            if not user:
                 messages.error(request, "No recovery question is available for that account.")
             elif not user.get('active', True):
                 messages.error(request, "This account is inactive. Please contact an administrator.")
+            elif user.get('role') == 'staff':
+                request.session['password_reset_user_id'] = str(user['_id'])
+                stage = 'staff_verify'
+            elif not user.get('recovery_answer_hash') or not user.get('recovery_question'):
+                messages.error(request, "No recovery question is available for that account.")
             else:
                 request.session['password_reset_user_id'] = str(user['_id'])
                 stage = 'answer'
 
+        elif stage == 'staff_verify':
+            user_id = request.session.get('password_reset_user_id')
+            user = get_user_by_id(user_id) if user_id else None
+            submitted_name = request.POST.get('full_name', '')
+            submitted_email = request.POST.get('email', '')
+            recorded_email = user.get('email', '') if user else ''
+            email_has_whitespace = any(character.isspace() for character in submitted_email)
+            if (
+                user and user.get('role') == 'staff' and user.get('active', True)
+                and submitted_name == user.get('full_name', '')
+                and not email_has_whitespace
+                and submitted_email.casefold() == recorded_email.casefold()
+            ):
+                request.session['password_reset_verified'] = True
+                stage = 'password'
+            else:
+                messages.error(
+                    request,
+                    "The staff name and email must exactly match the administrator's record.",
+                )
+                stage = 'staff_verify'
+
         elif stage == 'answer':
             user_id = request.session.get('password_reset_user_id')
             user = get_user_by_id(user_id) if user_id else None
-            if user and user.get('active', True) and verify_recovery_answer(
+            if (user and user.get('role') != 'staff' and user.get('active', True)
+                    and verify_recovery_answer(
                 user, request.POST.get('recovery_answer', '')
-            ):
+            )):
                 request.session['password_reset_verified'] = True
                 stage = 'password'
             else:
@@ -195,7 +224,7 @@ def forgot_password_view(request):
                 request.session.pop('password_reset_user_id', None)
                 request.session.pop('password_reset_verified', None)
                 stage = 'identify'
-                messages.error(request, "Verify your recovery answer before changing the password.")
+                messages.error(request, "Verify your account before changing the password.")
             elif len(password) < 6:
                 stage = 'password'
                 messages.error(request, "Password must be at least 6 characters.")
@@ -209,7 +238,7 @@ def forgot_password_view(request):
                 messages.success(request, "Your password has been changed. Please sign in.")
                 return redirect('accounts:login')
 
-    if stage in ('answer', 'password') and user is None:
+    if stage in ('answer', 'staff_verify', 'password') and user is None:
         user_id = request.session.get('password_reset_user_id')
         user = get_user_by_id(user_id) if user_id else None
     if not user and stage != 'identify':
@@ -218,6 +247,7 @@ def forgot_password_view(request):
         'stage': stage,
         'recovery_question': user.get('recovery_question', '') if user else '',
         'identifier': request.POST.get('identifier', ''),
+        'is_staff_reset': stage == 'staff_verify',
     })
 
 
@@ -326,17 +356,25 @@ def dashboard_view(request):
 def student_dashboard(request):
     user = get_current_user(request)
     profile = get_student_profile(request.session.get('lpu_user_id'))
-    from core.utils import serialize_doc
+    from core.mongo import incidents, ideas, problems
+    from core.utils import serialize_doc, serialize_list, to_object_id
     profile = serialize_doc(profile)
-
+    user_id = to_object_id(request.session.get('lpu_user_id'))
+    from .notification_services import inbox_for_user
+    latest_notifications, unread_notifications = inbox_for_user(user['id'], limit=5)
     stats = {
-        'my_reports': 0,
+        'my_reports': problems().count_documents({'reported_by': user_id}) if user_id else 0,
         'affected_confirmations': 0,
-        'my_ideas': 0,
-        'open_emergencies': 0,
+        'my_ideas': ideas().count_documents({'author_id': user_id}) if user_id else 0,
+        'open_emergencies': incidents().count_documents({
+            'reported_by': user_id,
+            'status': {'$nin': ['resolved', 'false_alarm']},
+        }) if user_id else 0,
     }
     return render(request, 'accounts/dashboard_student.html', {
         'user': user, 'profile': profile, 'stats': stats,
+        'latest_notifications': serialize_list(latest_notifications),
+        'unread_notifications': unread_notifications,
     })
 
 
@@ -347,14 +385,24 @@ def student_dashboard(request):
 @role_required('staff', 'admin')
 def staff_dashboard(request):
     user = get_current_user(request)
+    from core.mongo import problems
+    from core.utils import serialize_list, to_object_id
+    from .notification_services import inbox_for_user
+    latest_notifications, unread_notifications = inbox_for_user(user['id'], limit=5)
+    staff_id = to_object_id(user['id'])
     stats = {
-        'assigned_to_me': 0,
-        'in_progress': 0,
-        'resolved_today': 0,
-        'pending_ack': 0,
+        'assigned_to_me': problems().count_documents({'assigned_to': staff_id}) if staff_id else 0,
+        'in_progress': problems().count_documents({'status': 'in_progress'}) ,
+        'resolved_today': problems().count_documents({
+            'status': 'resolved',
+            'updated_at': {'$gte': datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)},
+        }),
+        'pending_ack': problems().count_documents({'status': 'submitted'}),
     }
     return render(request, 'accounts/dashboard_staff.html', {
         'user': user, 'stats': stats,
+        'latest_notifications': serialize_list(latest_notifications),
+        'unread_notifications': unread_notifications,
     })
 
 
@@ -368,25 +416,32 @@ def admin_dashboard(request):
     staff_list = list_staff()
     student_count = users().count_documents({'role': 'student'})
 
+    from core.mongo import ideas, problems
+    from core.utils import serialize_list
+    from .notification_services import inbox_for_user
+    latest_notifications, unread_notifications = inbox_for_user(user['id'], limit=5)
     from crisis.services import crisis_stats
     crisis_st = crisis_stats()
 
     stats = {
-        'total_problems': 0,
-        'open_problems': 0,
-        'total_ideas': 0,
+        'total_problems': problems().count_documents({}),
+        'open_problems': problems().count_documents({
+            'status': {'$in': ['submitted', 'acknowledged', 'in_progress', 'waiting']},
+        }),
+        'total_ideas': ideas().count_documents({}),
         'active_emergencies': crisis_st.get('total_open', 0),
         'total_users': users().count_documents({}),
         'total_students': student_count,
         'total_staff': len(staff_list),
         'crisis_mode': crisis_st.get('crisis_mode', False),   # ← ADD
     }
-    from core.utils import serialize_list
     return render(request, 'accounts/dashboard_admin.html', {
         'user': user,
         'stats': stats,
         'staff_list': serialize_list(staff_list),
         'crisis_stats': crisis_st,
+        'latest_notifications': serialize_list(latest_notifications),
+        'unread_notifications': unread_notifications,
     })
 
 @login_required_mongo

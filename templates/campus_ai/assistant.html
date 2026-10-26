@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% block title %}Campus AI Assistant • LPU Nexus{% endblock %}
+{% block content %}
+<div class="hero-header">
+  <span class="hero-badge">LPU NEXUS AI</span>
+  <h3>Campus Q&amp;A assistant</h3>
+  <p>Ask about LPU Nexus features and places in the campus map. Answers use available campus context and may not cover every university service.</p>
+</div>
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    {% if not ai_configured %}
+      <div class="alert alert-warning">The assistant is not configured yet. An administrator must set <code>GEMINI_API_KEY</code> on the server.</div>
+    {% endif %}
+    <section class="card-lpu campus-chat">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <span class="ai-feature-icon"><i class="bi bi-stars" aria-hidden="true"></i></span>
+        <div><h5 class="mb-0">Ask a campus question</h5><span class="small text-muted">Powered by Gemini · grounded in campus map data and LPU Nexus feature information</span></div>
+      </div>
+      <div id="campus-chat-messages" class="campus-chat-messages" aria-live="polite">
+        <div class="campus-chat-answer">Hi! Ask me where a listed campus location is, or how to use reports, ideas, or navigation. I’ll say when I don’t have verified information.</div>
+      </div>
+      <form id="campus-question-form" class="mt-3">
+        {% csrf_token %}
+        <label for="campus-question" class="form-label-lpu">Your question</label>
+        <textarea id="campus-question" name="question" class="form-control form-control-lpu" rows="3" maxlength="4000" required placeholder="For example: How do I report a campus problem?"></textarea>
+        <div class="d-flex justify-content-between mt-1">
+          <span id="question-character-count" class="small text-muted">0 / 4,000</span>
+          <span class="small text-muted">Voice input is optional</span>
+        </div>
+        <div class="voice-controls mt-3">
+          <button id="voice-input-button" class="btn btn-outline-primary" type="button">
+            <i class="bi bi-mic me-1" aria-hidden="true"></i><span>Speak your question</span>
+          </button>
+          <button id="voice-stop-button" class="btn btn-outline-secondary d-none" type="button">
+            <i class="bi bi-stop-circle me-1" aria-hidden="true"></i>Stop listening
+          </button>
+          <span id="voice-input-status" class="small text-muted" role="status" aria-live="polite"></span>
+        </div>
+        <p class="small text-muted mt-2 mb-0">Voice input uses your browser’s speech-recognition service and requires microphone permission. It transcribes into this box; nothing is submitted until you press Ask.</p>
+        <label class="ai-consent mt-3">
+          <input type="checkbox" name="consent" required>
+          <span>I agree to send this question to Google Gemini. Obvious email addresses, phone numbers, and long IDs are removed first. Please do not enter names or other private information.</span>
+        </label>
+        <button id="campus-question-submit" class="btn btn-lpu mt-3"><i class="bi bi-send me-1" aria-hidden="true"></i>Ask Campus AI</button>
+      </form>
+      <p class="small text-muted mt-3 mb-0">AI can be wrong. Use the campus map for actual routes. For emergencies, use Report Emergency or contact official emergency services; this assistant does not handle emergencies.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(() => {
+  const form = document.getElementById('campus-question-form');
+  const input = document.getElementById('campus-question');
+  const submit = document.getElementById('campus-question-submit');
+  const messages = document.getElementById('campus-chat-messages');
+  const voiceButton = document.getElementById('voice-input-button');
+  const stopVoiceButton = document.getElementById('voice-stop-button');
+  const voiceStatus = document.getElementById('voice-input-status');
+  const characterCount = document.getElementById('question-character-count');
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let isListening = false;
+
+  input.addEventListener('input', () => {
+    characterCount.textContent = `${input.value.length.toLocaleString()} / 4,000`;
+  });
+
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.addEventListener('start', () => {
+      isListening = true;
+      voiceButton.classList.add('d-none');
+      stopVoiceButton.classList.remove('d-none');
+      voiceStatus.textContent = 'Listening… speak clearly.';
+      voiceStatus.className = 'small text-primary';
+    });
+    recognition.addEventListener('result', (event) => {
+      let transcript = '';
+      for (let index = 0; index < event.results.length; index += 1) {
+        transcript += event.results[index][0].transcript;
+      }
+      input.value = transcript.trim().slice(0, 4000);
+      input.dispatchEvent(new Event('input'));
+    });
+    recognition.addEventListener('error', (event) => {
+      const message = event.error === 'not-allowed'
+        ? 'Microphone permission was denied. Allow microphone access in your browser to use voice input.'
+        : `Voice input could not start (${event.error}). You can type your question instead.`;
+      voiceStatus.textContent = message;
+      voiceStatus.className = 'small text-danger';
+    });
+    recognition.addEventListener('end', () => {
+      isListening = false;
+      voiceButton.classList.remove('d-none');
+      stopVoiceButton.classList.add('d-none');
+      if (!voiceStatus.classList.contains('text-danger')) {
+        voiceStatus.textContent = input.value
+          ? 'Transcript ready. Review it, then press Ask Campus AI.'
+          : '';
+        voiceStatus.className = 'small text-muted';
+      }
+    });
+  } else {
+    voiceButton.disabled = true;
+    voiceButton.title = 'Voice recognition is not supported by this browser.';
+    voiceStatus.textContent = 'Voice input is not supported in this browser. You can type your question.';
+  }
+
+  voiceButton.addEventListener('click', () => {
+    if (!recognition || isListening) return;
+    voiceStatus.textContent = 'Requesting microphone access…';
+    voiceStatus.className = 'small text-muted';
+    try {
+      recognition.start();
+    } catch (error) {
+      voiceStatus.textContent = 'Voice input could not start. Please try again or type your question.';
+      voiceStatus.className = 'small text-danger';
+    }
+  });
+
+  stopVoiceButton.addEventListener('click', () => {
+    if (recognition && isListening) recognition.stop();
+  });
+
+  function addMessage(text, className) {
+    const message = document.createElement('div');
+    message.className = className;
+    message.textContent = text;
+    messages.appendChild(message);
+    message.scrollIntoView({ block: 'nearest' });
+    return message;
+  }
+
+  function addAnswer(text) {
+    const answer = addMessage(text, 'campus-chat-answer');
+    if ('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window) {
+      const speakButton = document.createElement('button');
+      speakButton.type = 'button';
+      speakButton.className = 'btn btn-sm btn-outline-secondary campus-chat-speak';
+      speakButton.innerHTML = '<i class="bi bi-volume-up me-1" aria-hidden="true"></i>Read aloud';
+      speakButton.addEventListener('click', () => {
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+          speakButton.innerHTML = '<i class="bi bi-volume-up me-1" aria-hidden="true"></i>Read aloud';
+          return;
+        }
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-IN';
+        utterance.addEventListener('end', () => {
+          speakButton.innerHTML = '<i class="bi bi-volume-up me-1" aria-hidden="true"></i>Read aloud';
+        });
+        utterance.addEventListener('error', () => {
+          speakButton.textContent = 'Audio unavailable';
+        });
+        speakButton.innerHTML = '<i class="bi bi-stop-fill me-1" aria-hidden="true"></i>Stop reading';
+        window.speechSynthesis.speak(utterance);
+      });
+      answer.appendChild(speakButton);
+    }
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const question = input.value.trim();
+    if (!question) return;
+    const body = new URLSearchParams(new FormData(form));
+
+    addMessage(question, 'campus-chat-question');
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    submit.disabled = true;
+    const pending = addMessage('Checking verified campus information…', 'campus-chat-pending');
+    try {
+      const response = await fetch("{% url 'campus_ai:ask' %}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body,
+        credentials: 'same-origin',
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'The assistant is unavailable.');
+      pending.remove();
+      addAnswer(data.answer);
+    } catch (error) {
+      pending.textContent = error.message || 'The assistant is unavailable. Please try again later.';
+      pending.className = 'campus-chat-error';
+    } finally {
+      submit.disabled = false;
+      input.focus();
+    }
+  });
+})();
+</script>
+{% endblock %}

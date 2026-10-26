@@ -120,6 +120,39 @@
 
 <div class="row g-3 mb-4">
   <div class="col-md-4">
+    <a href="{% url 'problems:queue' %}" class="text-decoration-none"><div class="card-lpu card-accent-orange h-100"><h6>Campus problem queue</h6><p class="small text-muted mb-0">{{ stats.open_problems }} report(s) still open · {{ stats.total_problems }} total</p></div></a>
+  </div>
+  <div class="col-md-4">
+    <a href="{% url 'ideas:review_queue' %}" class="text-decoration-none"><div class="card-lpu card-accent-gold h-100"><h6>Review student ideas</h6><p class="small text-muted mb-0">{{ stats.total_ideas }} campus idea poll(s), including expired polls awaiting review.</p></div></a>
+  </div>
+  <div class="col-md-4">
+    <a href="{% url 'accounts:notifications' %}" class="text-decoration-none"><div class="card-lpu card-accent-coral h-100"><h6>Campus notifications</h6><p class="small text-muted mb-0">Notify students, staff, or both. {{ unread_notifications }} unread notification(s).</p></div></a>
+  </div>
+</div>
+<section class="card-lpu mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-2"><h5 class="mb-0">Campus notifications</h5><a href="{% url 'accounts:notifications' %}" class="btn btn-sm btn-outline-primary">Inbox · {{ unread_notifications }} unread</a></div>
+  <form method="post" action="{% url 'accounts:notifications' %}" class="row g-2 align-items-end">
+    {% csrf_token %}
+    <div class="col-md-3"><label class="form-label-lpu" for="admin-notice-audience">Audience</label><select id="admin-notice-audience" name="audience" class="form-control form-control-lpu"><option value="students">Students</option><option value="staff">Staff</option><option value="both">Students and staff</option></select></div>
+    <div class="col-md-3"><label class="form-label-lpu" for="admin-notice-title">Title</label><input id="admin-notice-title" name="title" maxlength="140" class="form-control form-control-lpu" required></div>
+    <div class="col-md-4"><label class="form-label-lpu" for="admin-notice-body">Message</label><textarea id="admin-notice-body" name="body" rows="2" maxlength="3000" class="form-control form-control-lpu" required></textarea></div>
+    <div class="col-md-2"><button class="btn btn-lpu w-100">Send notice</button></div>
+  </form>
+  <div class="notification-preview-list mt-3">
+    {% for item in latest_notifications|slice:":2" %}
+      <article class="notification-preview">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <strong>{{ item.title }}</strong>
+          <time class="small text-muted text-nowrap">{{ item.created_at|slice:":16" }}</time>
+        </div>
+        <p class="small text-muted mb-0 mt-1">{{ item.body|truncatechars:110 }}</p>
+      </article>
+    {% empty %}<p class="small text-muted mb-0">No recent notifications.</p>{% endfor %}
+  </div>
+</section>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
     <a href="{% url 'accounts:admin_create_staff' %}" class="text-decoration-none">
       <div class="card card-nx p-4 h-100">
         <h6><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Create Staff Account</h6>

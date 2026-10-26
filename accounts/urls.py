@@ -1,6 +1,7 @@
 # accounts/urls.py
 from django.urls import path
 from . import views
+from . import notification_views
 
 app_name = 'accounts'
 
@@ -12,6 +13,8 @@ urlpatterns = [
     path('dashboard/student/', views.student_dashboard, name='student_dashboard'),
     path('dashboard/staff/', views.staff_dashboard, name='staff_dashboard'),
     path('dashboard/admin/', views.admin_dashboard, name='admin_dashboard'),
+    path('notifications/', notification_views.notification_inbox, name='notifications'),
+    path('notifications/<str:notification_id>/read/', notification_views.mark_notification_read_view, name='notification_read'),
 
     # ---- admin management (renamed from admin/ → nexus-admin/) ----
     path('nexus-admin/staff/create/', views.admin_create_staff, name='admin_create_staff'),
