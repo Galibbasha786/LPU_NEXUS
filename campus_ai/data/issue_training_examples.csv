@@ -1,0 +1,73 @@
+text,category
+"A lecture room door closer has come loose and the door will not stay shut.",facilities
+"The desk in the study hall has a damaged leg and wobbles.",facilities
+"A classroom window latch is broken and needs maintenance.",facilities
+"The lift button panel in the academic block is not responding.",facilities
+"A broken chair in the seminar room needs repair.",facilities
+"The air conditioner in the lecture theatre is not cooling.",facilities
+"The corridor ceiling tile is loose and should be repaired.",facilities
+"A library bookshelf is damaged and needs a maintenance check.",facilities
+"Campus Wi-Fi disconnects every few minutes in the library.",wifi
+"I cannot connect to the student Wi-Fi network in the classroom.",wifi
+"The wireless internet is very slow in the academic block.",wifi
+"The campus network login page keeps rejecting my connection.",wifi
+"Wi-Fi coverage drops out in the study area.",wifi
+"The computer lab internet connection is unavailable.",wifi
+"My device loses the campus Wi-Fi signal in the lecture hall.",wifi
+"The network connection in the student centre keeps timing out.",wifi
+"The washroom floor and sinks have not been cleaned.",cleanliness
+"Waste bins near the canteen are full and need emptying.",cleanliness
+"There is litter left in the classroom after the last lecture.",cleanliness
+"The corridor needs sweeping and the dustbins need collection.",cleanliness
+"A common room is untidy and needs housekeeping.",cleanliness
+"The dining area tables are dirty after lunch.",cleanliness
+"The restroom soap dispensers and mirrors need cleaning.",cleanliness
+"Leaves and litter have collected around the hostel entrance.",cleanliness
+"The water heater in my hostel room is not working.",hostel
+"Hostel room furniture needs attention from the warden team.",hostel
+"A cupboard door in the dormitory is broken.",hostel
+"The hostel common-room television does not turn on.",hostel
+"My dormitory room key card is not opening the door.",hostel
+"The shared kitchen in the residence hall needs a maintenance visit.",hostel
+"There is a leaking roof patch in the hostel hallway.",hostel
+"The hostel laundry room machine is out of service.",hostel
+"The campus shuttle did not arrive at the scheduled pickup point.",transport
+"The bus timetable at the campus stop appears out of date.",transport
+"A campus shuttle route sign is missing near the residence area.",transport
+"The university bus is arriving late for the afternoon trip.",transport
+"The transport desk needs to review the campus shuttle pickup schedule.",transport
+"The bicycle parking rack by the bus stop is loose.",transport
+"The marked pedestrian crossing near the shuttle stop is faded.",transport
+"The campus shuttle information board is difficult to read.",transport
+"A tap in the washroom keeps dripping and wasting water.",water
+"There is no water coming from the drinking fountain.",water
+"A pipe is leaking under the sink in the academic block.",water
+"The water cooler dispenser is not filling bottles.",water
+"Water pressure is very low in the hostel wash area.",water
+"A drain is blocked near the canteen sink.",water
+"The drinking water station needs a filter service.",water
+"A toilet flush is running continuously in the campus restroom.",water
+"The lights in the lecture room flicker during class.",electrical
+"A power socket in the study room is not working.",electrical
+"The corridor light does not switch on after sunset.",electrical
+"The projector in the classroom has no power.",electrical
+"The fan in the seminar room is not turning on.",electrical
+"Several lights in the library reading area have stopped working.",electrical
+"The switch near the lab door is loose and needs repair.",electrical
+"The power supply to the computer lab keeps cutting out.",electrical
+"A handrail on the campus stairs is loose.",safety
+"The floor marking near a busy campus walkway is worn away.",safety
+"A walkway sign is missing near the construction barrier.",safety
+"The gate to a restricted maintenance area does not latch.",safety
+"The pavement has an uneven section that should be marked.",safety
+"A stair tread is damaged and needs a safety inspection.",safety
+"A caution sign is needed beside a slippery floor.",safety
+"The lighting is too dim on the path between campus buildings.",safety
+"I found a notebook in the student lounge and need to report lost property.",other
+"Please tell me where to submit a general campus service request.",other
+"The information board has an outdated event poster.",other
+"I need help finding the correct office for a non-urgent query.",other
+"A notice on the campus board is difficult to understand.",other
+"The public seating arrangement near the entrance could be improved.",other
+"I have feedback about a campus service that does not fit another category.",other
+"The shared study area needs an additional sign showing opening directions.",other

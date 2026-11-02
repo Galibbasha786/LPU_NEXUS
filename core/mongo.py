@@ -43,6 +43,7 @@ def announcements():    return get_db()['announcements']
 def restricted_zones(): return get_db()['restricted_zones']
 def crisis_state():     return get_db()['crisis_state']
 def audit_log():        return get_db()['audit_log']
+def placement_predictions(): return get_db()['placement_predictions']
 
 def init_indexes():
     """Create MongoDB indexes. Safe to call repeatedly."""

@@ -25,6 +25,8 @@ INSTALLED_APPS = [
     'ideas',
     'navigation',
     'emergencies',
+    'campus_ai',
+    'placement_predictor',
 ]
 
 MIDDLEWARE = [
@@ -51,6 +53,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.static',
+                'django.template.context_processors.media',
             ],
         },
     },
@@ -91,7 +94,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017')
 MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'lpu_nexus')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
-GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3.5-flash-lite')
+GEMINI_FALLBACK_MODEL = os.getenv('GEMINI_FALLBACK_MODEL', 'gemini-3.6-flash')
 
 # --- Email (dev) ---
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

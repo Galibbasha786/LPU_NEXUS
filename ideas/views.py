@@ -107,7 +107,7 @@ def add_comment(request, idea_id):
 def review_queue(request):
     idea_list = serialize_list([
         idea for idea in services.list_ideas()
-        if idea.get("status") == "pending_review"
+        if idea.get("status") in ("poll_open", "pending_review")
     ])
     for idea in idea_list:
         idea["vote_totals"] = services.vote_totals(idea["id"])

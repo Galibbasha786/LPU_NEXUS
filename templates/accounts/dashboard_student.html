@@ -254,8 +254,20 @@
       </div>
     </a>
   </div>
+  <div class="col-md-4">
+    <a href="{% url 'placement_predictor:predict' %}" class="text-decoration-none">
+      <div class="feature-card feature-navigation h-100">
+        <h6><i class="bi bi-graph-up-arrow me-1" aria-hidden="true"></i>Placement Predictor</h6>
+        <p class="small mb-0">Estimate placement status using your academic and career preparation profile.</p>
+        <span class="feature-chip">Check readiness →</span>
+      </div>
+    </a>
+  </div>
 </div>
-<div class="mt-3"><a href="{% url 'problems:my_problems' %}" class="btn btn-outline-secondary btn-sm">Track my problem reports ({{ stats.my_reports }})</a><a href="{% url 'ideas:list' %}" class="btn btn-outline-secondary btn-sm ms-2">Browse campus ideas ({{ stats.my_ideas }})</a></div>
+<div class="dashboard-followups">
+  <a href="{% url 'problems:my_problems' %}" class="btn btn-outline-secondary">Track my problem reports ({{ stats.my_reports }})</a>
+  <a href="{% url 'ideas:list' %}" class="btn btn-outline-secondary">Browse campus ideas ({{ stats.my_ideas }})</a>
+</div>
 
 <datalist id="quick-loc-list"></datalist>
 {% endblock %}

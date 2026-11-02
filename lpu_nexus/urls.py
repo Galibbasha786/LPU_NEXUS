@@ -10,6 +10,7 @@ urlpatterns = [
     path('problems/', include('problems.urls')),
     path('ideas/', include('ideas.urls')),
     path('campus-ai/', include('campus_ai.urls')),
+    path('placement-predictor/', include('placement_predictor.urls')),
     path('', include('accounts.urls')),
         path("crisis/", include("crisis.urls")),
 ]

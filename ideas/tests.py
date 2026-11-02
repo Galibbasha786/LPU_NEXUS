@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from bson import ObjectId
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
 from . import services
 
@@ -86,3 +86,70 @@ class IdeaPollServiceTests(SimpleTestCase):
         self.assertEqual(query["status"], "poll_open")
         self.assertEqual(query["poll_ends_at"], {"$lte": timestamp})
         self.assertEqual(operation["$set"]["status"], "pending_review")
+
+
+class IdeaReviewQueueViewTests(TestCase):
+    def setUp(self):
+        session = self.client.session
+        session["lpu_user_id"] = str(ObjectId())
+        session["lpu_user_role"] = "admin"
+        session.save()
+
+    @patch("ideas.views.student_profiles")
+    @patch("ideas.views.services.vote_totals")
+    @patch("ideas.views.services.list_ideas")
+    def test_admin_queue_shows_open_polls_and_ideas_ready_for_review(
+        self, list_ideas, vote_totals, student_profiles,
+    ):
+        open_idea_id = ObjectId()
+        review_idea_id = ObjectId()
+        already_reviewed_id = ObjectId()
+        list_ideas.return_value = [
+            {
+                "_id": open_idea_id,
+                "author_id": ObjectId(),
+                "author_name": "Student One",
+                "author_email": "student1@example.edu",
+                "title": "More study spaces",
+                "description": "Open unused rooms for quiet study.",
+                "status": "poll_open",
+                "poll_ends_at": datetime(2026, 11, 2),
+                "comments": [],
+            },
+            {
+                "_id": review_idea_id,
+                "author_id": ObjectId(),
+                "author_name": "Student Two",
+                "author_email": "student2@example.edu",
+                "title": "Extend library hours",
+                "description": "Keep the library open later.",
+                "status": "pending_review",
+                "comments": [],
+            },
+            {
+                "_id": already_reviewed_id,
+                "author_id": ObjectId(),
+                "author_name": "Student Three",
+                "author_email": "student3@example.edu",
+                "title": "Previously reviewed idea",
+                "description": "Already decided.",
+                "status": "accepted",
+                "comments": [],
+            },
+        ]
+        vote_totals.return_value = {"support": 2, "against": 0, "total": 2}
+        student_profiles.return_value.find_one.return_value = None
+
+        response = self.client.get("/ideas/admin/review/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [idea["status"] for idea in response.context["ideas"]],
+            ["poll_open", "pending_review"],
+        )
+        self.assertContains(response, "Student ideas and review queue")
+        self.assertContains(response, "Poll in progress")
+        self.assertContains(response, "Ready for review")
+        self.assertNotContains(response, "Previously reviewed idea")
+        student_profiles.return_value.find_one.assert_called()
+        self.assertEqual(vote_totals.call_count, 2)

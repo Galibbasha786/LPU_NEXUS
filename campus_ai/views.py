@@ -10,8 +10,10 @@ from .services import (
     GeminiServiceError,
     MAX_QUESTION_LENGTH,
     MAX_TRIAGE_LENGTH,
+    MAX_CATEGORY_PREDICTION_LENGTH,
     answer_campus_question,
     contains_emergency_signal,
+    suggest_problem_category,
     triage_problem as create_triage_suggestion,
 )
 from problems.constants import PROBLEM_CATEGORIES, PROBLEM_PRIORITIES
@@ -44,6 +46,35 @@ def ask_campus_question(request):
     except GeminiServiceError as error:
         return JsonResponse({"error": str(error)}, status=503)
     return JsonResponse({"answer": answer})
+
+
+@login_required_mongo
+@role_required("student")
+@require_POST
+def predict_problem_category(request):
+    title = (request.POST.get("title") or "").strip()
+    description = (request.POST.get("description") or "").strip()
+    if (
+        not title or not description
+        or len(title) > 140
+        or len(description) > MAX_CATEGORY_PREDICTION_LENGTH
+    ):
+        return JsonResponse({
+            "error": (
+                "Enter a title and description (up to "
+                f"{MAX_CATEGORY_PREDICTION_LENGTH:,} characters) before requesting a category."
+            ),
+        }, status=400)
+    if contains_emergency_signal(f"{title}\n{description}"):
+        return JsonResponse({
+            "error": (
+                "The issue predictor does not handle emergencies. Use Report Emergency "
+                "or contact official campus emergency services."
+            ),
+        }, status=400)
+    return JsonResponse({
+        "suggestion": suggest_problem_category(title, description),
+    })
 
 
 @login_required_mongo

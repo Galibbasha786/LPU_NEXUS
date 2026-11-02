@@ -1,73 +1,181 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Lovely Professional University | LPU Nexus{% endblock %}
+{% block body_class %}{% endblock %}
+{% block sidebar_toggle %}{% endblock %}
+{% block sidebar %}{% endblock %}
 {% block content_container_class %}container-fluid p-0{% endblock %}
 
 {% block content %}
-<main class="home-shell">
+<nav class="home-dots" aria-label="Page sections" data-i18n-aria="home.sections">
+  <a href="#top" class="is-active" aria-label="Hero" data-i18n-aria="home.heroNav"></a>
+  <a href="#about" aria-label="About" data-i18n-aria="home.aboutNav"></a>
+  <a href="#services" aria-label="Services" data-i18n-aria="home.servicesNav"></a>
+  <a href="#how" aria-label="How it works" data-i18n-aria="home.howNav"></a>
+  <a href="#campus" aria-label="Campus" data-i18n-aria="home.campusNav"></a>
+  <a href="#contact" aria-label="Contact" data-i18n-aria="home.contactNav"></a>
+</nav>
+
+<main class="home-shell" id="top">
   <section class="home-hero">
-    <img src="{% static 'images/img1.jpeg' %}" alt="Lovely Professional University campus">
+    <img class="slide" src="{% static 'images/img1.jpeg' %}" alt="LPU campus">
+    <img class="slide" src="{% static 'images/img2.jpeg' %}" alt="LPU campus">
+    <img class="slide" src="{% static 'images/img3.jpeg' %}" alt="LPU campus">
+    <img class="slide" src="{% static 'images/img4.jpeg' %}" alt="LPU campus">
     <div class="home-hero-content">
-      <div class="home-brand-lockup" aria-label="Lovely Professional University and LPU Nexus">
-        <img src="{% static 'images/lpulogo.png' %}" alt="Lovely Professional University" class="logo-remove-white">
-        <img src="{% static 'images/logo.png' %}" alt="LPU Nexus">
-      </div>
-      <p class="eyebrow">LOVELY PROFESSIONAL UNIVERSITY · PHAGWARA, PUNJAB</p>
-      <h1>Lovely Professional University</h1>
-      <p class="home-lede">A connected campus for learning, discovery, and community.</p>
+      <p class="eyebrow" data-i18n="home.eyebrow">LOVELY PROFESSIONAL UNIVERSITY · PHAGWARA, PUNJAB</p>
+      <h1 data-i18n="home.heroTitle">A campus that stays connected.</h1>
+      <p class="home-lede" data-i18n="home.lede">Navigate 600+ acres, report issues, share ideas, and reach support — in one LPU companion.</p>
       <div class="d-flex flex-wrap gap-3 mt-4">
-        <a class="btn btn-gold" href="#about">Discover LPU</a>
-        <a class="btn btn-outline-light" href="{% url 'accounts:login' %}">Open LPU Nexus</a>
+        <a class="btn btn-gold" href="#about" data-i18n="home.discover">Discover LPU</a>
+        <a class="btn btn-outline-light" href="{% url 'accounts:login' %}" data-i18n="home.open">Open LPU Nexus</a>
+        <a class="btn btn-lpu" href="{% url 'accounts:register' %}" data-i18n="home.join">Create student account</a>
       </div>
     </div>
-    <span class="home-hero-index">LPU · INDIA</span>
+    <span class="home-hero-index" data-i18n="home.heroIndex">LPU · INDIA</span>
   </section>
 
-  <section class="home-intro" id="about">
+  <section class="home-stats">
+    <article class="home-stat">
+      <strong>600+</strong>
+      <span data-i18n="home.stat1">Campus acres</span>
+    </article>
+    <article class="home-stat">
+      <strong>24/7</strong>
+      <span data-i18n="home.stat2">Live routes</span>
+    </article>
+    <article class="home-stat">
+      <strong>4</strong>
+      <span data-i18n="home.stat3">Campus services</span>
+    </article>
+    <article class="home-stat">
+      <strong>SOS</strong>
+      <span data-i18n="home.stat4">Always on call</span>
+    </article>
+  </section>
+
+  <section class="home-intro reveal" id="about">
     <div>
-      <p class="eyebrow">ABOUT THE UNIVERSITY</p>
-      <h2>Rooted in Punjab.<br>Open to possibility.</h2>
+      <p class="eyebrow" data-i18n="home.aboutEyebrow">ABOUT THE UNIVERSITY</p>
+      <h2 data-i18n="home.aboutTitle">Rooted in Punjab. Open to possibility.</h2>
     </div>
     <div class="home-intro-copy">
-      <p>Lovely Professional University is a private university located on the Jalandhar-Delhi G.T. Road in Phagwara, Punjab. Its campus brings together students, faculty, and staff from across India and around the world.</p>
-      <p>LPU Nexus is a campus companion for finding places, sharing ideas, reporting concerns, and reaching campus support.</p>
+      <p data-i18n="home.about1">Lovely Professional University sits on the Jalandhar–Delhi G.T. Road in Phagwara, Punjab. Students, faculty, and staff from across India and the world share one campus.</p>
+      <p data-i18n="home.about2">LPU Nexus is the digital companion for finding places, sharing ideas, reporting concerns, and reaching campus support.</p>
     </div>
   </section>
 
-  <section class="home-services" aria-labelledby="services-heading">
+  <section class="home-services" id="services" aria-labelledby="services-heading">
     <div class="home-section-heading">
-      <p class="eyebrow">LPU NEXUS</p>
-      <h2 id="services-heading">Campus, made easier to navigate.</h2>
+      <p class="eyebrow" data-i18n="home.servicesEyebrow">LPU NEXUS</p>
+      <h2 id="services-heading" data-i18n="home.servicesTitle">Campus, made easier to navigate.</h2>
     </div>
     <div class="home-service-grid">
       <article>
         <i class="bi bi-signpost-2" aria-hidden="true"></i>
-        <h3>Find your way</h3>
-        <p>Explore campus locations and plan a route to the places you need.</p>
+        <h3 data-i18n="home.feat1Title">Find your way</h3>
+        <p data-i18n="home.feat1">Explore campus locations and plan a peak-aware route to the places you need.</p>
       </article>
       <article>
         <i class="bi bi-chat-square-text" aria-hidden="true"></i>
-        <h3>Share an idea</h3>
-        <p>Bring suggestions and campus improvement ideas to the community.</p>
+        <h3 data-i18n="home.feat2Title">Share an idea</h3>
+        <p data-i18n="home.feat2">Bring campus improvements to a student poll and help the community vote.</p>
       </article>
       <article>
         <i class="bi bi-life-preserver" aria-hidden="true"></i>
-        <h3>Get support</h3>
-        <p>Report campus issues and find emergency support resources.</p>
+        <h3 data-i18n="home.feat3Title">Get support</h3>
+        <p data-i18n="home.feat3">Report maintenance issues and reach emergency response when it matters.</p>
+      </article>
+      <article>
+        <i class="bi bi-stars" aria-hidden="true"></i>
+        <h3 data-i18n="home.feat4Title">Ask Campus AI</h3>
+        <p data-i18n="home.feat4">Get grounded answers about Nexus features and listed campus locations.</p>
       </article>
     </div>
-    <a class="home-text-link" href="{% url 'accounts:register' %}">Join the LPU Nexus community <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+    <a class="home-text-link" href="{% url 'accounts:register' %}"><span data-i18n="home.joinLink">Join the LPU Nexus community</span> <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+  </section>
+
+  <section class="home-how" id="how">
+    <div class="home-section-heading">
+      <p class="eyebrow" data-i18n="home.howEyebrow">HOW IT WORKS</p>
+      <h2 data-i18n="home.howTitle">Three steps to a smoother campus day.</h2>
+    </div>
+    <div class="home-steps">
+      <article class="home-step">
+        <span>01</span>
+        <h3 data-i18n="home.step1Title">Sign in with your LPU identity</h3>
+        <p data-i18n="home.step1">Students register with UID and ID card. Staff accounts are created by admin.</p>
+      </article>
+      <article class="home-step">
+        <span>02</span>
+        <h3 data-i18n="home.step2Title">Use the tools you need</h3>
+        <p data-i18n="home.step2">Map a route, file a report, start an idea poll, or ask Campus AI.</p>
+      </article>
+      <article class="home-step">
+        <span>03</span>
+        <h3 data-i18n="home.step3Title">Stay in the loop</h3>
+        <p data-i18n="home.step3">Notifications, alerts, and status updates keep you informed.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="home-gallery-wrap" id="campus">
+    <div class="home-section-heading">
+      <p class="eyebrow" data-i18n="home.lifeEyebrow">CAMPUS LIFE</p>
+      <h2 data-i18n="home.lifeTitle">A living campus, captured in motion.</h2>
+    </div>
+    <div class="home-gallery">
+      <figure><img src="{% static 'images/img1.jpeg' %}" alt="LPU campus"><figcaption data-i18n="home.gallery1">Unipolis</figcaption></figure>
+      <figure><img src="{% static 'images/img2.jpeg' %}" alt="LPU campus"><figcaption data-i18n="home.gallery2">Academic blocks</figcaption></figure>
+      <figure><img src="{% static 'images/img3.jpeg' %}" alt="LPU campus"><figcaption data-i18n="home.gallery3">Campus avenues</figcaption></figure>
+      <figure><img src="{% static 'images/img4.jpeg' %}" alt="LPU campus"><figcaption data-i18n="home.gallery4">Landmark arch</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="home-why">
+    <div class="home-section-heading">
+      <p class="eyebrow" data-i18n="home.whyEyebrow">WHY NEXUS</p>
+      <h2 data-i18n="home.whyTitle">Built for how LPU actually moves.</h2>
+    </div>
+    <div class="home-why-grid">
+      <article class="home-why-card">
+        <i class="bi bi-lightning-charge" aria-hidden="true"></i>
+        <h3 data-i18n="home.why1Title">Faster help</h3>
+        <p data-i18n="home.why1">Reports land in a shared staff queue instead of scattered messages.</p>
+      </article>
+      <article class="home-why-card">
+        <i class="bi bi-shield-check" aria-hidden="true"></i>
+        <h3 data-i18n="home.why2Title">Safer routes</h3>
+        <p data-i18n="home.why2">Navigation can avoid congestion and restricted zones during incidents.</p>
+      </article>
+      <article class="home-why-card">
+        <i class="bi bi-people" aria-hidden="true"></i>
+        <h3 data-i18n="home.why3Title">Student voice</h3>
+        <p data-i18n="home.why3">Ideas become week-long polls so the campus can respond together.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="home-cta">
+    <div>
+      <h2 data-i18n="home.ctaTitle">Ready to join LPU Nexus?</h2>
+      <p data-i18n="home.ctaBody">Create a student account or sign in to open maps, reports, ideas, and Campus AI.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-gold" href="{% url 'accounts:register' %}" data-i18n="home.join">Create student account</a>
+      <a class="btn btn-outline-light" href="{% url 'accounts:login' %}" data-i18n="auth.signin">Sign in</a>
+    </div>
   </section>
 
   <section class="home-contact" id="contact">
     <div>
-      <p class="eyebrow">VISIT LPU</p>
-      <h2>Lovely Professional University</h2>
-      <p>Jalandhar-Delhi, G.T. Road<br>Phagwara, Punjab 144411, India</p>
+      <p class="eyebrow" data-i18n="home.contactEyebrow">VISIT LPU</p>
+      <h2 data-i18n="home.contactTitle">Lovely Professional University</h2>
+      <p data-i18n="home.contactAddr" data-i18n-html>Jalandhar-Delhi, G.T. Road<br>Phagwara, Punjab 144411, India</p>
     </div>
     <div class="home-contact-action">
-      <p>For university enquiries and current contact information, visit the official LPU website.</p>
-      <a class="btn btn-lpu" href="https://www.lpu.in/" target="_blank" rel="noopener noreferrer">Official LPU website <i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i></a>
+      <p data-i18n="home.contactHelp">For university enquiries and current contact information, visit the official LPU website.</p>
+      <a class="btn btn-lpu" href="https://www.lpu.in/" target="_blank" rel="noopener noreferrer"><span data-i18n="home.official">Official LPU website</span> <i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i></a>
     </div>
   </section>
 </main>

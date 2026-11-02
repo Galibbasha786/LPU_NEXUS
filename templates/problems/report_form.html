@@ -37,6 +37,24 @@
         <label class="form-label-lpu" for="problem-description">What happened?</label>
         <textarea id="problem-description" name="description" class="form-control form-control-lpu" rows="6" maxlength="5000" required placeholder="Include details that will help staff investigate.">{{ request.POST.description }}</textarea>
       </div>
+      <section class="ml-predictor-panel mt-4" aria-labelledby="ml-predictor-heading">
+        <div class="d-flex align-items-start gap-3">
+          <span class="ai-feature-icon"><i class="bi bi-cpu" aria-hidden="true"></i></span>
+          <div>
+            <h5 id="ml-predictor-heading" class="mb-1">Smart category predictor <span class="badge text-bg-success">Machine learning</span></h5>
+            <p class="small text-muted mb-3">A local text classifier trained on synthetic campus issue examples suggests a category. It does not call Gemini or send report text to another provider. Review the suggestion before applying it.</p>
+          </div>
+        </div>
+        <button id="ml-category-button" type="button" class="btn btn-outline-primary">
+          <i class="bi bi-cpu me-1" aria-hidden="true"></i>Predict category
+        </button>
+        <div id="ml-category-status" class="small mt-2" role="status" aria-live="polite"></div>
+        <div id="ml-category-result" class="ai-triage-result mt-3 d-none" aria-live="polite">
+          <p class="mb-2">Suggested category: <strong id="ml-suggested-category"></strong></p>
+          <p class="small text-muted mb-3">Model confidence: <span id="ml-category-confidence"></span>. This score is not a guarantee of accuracy.</p>
+          <button id="ml-apply-category" type="button" class="btn btn-sm btn-outline-secondary">Use suggested category</button>
+        </div>
+      </section>
       <section class="ai-triage-panel mt-4">
         <div class="d-flex align-items-start gap-2">
           <span class="ai-feature-icon"><i class="bi bi-stars" aria-hidden="true"></i></span>
@@ -80,6 +98,59 @@
 {% block extra_js %}
 <script>
 (() => {
+  const mlButton = document.getElementById('ml-category-button');
+  const mlStatus = document.getElementById('ml-category-status');
+  const mlResult = document.getElementById('ml-category-result');
+  let latestMlSuggestion = null;
+
+  mlButton.addEventListener('click', async () => {
+    const title = document.getElementById('problem-title').value.trim();
+    const description = document.getElementById('problem-description').value.trim();
+    if (!title || !description) {
+      mlStatus.textContent = 'Enter a title and description first.';
+      mlStatus.className = 'small mt-2 text-danger';
+      return;
+    }
+
+    mlButton.disabled = true;
+    mlResult.classList.add('d-none');
+    mlStatus.textContent = 'Classifying with the local issue model…';
+    mlStatus.className = 'small mt-2 text-muted';
+    try {
+      const response = await fetch("{% url 'campus_ai:predict_category' %}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: new URLSearchParams({ title, description }),
+        credentials: 'same-origin',
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not predict a category.');
+      latestMlSuggestion = data.suggestion;
+      document.getElementById('ml-suggested-category').textContent =
+        latestMlSuggestion.label;
+      document.getElementById('ml-category-confidence').textContent =
+        `${Math.round(latestMlSuggestion.confidence * 100)}%`;
+      mlResult.classList.remove('d-none');
+      mlStatus.textContent = 'Suggestion ready. Review it before applying.';
+      mlStatus.className = 'small mt-2 text-success';
+    } catch (error) {
+      mlStatus.textContent = error.message || 'The category predictor is unavailable.';
+      mlStatus.className = 'small mt-2 text-danger';
+    } finally {
+      mlButton.disabled = false;
+    }
+  });
+
+  document.getElementById('ml-apply-category').addEventListener('click', () => {
+    if (latestMlSuggestion) {
+      document.getElementById('problem-category').value =
+        latestMlSuggestion.category;
+    }
+  });
+
   const button = document.getElementById('ai-triage-button');
   const consent = document.getElementById('ai-triage-consent');
   const status = document.getElementById('ai-triage-status');

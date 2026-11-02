@@ -123,7 +123,7 @@
     <a href="{% url 'problems:queue' %}" class="text-decoration-none"><div class="card-lpu card-accent-orange h-100"><h6>Campus problem queue</h6><p class="small text-muted mb-0">{{ stats.open_problems }} report(s) still open · {{ stats.total_problems }} total</p></div></a>
   </div>
   <div class="col-md-4">
-    <a href="{% url 'ideas:review_queue' %}" class="text-decoration-none"><div class="card-lpu card-accent-gold h-100"><h6>Review student ideas</h6><p class="small text-muted mb-0">{{ stats.total_ideas }} campus idea poll(s), including expired polls awaiting review.</p></div></a>
+    <a href="{% url 'ideas:review_queue' %}" class="text-decoration-none"><div class="card-lpu card-accent-gold h-100"><h6>Student ideas and review</h6><p class="small text-muted mb-0">{{ stats.total_ideas }} campus idea(s), including live polls and closed polls ready for review.</p></div></a>
   </div>
   <div class="col-md-4">
     <a href="{% url 'accounts:notifications' %}" class="text-decoration-none"><div class="card-lpu card-accent-coral h-100"><h6>Campus notifications</h6><p class="small text-muted mb-0">Notify students, staff, or both. {{ unread_notifications }} unread notification(s).</p></div></a>

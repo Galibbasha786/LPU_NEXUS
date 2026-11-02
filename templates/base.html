@@ -5,38 +5,61 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}LPU Nexus{% endblock %}</title>
 {% load static %}
+<script>
+  try {
+    document.documentElement.dataset.theme = localStorage.getItem('lpu-nexus-theme') === 'dark' ? 'dark' : 'light';
+  } catch (error) {
+    console.warn('Unable to load the saved theme preference.', error);
+  }
+</script>
 <link rel="icon" href="{% static 'images/logo-icon.png' %}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'css/nexus-theme.css' %}?v=20261022-1242">
+<link rel="stylesheet" href="{% static 'css/nexus-theme.css' %}?v=20261101-globalarc1">
 {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% if request.session.lpu_user_id %}has-sidebar{% endif %}{% endblock %}">
 
-<!-- ============================================================
-     CRISIS MODE OVERLAY (hidden by default, shown by JS polling)
-     ============================================================ -->
+<div class="nexus-marquee" aria-label="Lovely Professional University Nexus">
+  <div class="nexus-marquee-track" aria-hidden="true">
+    {% for _ in "1234" %}
+      <span class="nexus-marquee-group">
+        <img src="{% static 'images/lpulogo.png' %}" alt="">
+        <img class="nexus-marquee-app-logo" src="{% static 'images/logo.png' %}" alt="">
+        <span>LPU <b>NEXUS</b></span>
+      </span>
+    {% endfor %}
+  </div>
+</div>
+
 <div id="crisis-overlay" style="display:none; position:fixed; inset:0; background:rgba(120,20,20,0.95); color:#fff; z-index:9999; padding:60px 20px; text-align:center;">
   <div style="max-width:720px; margin:0 auto;">
     <div style="font-size:4rem; margin-bottom:12px;">🚨</div>
-    <h2 style="color:var(--lpu-gold); font-weight:800; letter-spacing:1px;">CAMPUS CRISIS MODE</h2>
-    <p id="crisis-overlay-msg" style="font-size:1.15rem; margin:20px 0;">Follow official instructions. Stay calm. Await updates.</p>
+    <h2 style="color:var(--lpu-gold); font-weight:800; letter-spacing:1px;" data-i18n="crisis.title">CAMPUS CRISIS MODE</h2>
+    <p id="crisis-overlay-msg" style="font-size:1.15rem; margin:20px 0;" data-i18n="crisis.body">Follow official instructions. Stay calm. Await updates.</p>
     <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:16px; margin:20px 0;">
-      <strong>Emergency Numbers:</strong><br>
+      <strong data-i18n="crisis.numbers">Emergency Numbers:</strong><br>
       Campus Security: <a href="tel:100" style="color:var(--lpu-gold);">100</a> &nbsp;|&nbsp;
       Medical: <a href="tel:108" style="color:var(--lpu-gold);">108</a> &nbsp;|&nbsp;
       LPU Emergency Cell: <a href="tel:+911824444444" style="color:var(--lpu-gold);">+91-1824-444444</a>
     </div>
     <button onclick="document.getElementById('crisis-overlay').style.display='none';"
-            class="btn btn-gold">Acknowledge</button>
+            class="btn btn-gold" data-i18n="crisis.ack">Acknowledge</button>
   </div>
 </div>
 
-<!-- ============================================================
-     NAVBAR
-     ============================================================ -->
-<nav class="navbar navbar-expand-xxl navbar-lpu">
+<nav class="navbar navbar-expand-lg navbar-lpu">
   <div class="container">
+    {% block sidebar_toggle %}
+    {% if request.session.lpu_user_id %}
+      <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="nx-sidebar" aria-expanded="false" aria-label="Open menu" title="Open menu">
+        <i class="bi bi-list" aria-hidden="true"></i>
+      </button>
+    {% endif %}
+    {% endblock %}
     <a class="navbar-brand" href="{% url 'accounts:home' %}">
       <span class="brand-lockup" aria-label="LPU Nexus">
         <img src="{% static 'images/lpulogo.png' %}" alt="LPU" class="logo-remove-white">
@@ -49,26 +72,12 @@
     </button>
     <div class="collapse navbar-collapse" id="nxnav">
       <ul class="navbar-nav ms-auto align-items-lg-center">
-        <li class="nav-item"><a class="nav-link" href="{% url 'accounts:home' %}">Home</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'accounts:home' %}#about">About LPU</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'accounts:home' %}#contact">Contact</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'accounts:home' %}" data-i18n="nav.home">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'accounts:home' %}#about" data-i18n="nav.about">About LPU</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'accounts:home' %}#contact" data-i18n="nav.contact">Contact</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'placement_predictor:predict' %}"><i class="bi bi-graph-up-arrow me-1" aria-hidden="true"></i>Placement Predictor</a></li>
         {% if request.session.lpu_user_id %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'accounts:dashboard' %}">Dashboard</a>
-          </li>
-          {% if request.session.lpu_user_role == 'student' or request.session.lpu_user_role == 'staff' %}
-            <li class="nav-item"><a class="nav-link" href="{% url 'accounts:profile' %}"><i class="bi bi-person-gear me-1" aria-hidden="true"></i>Profile</a></li>
-          {% endif %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'navigation:map' %}"><i class="bi bi-map me-1" aria-hidden="true"></i>Navigation</a>
-          </li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'campus_ai:assistant' %}"><i class="bi bi-stars me-1" aria-hidden="true"></i>Campus AI</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'accounts:notifications' %}"><i class="bi bi-bell me-1" aria-hidden="true"></i>Notifications</a></li>
-          {% if request.session.lpu_user_role == 'admin' %}
-            <li class="nav-item"><a class="nav-link" href="{% url 'accounts:admin_dashboard' %}">Admin</a></li>
-          {% elif request.session.lpu_user_role == 'staff' %}
-            <li class="nav-item"><a class="nav-link" href="{% url 'accounts:staff_dashboard' %}">Queue</a></li>
-          {% endif %}
+          <li class="nav-item d-lg-none"><a class="nav-link" href="{% url 'accounts:dashboard' %}" data-i18n="nav.dashboard">Dashboard</a></li>
           <li class="nav-item ms-lg-2">
             <span class="user-badge">
               <i class="bi bi-person-circle" aria-hidden="true"></i> {{ request.session.lpu_user_name }}
@@ -76,22 +85,74 @@
             </span>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'accounts:logout' %}">Logout</a>
+            <a class="nav-link" href="{% url 'accounts:logout' %}" data-i18n="nav.logout">Logout</a>
           </li>
         {% else %}
-          <li class="nav-item"><a class="nav-link" href="{% url 'accounts:login' %}">Login</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'accounts:login' %}" data-i18n="nav.login">Login</a></li>
           <li class="nav-item">
-            <a class="btn btn-gold btn-sm ms-lg-2 px-3" href="{% url 'accounts:register' %}">Register</a>
+            <a class="btn btn-gold btn-sm ms-lg-2 px-3" href="{% url 'accounts:register' %}" data-i18n="nav.register">Register</a>
           </li>
         {% endif %}
+        <li class="nav-item">
+          <div class="lang-switch" role="group" aria-label="Language" data-i18n-aria="lang.label">
+            <button type="button" data-lang="en">EN</button>
+            <button type="button" data-lang="hi">हिंदी</button>
+            <button type="button" data-lang="te">తెలుగు</button>
+          </div>
+        </li>
+        <li class="nav-item">
+          <button class="music-toggle" id="music-toggle" type="button" aria-label="Play background music" title="Play background music" aria-pressed="false">
+            <i class="bi bi-music-note-beamed" aria-hidden="true"></i>
+          </button>
+          <audio id="site-background-music" preload="none" loop>
+            <source src="/media/verto.mp3" type="audio/mpeg">
+          </audio>
+        </li>
+        <li class="nav-item">
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch to dark theme" aria-pressed="false">
+            <i class="bi bi-moon-stars-fill" aria-hidden="true"></i>
+          </button>
+        </li>
       </ul>
     </div>
   </div>
 </nav>
 
-<!-- ============================================================
-     MAIN CONTENT
-     ============================================================ -->
+{% block sidebar %}
+{% if request.session.lpu_user_id %}
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+  <aside class="nx-sidebar" id="nx-sidebar">
+    <p class="sidebar-label" data-i18n="sidebar.menu">Campus menu</p>
+    <a href="{% url 'accounts:dashboard' %}"><i class="bi bi-grid-1x2" aria-hidden="true"></i> <span data-i18n="nav.dashboard">Dashboard</span></a>
+    {% if request.session.lpu_user_role == 'student' or request.session.lpu_user_role == 'staff' %}
+      <a href="{% url 'accounts:profile' %}"><i class="bi bi-person-gear" aria-hidden="true"></i> <span data-i18n="nav.profile">Profile</span></a>
+    {% endif %}
+    <a href="{% url 'navigation:map' %}"><i class="bi bi-map" aria-hidden="true"></i> <span data-i18n="nav.map">Navigation</span></a>
+    <a href="{% url 'placement_predictor:predict' %}"><i class="bi bi-graph-up-arrow" aria-hidden="true"></i> Placement Predictor</a>
+    <a href="{% url 'campus_ai:assistant' %}"><i class="bi bi-stars" aria-hidden="true"></i> <span data-i18n="nav.ai">Campus AI</span></a>
+    <a href="{% url 'accounts:notifications' %}"><i class="bi bi-bell" aria-hidden="true"></i> <span data-i18n="nav.notifications">Notifications</span></a>
+    {% if request.session.lpu_user_role == 'student' %}
+      <a href="{% url 'problems:report' %}"><i class="bi bi-tools" aria-hidden="true"></i> <span data-i18n="nav.reports">Report problem</span></a>
+      <a href="{% url 'problems:my_problems' %}"><i class="bi bi-clipboard-check" aria-hidden="true"></i> <span data-i18n="nav.myReports">My reports</span></a>
+      <a href="{% url 'ideas:list' %}"><i class="bi bi-lightbulb" aria-hidden="true"></i> <span data-i18n="nav.ideas">Campus ideas</span></a>
+      <a href="{% url 'crisis:student_report' %}"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> <span data-i18n="nav.emergency">Emergency</span></a>
+    {% endif %}
+    {% if request.session.lpu_user_role == 'staff' %}
+      <a href="{% url 'accounts:staff_dashboard' %}"><i class="bi bi-inbox" aria-hidden="true"></i> <span data-i18n="nav.queue">Queue</span></a>
+      <a href="{% url 'problems:queue' %}"><i class="bi bi-list-task" aria-hidden="true"></i> <span data-i18n="nav.staffQueue">Staff queue</span></a>
+      <a href="{% url 'crisis:staff_queue' %}"><i class="bi bi-shield-exclamation" aria-hidden="true"></i> <span data-i18n="nav.emergency">Emergency</span></a>
+    {% endif %}
+    {% if request.session.lpu_user_role == 'admin' %}
+      <a href="{% url 'accounts:admin_dashboard' %}"><i class="bi bi-speedometer2" aria-hidden="true"></i> <span data-i18n="nav.admin">Admin</span></a>
+      <a href="{% url 'accounts:admin_list_students' %}"><i class="bi bi-mortarboard" aria-hidden="true"></i> <span data-i18n="nav.students">Students</span></a>
+      <a href="{% url 'accounts:admin_list_staff' %}"><i class="bi bi-people" aria-hidden="true"></i> <span data-i18n="nav.staff">Staff</span></a>
+      <a href="{% url 'ideas:review_queue' %}"><i class="bi bi-lightbulb" aria-hidden="true"></i> <span data-i18n="nav.ideas">Campus ideas</span></a>
+      <a href="{% url 'crisis:admin_restricted_zones' %}"><i class="bi bi-slash-circle" aria-hidden="true"></i> <span data-i18n="nav.zones">Restricted zones</span></a>
+    {% endif %}
+  </aside>
+{% endif %}
+{% endblock %}
+
 <div class="{% block content_container_class %}container my-4{% endblock %}">
   {% if messages %}
     {% for m in messages %}
@@ -105,21 +166,16 @@
   {% block content %}{% endblock %}
 </div>
 
-<!-- ============================================================
-     FOOTER
-     ============================================================ -->
 <footer class="footer-bar">
   © 2026 <strong>Lovely Professional University</strong> — LPU Nexus v1.0 &nbsp;|&nbsp;
-  Campus Intelligence · Innovation · Emergency Response
+  <span data-i18n="footer.copy">Campus Intelligence · Innovation · Emergency Response</span>
 </footer>
 
-<!-- ============================================================
-     SCRIPTS
-     ============================================================ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{% static 'js/nexus-i18n.js' %}?v=20261101-music3"></script>
+<script src="{% static 'js/nexus-ui.js' %}?v=20261101-music3"></script>
 
 <script>
-  // ---- White-logo remover (existing) ----
   window.addEventListener('load', () => {
     document.querySelectorAll('.logo-remove-white').forEach((image) => {
       const canvas = document.createElement('canvas');
@@ -141,7 +197,6 @@
 
 {% if request.session.lpu_user_id %}
 <script>
-  // ---- Crisis alert polling (every 30s) ----
   (function pollCrisis() {
     fetch("{% url 'crisis:api_active_alerts' %}")
       .then(r => r.json())

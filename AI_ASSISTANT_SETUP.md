@@ -7,11 +7,15 @@ Set these environment variables for the application process:
 
 ```text
 GEMINI_API_KEY=your-google-ai-studio-api-key
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
+GEMINI_FALLBACK_MODEL=gemini-3.6-flash
 ```
 
-The model name defaults to `gemini-2.5-flash`. Keep the API key private and do
-not commit it to the repository. Restart Django after setting the variables.
+The primary model defaults to `gemini-3.5-flash-lite`; Gemini requests retry
+transient server errors with `gemini-3.6-flash` by default. Override either
+model with the corresponding environment variable if needed. Keep the API key
+private and do not commit it to the repository. Restart Django after changing
+these variables.
 Without `GEMINI_API_KEY`, the assistant reports that it is unavailable.
 
 ## Student data and privacy
@@ -30,6 +34,18 @@ Problem triage only suggests a category, priority, and staff team; students
 choose what to apply and staff retain responsibility for decisions. A
 server-side keyword check blocks obvious emergency-like reports before any AI
 request, and emergency reports continue through the separate responder workflow.
+
+## Local issue-category predictor
+
+The problem report form also offers a local TF-IDF and logistic-regression
+classifier. It trains from the synthetic examples in
+`campus_ai/data/issue_training_examples.csv` when first used in each app
+process. It suggests a category only; the student must review and apply it.
+Report text is handled by the LPU Nexus server and is not sent to Gemini or
+another external model by this predictor. The included examples are starter
+data, not a representative or validated campus dataset; confidence scores
+should not be treated as accuracy guarantees. Emergency-like reports are
+blocked from both AI helpers.
 
 ## Voice controls
 

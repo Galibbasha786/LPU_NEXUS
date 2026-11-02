@@ -27,3 +27,4 @@ db.sqlite3-journal
 # OS
 .DS_Store
 Thumbs.db
+placement_predictor/placement_model.joblib

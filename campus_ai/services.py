@@ -1,16 +1,23 @@
+import csv
 import json
 import logging
 import re
+from functools import lru_cache
+from pathlib import Path
 
 import requests
 from django.conf import settings
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
 
 from navigation.management.commands.seed_locations import LPU_LOCATIONS
 from problems.constants import PROBLEM_CATEGORIES, PROBLEM_PRIORITIES
 
-GEMINI_TIMEOUT_SECONDS = 20
+GEMINI_TIMEOUT_SECONDS = 45
 MAX_QUESTION_LENGTH = 4000
 MAX_TRIAGE_LENGTH = 1600
+MAX_CATEGORY_PREDICTION_LENGTH = 5000
 
 EMAIL_PATTERN = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
 PHONE_PATTERN = re.compile(r"(?<!\w)(?:\+?\d[\d\s().-]{7,}\d)(?!\w)")
@@ -45,6 +52,53 @@ def redact_personal_identifiers(text):
     redacted = EMAIL_PATTERN.sub("[email removed]", text)
     redacted = PHONE_PATTERN.sub("[phone removed]", redacted)
     return LONG_ID_PATTERN.sub("[identifier removed]", redacted)
+
+
+@lru_cache(maxsize=1)
+def _problem_category_model():
+    dataset_path = Path(__file__).parent / "data" / "issue_training_examples.csv"
+    with dataset_path.open(encoding="utf-8", newline="") as dataset_file:
+        examples = list(csv.DictReader(dataset_file))
+
+    valid_categories = dict(PROBLEM_CATEGORIES)
+    if not examples or any(
+        not row.get("text", "").strip() or row.get("category") not in valid_categories
+        for row in examples
+    ):
+        raise RuntimeError("The campus issue training dataset is empty or invalid.")
+    if set(row["category"] for row in examples) != set(valid_categories):
+        raise RuntimeError("The campus issue training dataset must include every category.")
+
+    model = Pipeline([
+        ("features", TfidfVectorizer(
+            lowercase=True,
+            ngram_range=(1, 2),
+            strip_accents="unicode",
+            sublinear_tf=True,
+        )),
+        ("classifier", LogisticRegression(max_iter=1000, random_state=0)),
+    ])
+    model.fit(
+        [row["text"].strip() for row in examples],
+        [row["category"] for row in examples],
+    )
+    return model
+
+
+def suggest_problem_category(title, description):
+    report_text = f"{title.strip()}\n{description.strip()}".strip()
+    if not report_text:
+        raise ValueError("A report title or description is required.")
+
+    model = _problem_category_model()
+    probabilities = model.predict_proba([report_text])[0]
+    best_index = probabilities.argmax()
+    category = str(model.classes_[best_index])
+    return {
+        "category": category,
+        "label": dict(PROBLEM_CATEGORIES)[category],
+        "confidence": round(float(probabilities[best_index]), 3),
+    }
 
 
 def retrieve_campus_context(question, limit=12):
@@ -130,7 +184,35 @@ def triage_problem(title, description, selected_category):
         f"Title: {safe_title}\n"
         f"Description: {safe_description}"
     )
-    result = _generate_json(prompt)
+    result = _generate_json(
+        prompt,
+        response_schema={
+            "type": "OBJECT",
+            "properties": {
+                "category": {
+                    "type": "STRING",
+                    "enum": list(category_choices),
+                },
+                "priority": {
+                    "type": "STRING",
+                    "enum": list(priority_choices),
+                },
+                "summary": {"type": "STRING"},
+                "reason": {"type": "STRING"},
+                "suggested_team": {
+                    "type": "STRING",
+                    "enum": list(team_choices.values()),
+                },
+            },
+            "required": [
+                "category",
+                "priority",
+                "summary",
+                "reason",
+                "suggested_team",
+            ],
+        },
+    )
     if (
         result.get("category") not in category_choices
         or result.get("priority") not in priority_choices
@@ -138,7 +220,10 @@ def triage_problem(title, description, selected_category):
         or not isinstance(result.get("summary"), str)
         or not isinstance(result.get("reason"), str)
     ):
-        raise GeminiServiceError("Gemini returned an invalid triage response.")
+        raise GeminiServiceError(
+            "Gemini returned a suggestion outside the allowed report categories. "
+            "Please try again."
+        )
     result["summary"] = result["summary"][:500]
     result["reason"] = result["reason"][:500]
     result["suggested_team"] = result["suggested_team"][:100]
@@ -157,35 +242,57 @@ def _generate_text(prompt):
     return answer
 
 
-def _generate_json(prompt):
-    response = _generate(prompt, response_mime_type="application/json")
+def _generate_json(prompt, response_schema=None):
+    response = _generate(
+        prompt,
+        response_mime_type="application/json",
+        response_schema=response_schema,
+    )
     candidates = response.get("candidates", [])
     if not candidates:
+        prompt_feedback = response.get("promptFeedback", {})
+        if prompt_feedback.get("blockReason"):
+            raise GeminiServiceError(
+                "Gemini could not process this report. Please remove sensitive or "
+                "unrelated text and try again."
+            )
         raise GeminiServiceError("Gemini did not return a triage suggestion.")
-    parts = candidates[0].get("content", {}).get("parts", [])
+    candidate = candidates[0]
+    finish_reason = candidate.get("finishReason")
+    if finish_reason and finish_reason not in ("STOP", "FINISH_REASON_UNSPECIFIED"):
+        raise GeminiServiceError(
+            "Gemini could not complete the triage suggestion. Please try again."
+        )
+    parts = candidate.get("content", {}).get("parts", [])
     text = "\n".join(part["text"] for part in parts if isinstance(part.get("text"), str))
+    if not text.strip():
+        raise GeminiServiceError("Gemini did not return a usable triage suggestion.")
     try:
         result = json.loads(text)
     except json.JSONDecodeError as error:
-        raise GeminiServiceError("Gemini returned an invalid triage response.") from error
+        raise GeminiServiceError(
+            "Gemini returned an unreadable triage suggestion. Please try again."
+        ) from error
     if not isinstance(result, dict):
-        raise GeminiServiceError("Gemini returned an invalid triage response.")
+        raise GeminiServiceError("Gemini returned an unusable triage suggestion.")
     return result
 
 
-def _generate(prompt, response_mime_type):
+def _generate(prompt, response_mime_type, response_schema=None, model_override=None):
     api_key = getattr(settings, "GEMINI_API_KEY", "")
     if not api_key:
         raise GeminiServiceError(
             "The AI assistant is not configured yet. Set GEMINI_API_KEY on the server."
         )
-    model = getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash")
+    model = model_override or getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 512},
+        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 768},
     }
     if response_mime_type:
         payload["generationConfig"]["responseMimeType"] = response_mime_type
+    if response_schema:
+        payload["generationConfig"]["responseSchema"] = response_schema
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
         f"{model}:generateContent"
@@ -205,6 +312,23 @@ def _generate(prompt, response_mime_type):
     except requests.exceptions.HTTPError as error:
         status_code = error.response.status_code if error.response is not None else None
         logger.warning("Gemini returned an HTTP error (status=%s).", status_code)
+        fallback_model = getattr(
+            settings,
+            "GEMINI_FALLBACK_MODEL",
+            "gemini-3.6-flash",
+        )
+        if status_code and status_code >= 500 and model != fallback_model:
+            logger.info(
+                "Retrying Gemini request with fallback model %s after HTTP %s.",
+                fallback_model,
+                status_code,
+            )
+            return _generate(
+                prompt,
+                response_mime_type,
+                response_schema,
+                model_override=fallback_model,
+            )
         messages = {
             400: "Gemini rejected the request. Check the configured model and request format.",
             401: "Gemini rejected the API key. Check that GEMINI_API_KEY is valid.",
@@ -215,7 +339,10 @@ def _generate(prompt, response_mime_type):
         if status_code in messages:
             message = messages[status_code]
         elif status_code and status_code >= 500:
-            message = "Google Gemini is temporarily unavailable. Please try again later."
+            message = (
+                f"Google Gemini is temporarily unavailable (HTTP {status_code}), "
+                "including the backup model. Please try again later."
+            )
         else:
             message = "Gemini returned an unexpected HTTP error. Check the server logs."
         raise GeminiServiceError(message) from error
