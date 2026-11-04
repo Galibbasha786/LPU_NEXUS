@@ -219,6 +219,22 @@ def get_student_profile(user_id):
     return student_profiles().find_one({'user_id': oid})
 
 
+def update_profile_image(user_id, image):
+    oid = to_object_id(user_id)
+    if not oid:
+        return False
+    result = users().update_one(
+        {'_id': oid},
+        {'$set': {
+            'profile_image_path': image['path'],
+            'profile_image_url': image['url'],
+            'profile_image_public_id': image['public_id'],
+            'updated_at': now(),
+        }},
+    )
+    return result.matched_count > 0
+
+
 def list_staff():
     return list(users().find({'role': 'staff'}).sort('created_at', -1))
 

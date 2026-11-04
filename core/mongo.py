@@ -44,6 +44,7 @@ def restricted_zones(): return get_db()['restricted_zones']
 def crisis_state():     return get_db()['crisis_state']
 def audit_log():        return get_db()['audit_log']
 def placement_predictions(): return get_db()['placement_predictions']
+def live_streams():         return get_db()['live_streams']
 
 def init_indexes():
     """Create MongoDB indexes. Safe to call repeatedly."""
@@ -116,6 +117,8 @@ def init_indexes():
         audit_log().create_index([("actor_id", ASCENDING)])
         audit_log().create_index([("at", DESCENDING)])
         audit_log().create_index([("action", ASCENDING)])
+
+        live_streams().create_index([("status", ASCENDING), ("created_at", DESCENDING)])
 
         logger.info("✅ MongoDB indexes ensured")
     except Exception as e:

@@ -13,6 +13,7 @@ urlpatterns = [
     path('dashboard/student/', views.student_dashboard, name='student_dashboard'),
     path('dashboard/staff/', views.staff_dashboard, name='staff_dashboard'),
     path('dashboard/admin/', views.admin_dashboard, name='admin_dashboard'),
+    path('profile/photo/', views.upload_profile_photo, name='profile_photo'),
     path('notifications/', notification_views.notification_inbox, name='notifications'),
     path('notifications/<str:notification_id>/read/', notification_views.mark_notification_read_view, name='notification_read'),
 

@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Live News • LPU Nexus{% endblock %}
+
+{% block content %}
+<header class="hero-header mb-4">
+  <span class="hero-badge">LPU NEXUS · LIVE</span>
+  <h2>Live campus news</h2>
+  <p class="mb-0">Official live updates from LPU staff.</p>
+</header>
+
+{% if can_broadcast %}
+<section class="card-lpu card-accent-orange mb-4">
+  <h5>Start a live broadcast</h5>
+  <p class="small text-muted">Allow camera and microphone access when prompted. Broadcasts are visible to signed-in students.</p>
+  <form id="live-start-form" action="{% url 'live_news:start_stream' %}" method="post">
+    {% csrf_token %}
+    <label class="form-label-lpu" for="live-title">Headline</label>
+    <input class="form-control form-control-lpu mb-2" id="live-title" name="title" maxlength="140" required>
+    <label class="form-label-lpu" for="live-description">Details (optional)</label>
+    <textarea class="form-control form-control-lpu mb-3" id="live-description" name="description" rows="3" maxlength="2000"></textarea>
+    <button class="btn btn-lpu" type="submit" id="live-start-button">Go live</button>
+  </form>
+</section>
+{% endif %}
+
+<div id="live-status" class="alert d-none" role="status" aria-live="polite"></div>
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">On air now</h5>
+    <button class="btn btn-sm btn-outline-secondary" type="button" id="refresh-streams">Refresh</button>
+  </div>
+  <div id="live-stream-list" class="row g-3">
+    <p class="text-muted">Loading live broadcasts…</p>
+  </div>
+</section>
+
+<section id="live-player-section" class="card-lpu mt-4 d-none">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+      <span class="badge bg-danger mb-2">LIVE</span>
+      <h5 id="live-player-title" class="mb-1"></h5>
+      <p id="live-player-description" class="small text-muted mb-0"></p>
+    </div>
+    <button class="btn btn-sm btn-outline-secondary" type="button" id="live-disconnect">Leave</button>
+  </div>
+  <video id="live-host-video" class="w-100 rounded d-none" autoplay playsinline></video>
+  <div id="live-remote-videos" class="row g-2"></div>
+</section>
+
+<div id="live-endpoint-data"
+     data-streams-url="{% url 'live_news:active_streams' %}"
+     data-start-url="{% url 'live_news:start_stream' %}"
+     data-token-url="{% url 'live_news:stream_token' 'STREAM_ID' %}"
+     data-end-url="{% url 'live_news:end_stream' 'STREAM_ID' %}"
+     data-csrf-token="{{ csrf_token }}"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+  const config = document.getElementById('live-endpoint-data').dataset;
+  const list = document.getElementById('live-stream-list');
+  const statusBox = document.getElementById('live-status');
+  const player = document.getElementById('live-player-section');
+  const hostVideo = document.getElementById('live-host-video');
+  const remoteVideos = document.getElementById('live-remote-videos');
+  const staffPage = Boolean(document.getElementById('live-start-form'));
+  let Room;
+  let RoomEvent;
+  let Track;
+  let sdkLoadError = null;
+  let room = null;
+  let currentStreamId = null;
+  let refreshTimer = null;
+
+  function showStatus(message, isError = false) {
+    statusBox.textContent = message;
+    statusBox.className = `alert ${isError ? 'alert-danger' : 'alert-info'}`;
+  }
+
+  function endpoint(template, id) {
+    return template.replace('STREAM_ID', encodeURIComponent(id));
+  }
+
+  async function post(url, body = null) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': config.csrfToken,
+        ...(body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+      },
+      body,
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'The request could not be completed.');
+    return data;
+  }
+
+  async function disconnect() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = null;
+    if (room) {
+      const oldRoom = room;
+      room = null;
+      await oldRoom.disconnect();
+    }
+    currentStreamId = null;
+    player.classList.add('d-none');
+    hostVideo.srcObject = null;
+    hostVideo.classList.add('d-none');
+    remoteVideos.replaceChildren();
+  }
+
+  function attachTrack(track, participant) {
+    const element = track.attach();
+    if (track.kind === Track.Kind.Video) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'col-12';
+      element.className = 'w-100 rounded';
+      element.autoplay = true;
+      element.playsInline = true;
+      const label = document.createElement('p');
+      label.className = 'small text-muted mt-1 mb-0';
+      label.textContent = participant.name || 'LPU Staff';
+      wrapper.append(element, label);
+      remoteVideos.appendChild(wrapper);
+    } else {
+      element.autoplay = true;
+      element.className = 'd-none';
+      document.body.appendChild(element);
+    }
+  }
+
+  async function joinStream(stream) {
+    if (sdkLoadError) {
+      showStatus(sdkLoadError, true);
+      return;
+    }
+    await disconnect();
+    currentStreamId = stream.id;
+    document.getElementById('live-player-title').textContent = stream.title;
+    document.getElementById('live-player-description').textContent = stream.description || '';
+    player.classList.remove('d-none');
+    showStatus('Connecting to live video…');
+
+    try {
+      const connection = await post(endpoint(config.tokenUrl, stream.id));
+      room = new Room();
+      room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+        attachTrack(track, participant);
+      });
+      room.on(RoomEvent.TrackUnsubscribed, (track) => track.detach().forEach(element => element.remove()));
+      room.on(RoomEvent.Disconnected, () => {
+        if (currentStreamId) showStatus('The broadcast has ended.', true);
+      });
+      await room.connect(connection.url, connection.token);
+      if (connection.is_host) {
+        await room.localParticipant.setCameraEnabled(true);
+        await room.localParticipant.setMicrophoneEnabled(true);
+        const camera = room.localParticipant.getTrackPublication(Track.Source.Camera);
+        if (camera?.track) {
+          camera.track.attach(hostVideo);
+          hostVideo.muted = true;
+          hostVideo.classList.remove('d-none');
+        }
+        showStatus('You are live. Keep this page open while broadcasting.');
+      } else {
+        showStatus('Connected to live broadcast.');
+      }
+
+      refreshTimer = setInterval(async () => {
+        try {
+          const response = await fetch(config.streamsUrl);
+          if (!response.ok) throw new Error('Unable to check broadcast status.');
+          const data = await response.json();
+          if (!data.streams.some(item => item.id === currentStreamId)) {
+            await disconnect();
+            showStatus('The broadcast has ended.');
+          }
+        } catch (error) {
+          showStatus(error.message, true);
+        }
+      }, 5000);
+    } catch (error) {
+      await disconnect();
+      showStatus(error.message, true);
+    }
+  }
+
+  async function loadStreams() {
+    try {
+      const response = await fetch(config.streamsUrl);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not load live broadcasts.');
+      list.replaceChildren();
+      if (!data.streams.length) {
+        const empty = document.createElement('p');
+        empty.className = 'text-muted';
+        empty.textContent = 'There are no live broadcasts right now.';
+        list.appendChild(empty);
+        return;
+      }
+      data.streams.forEach(stream => {
+        const column = document.createElement('div');
+        column.className = 'col-lg-6';
+        const card = document.createElement('article');
+        card.className = 'card-lpu h-100';
+        const badge = document.createElement('span');
+        badge.className = `badge ${stream.status === 'ending' ? 'bg-secondary' : 'bg-danger'} mb-2`;
+        badge.textContent = stream.status === 'ending' ? 'ENDING' : 'LIVE';
+        const title = document.createElement('h6');
+        title.textContent = stream.title;
+        const description = document.createElement('p');
+        description.className = 'small text-muted';
+        description.textContent = stream.description || 'Live campus update from LPU staff.';
+        const byline = document.createElement('p');
+        byline.className = 'small text-muted mb-3';
+        byline.textContent = `Presented by ${stream.host_name}`;
+        const join = document.createElement('button');
+        join.className = 'btn btn-lpu btn-sm';
+        join.type = 'button';
+        join.textContent = currentStreamId === stream.id ? 'Reconnect' : 'Watch live';
+        join.disabled = stream.status !== 'live';
+        join.addEventListener('click', () => joinStream(stream));
+        card.append(badge, title, description, byline, join);
+        if (stream.can_end) {
+          const end = document.createElement('button');
+          end.className = 'btn btn-sm btn-outline-danger ms-2';
+          end.type = 'button';
+          end.textContent = 'End broadcast';
+          end.addEventListener('click', async () => {
+            try {
+              await post(endpoint(config.endUrl, stream.id));
+              if (currentStreamId === stream.id) await disconnect();
+              showStatus('Broadcast ended.');
+              await loadStreams();
+            } catch (error) {
+              showStatus(error.message, true);
+            }
+          });
+          card.appendChild(end);
+        }
+        column.appendChild(card);
+        list.appendChild(column);
+      });
+    } catch (error) {
+      list.replaceChildren();
+      showStatus(error.message, true);
+    }
+  }
+
+  const startForm = document.getElementById('live-start-form');
+  if (startForm) {
+    startForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (sdkLoadError) {
+        showStatus(sdkLoadError, true);
+        return;
+      }
+      const button = document.getElementById('live-start-button');
+      button.disabled = true;
+      try {
+        const body = new URLSearchParams(new FormData(startForm));
+        const data = await post(config.startUrl, body);
+        await loadStreams();
+        await joinStream(data.stream);
+        startForm.reset();
+      } catch (error) {
+        showStatus(error.message, true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+
+  document.getElementById('refresh-streams').addEventListener('click', loadStreams);
+  document.getElementById('live-disconnect').addEventListener('click', async () => {
+    await disconnect();
+    showStatus('You left the live broadcast.');
+  });
+  setInterval(loadStreams, 15000);
+  window.addEventListener('beforeunload', () => {
+    if (room && staffPage && currentStreamId) {
+      const body = new URLSearchParams({ csrfmiddlewaretoken: config.csrfToken });
+      navigator.sendBeacon(endpoint(config.endUrl, currentStreamId), body);
+    }
+    if (room) room.disconnect();
+  });
+  try {
+    ({ Room, RoomEvent, Track } = await import(
+      'https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.esm.mjs'
+    ));
+  } catch (error) {
+    console.error('Could not load the LiveKit browser SDK.', error);
+    sdkLoadError = 'Could not load live video. Check your internet connection and reload the page.';
+  }
+  await loadStreams();
+  if (sdkLoadError) showStatus(sdkLoadError, true);
+</script>
+{% endblock %}

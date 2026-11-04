@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'emergencies',
     'campus_ai',
     'placement_predictor',
+    'live_news',
 ]
 
 MIDDLEWARE = [
@@ -96,6 +97,16 @@ MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'lpu_nexus')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3.5-flash-lite')
 GEMINI_FALLBACK_MODEL = os.getenv('GEMINI_FALLBACK_MODEL', 'gemini-3.6-flash')
+
+# --- Cloudinary (profile photo uploads) ---
+CLOUDINARY_CLOUD_NAME = os.getenv('CLOUDINARY_CLOUD_NAME', '').strip()
+CLOUDINARY_API_KEY = os.getenv('CLOUDINARY_API_KEY', '').strip()
+CLOUDINARY_API_SECRET = os.getenv('CLOUDINARY_API_SECRET', '').strip()
+
+# --- LiveKit WebRTC SFU ---
+LIVEKIT_URL = os.getenv('LIVEKIT_URL', '').strip()
+LIVEKIT_API_KEY = os.getenv('LIVEKIT_API_KEY', '').strip()
+LIVEKIT_API_SECRET = os.getenv('LIVEKIT_API_SECRET', '').strip()
 
 # --- Email (dev) ---
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

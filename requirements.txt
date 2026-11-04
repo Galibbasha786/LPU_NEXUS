@@ -13,3 +13,4 @@ pandas>=2.2,<4.0
 joblib>=1.4,<2.0
 cloudinary>=1.40.0
 dj3-cloudinary-storage>=0.0.6
+livekit-api>=1.0,<2.0

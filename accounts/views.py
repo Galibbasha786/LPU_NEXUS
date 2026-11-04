@@ -2,6 +2,7 @@
 import os
 import re
 import uuid
+import logging
 from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
@@ -10,12 +11,14 @@ from django.contrib import messages
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.views.decorators.http import require_http_methods
+from pymongo.errors import PyMongoError
 from crisis.services import crisis_stats
 from .mongo_auth import (
     create_student, create_staff, authenticate_user,
     list_staff, list_students, get_student_profile, find_user_by_identifier,
     get_user_by_id, set_user_password, verify_recovery_answer,
-    verify_current_password, update_account_details, delete_account,
+    verify_current_password, update_account_details, update_profile_image,
+    delete_account,
 )
 from .id_card_verification import (
     IdCardReadError, OcrUnavailableError, verify_student_id_card,
@@ -25,7 +28,13 @@ from .session import (
     login_required_mongo, role_required,
 )
 from core.mongo import users
+from core.storage import (
+    ProfileImageUploadError,
+    delete_profile_image,
+    save_profile_image,
+)
 
+logger = logging.getLogger(__name__)
 
 ALLOWED_ID_EXT = {'.jpg', '.jpeg', '.png', '.webp', '.pdf'}
 MAX_ID_SIZE = 5 * 1024 * 1024   # 5 MB
@@ -333,6 +342,46 @@ def profile_view(request):
         'profile': profile,
         'form_data': request.POST if action == 'update_details' else {},
     })
+
+
+@login_required_mongo
+@require_http_methods(["POST"])
+def upload_profile_photo(request):
+    user_id = request.session.get('lpu_user_id')
+    user = get_user_by_id(user_id)
+    if not user:
+        logout_session(request)
+        messages.warning(request, "Please sign in again to update your photo.")
+        return redirect('accounts:login')
+
+    try:
+        new_image = save_profile_image(request.FILES.get('profile_image'))
+    except ProfileImageUploadError as error:
+        messages.error(request, str(error))
+        return redirect('accounts:profile')
+
+    try:
+        updated = update_profile_image(user_id, new_image)
+    except PyMongoError:
+        delete_profile_image(new_image)
+        logger.exception('Failed to save profile image metadata for user %s', user_id)
+        messages.error(request, "Your photo could not be saved. Please try again.")
+        return redirect('accounts:profile')
+
+    if not updated:
+        delete_profile_image(new_image)
+        logout_session(request)
+        messages.warning(request, "Please sign in again to update your photo.")
+        return redirect('accounts:login')
+
+    old_image = {
+        'profile_image_path': user.get('profile_image_path'),
+        'profile_image_public_id': user.get('profile_image_public_id'),
+    }
+    delete_profile_image(old_image)
+    request.session['lpu_user_image'] = new_image['url']
+    messages.success(request, "Your profile photo has been updated.")
+    return redirect('accounts:profile')
 
 
 # ============================================================

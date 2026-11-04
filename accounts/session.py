@@ -13,12 +13,18 @@ def login_session(request, user_doc):
     request.session[SESSION_KEY] = str(user_doc['_id'])
     request.session['lpu_user_role'] = user_doc.get('role', 'student')
     request.session['lpu_user_name'] = user_doc.get('full_name', '')
+    image_url = user_doc.get('profile_image_url')
+    if image_url:
+        request.session['lpu_user_image'] = image_url
+    else:
+        request.session.pop('lpu_user_image', None)
 
 
 def logout_session(request):
     request.session.pop(SESSION_KEY, None)
     request.session.pop('lpu_user_role', None)
     request.session.pop('lpu_user_name', None)
+    request.session.pop('lpu_user_image', None)
     request.session.flush()
 
 

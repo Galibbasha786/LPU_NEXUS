@@ -2,12 +2,12 @@ from django import forms
 
 
 class StudentPlacementForm(forms.Form):
-    age = forms.IntegerField(min_value=16, max_value=80, initial=20, widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "e.g. 20"}))
-    gender = forms.ChoiceField(choices=[("Male", "Male"), ("Female", "Female"), ("Other", "Other")], widget=forms.Select(attrs={"class": "form-select"}))
-    college_tier = forms.ChoiceField(choices=[("Tier 1", "Tier 1"), ("Tier 2", "Tier 2"), ("Tier 3", "Tier 3")], widget=forms.Select(attrs={"class": "form-select"}))
-    specialization = forms.ChoiceField(choices=[(x, x) for x in ("AI/ML", "Computer Science", "Civil", "Electronics", "Mechanical", "Electrical", "Information Technology", "Other")], widget=forms.Select(attrs={"class": "form-select"}))
-    cgpa = forms.FloatField(min_value=0, max_value=10, widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "placeholder": "e.g. 8.2"}))
-    dsa_problems_solved = forms.IntegerField(min_value=0, max_value=10000, widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "Number solved"}))
+    age = forms.IntegerField(min_value=16, max_value=80, initial=20, widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "e.g. 20", "data-i18n-placeholder": "placement.placeholder.age"}))
+    gender = forms.ChoiceField(choices=[("Male", "Male"), ("Female", "Female"), ("Other", "Other")], widget=forms.Select(attrs={"class": "form-select", "data-i18n-options": "placement.option.gender"}))
+    college_tier = forms.ChoiceField(choices=[("Tier 1", "Tier 1"), ("Tier 2", "Tier 2"), ("Tier 3", "Tier 3")], widget=forms.Select(attrs={"class": "form-select", "data-i18n-options": "placement.option.college_tier"}))
+    specialization = forms.ChoiceField(choices=[(x, x) for x in ("AI/ML", "Computer Science", "Civil", "Electronics", "Mechanical", "Electrical", "Information Technology", "Other")], widget=forms.Select(attrs={"class": "form-select", "data-i18n-options": "placement.option.specialization"}))
+    cgpa = forms.FloatField(min_value=0, max_value=10, widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "placeholder": "e.g. 8.2", "data-i18n-placeholder": "placement.placeholder.cgpa"}))
+    dsa_problems_solved = forms.IntegerField(min_value=0, max_value=10000, widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "Number solved", "data-i18n-placeholder": "placement.placeholder.dsa_problems_solved"}))
     internships = forms.IntegerField(min_value=0, max_value=100, widget=forms.NumberInput(attrs={"class": "form-control"}))
     certifications = forms.IntegerField(min_value=0, max_value=100, widget=forms.NumberInput(attrs={"class": "form-control"}))
     projects_count = forms.IntegerField(min_value=0, max_value=100, widget=forms.NumberInput(attrs={"class": "form-control"}))

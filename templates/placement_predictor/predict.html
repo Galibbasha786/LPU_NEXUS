@@ -2,8 +2,8 @@
 {% block title %}Placement Readiness | LPU Nexus{% endblock %}
 {% block content %}
 <style>
-  .placement-page { max-width: 1120px; margin: 1.5rem auto 3rem; }
-  .placement-card { overflow: hidden; border: 1px solid rgba(107,31,44,.15); border-radius: 22px; background: var(--bs-body-bg,#fff); box-shadow: 0 18px 48px rgba(58,16,24,.10); }
+  .placement-page { width: min(1120px, calc(100% - 2rem)); margin: 1.5rem auto 3rem; }
+  .placement-card { overflow: hidden; border: 1px solid rgba(201,154,38,.4); border-radius: 22px; background: var(--bs-body-bg,#fff); box-shadow: 0 18px 48px rgba(58,16,24,.10); }
   .placement-hero { position:relative; overflow:hidden; padding: clamp(1.5rem,4vw,2.6rem); color:#fff; background:linear-gradient(120deg,#3a1018,#6b1f2c 72%,#812c3b); border-bottom:4px solid #e8b73a; }
   .placement-hero:after { content:""; position:absolute; width:240px; height:240px; right:-75px; top:-120px; border:1px solid rgba(245,215,110,.32); border-radius:50%; box-shadow:0 0 0 24px rgba(245,215,110,.05),0 0 0 48px rgba(245,215,110,.04); }
   .placement-kicker { color:#f5d76e; letter-spacing:.14em; font-size:.75rem; font-weight:800; text-transform:uppercase; }
@@ -12,10 +12,10 @@
   .placement-section-title { display:flex; align-items:center; gap:.65rem; margin:1.25rem 0 1rem; color:#4d1620; font-size:1rem; font-weight:800; }
   .placement-section-title:first-child { margin-top:0; }
   .placement-section-title span { display:grid; width:30px; height:30px; place-items:center; border-radius:9px; color:#6b1f2c; background:#fff3cc; }
-  .placement-field { height:100%; padding: .8rem; border:1px solid rgba(107,31,44,.11); border-radius:13px; background:rgba(107,31,44,.025); }
+  .placement-field { height:100%; padding: .8rem; border:1px solid rgba(201,154,38,.3); border-radius:13px; background:rgba(107,31,44,.025); }
   .placement-field label { display:block; margin-bottom:.4rem; color:#4d1620; font-size:.84rem; font-weight:700; }
   .placement-field input,.placement-field select { min-height:44px; border-color:#ddd3d4; border-radius:9px; box-shadow:none; }
-  .placement-field input:focus,.placement-field select:focus { border-color:#9a5360; box-shadow:0 0 0 .2rem rgba(107,31,44,.12); }
+  .placement-field input:focus,.placement-field select:focus { border-color:#c99a26; box-shadow:0 0 0 .2rem rgba(201,154,38,.18); }
   .placement-field .form-text { min-height:1rem; font-size:.75rem; }
   .placement-result { display:flex; align-items:center; gap:1rem; margin:0 0 1.5rem; padding:1.15rem 1.25rem; border:1px solid #efdfa8; border-left:5px solid #e8b73a; border-radius:14px; color:#3a1018; background:#fff9e9; }
   .placement-result-icon { display:grid; flex:0 0 44px; width:44px; height:44px; place-items:center; border-radius:13px; background:#f7e8b8; font-size:1.2rem; }
@@ -28,63 +28,63 @@
   .placement-submit { display:inline-flex; align-items:center; justify-content:center; min-height:48px; padding:.75rem 1.25rem; border:0; border-radius:11px; color:#fff; background:#6b1f2c; font-weight:750; transition:background .18s,transform .18s; }
   .placement-submit:hover { color:#fff; background:#4d1620; transform:translateY(-1px); }
   .placement-note { color:#687078; font-size:.82rem; }
-  html[data-theme="dark"] .placement-card { background:#201c1d; border-color:#4d3a3d; }
+  html[data-theme="dark"] .placement-card { background:#201c1d; border-color:rgba(201,154,38,.4); }
   html[data-theme="dark"] .placement-section-title,html[data-theme="dark"] .placement-field label { color:#f4dfe2; }
-  html[data-theme="dark"] .placement-field { background:#292324; border-color:#493b3d; }
+  html[data-theme="dark"] .placement-field { background:#292324; border-color:rgba(201,154,38,.22); }
   html[data-theme="dark"] .placement-field input,html[data-theme="dark"] .placement-field select { color:#f8f1f2; background:#201c1d; border-color:#59474a; }
   html[data-theme="dark"] .placement-result { color:#fff2c9; background:#352e20; border-color:#66572b; }
-  html[data-theme="dark"] .placement-detail-card { background:#292324; border-color:#493b3d; }
+  html[data-theme="dark"] .placement-detail-card { background:#292324; border-color:rgba(201,154,38,.22); }
   html[data-theme="dark"] .placement-detail-card h3 { color:#f4dfe2; }
   html[data-theme="dark"] .placement-note { color:#c7bfc0; }
   @media(max-width:575px) { .placement-page { margin-top:.5rem; } .placement-submit { width:100%; } .placement-details { grid-template-columns:1fr; } }
 </style>
-<main class="placement-page">
+<main class="placement-page" data-i18n-title="placement.documentTitle">
   <section class="placement-card">
     <header class="placement-hero">
-      <div class="placement-kicker"><i class="bi bi-stars me-1" aria-hidden="true"></i>Career services</div>
-      <h1 class="h2 mt-2 mb-2">Placement readiness</h1>
-      <p class="mb-0">Share your academic background and preparation profile for a placement status estimate.</p>
+      <div class="placement-kicker"><i class="bi bi-stars me-1" aria-hidden="true"></i><span data-i18n="placement.kicker">Career services</span></div>
+      <h1 class="h2 mt-2 mb-2" data-i18n="placement.title">Placement readiness</h1>
+      <p class="mb-0" data-i18n="placement.description">Share your academic background and preparation profile for a placement status estimate.</p>
     </header>
     <form method="post" class="placement-content">
       {% csrf_token %}
-      <aside class="placement-arc" aria-label="LPU Nexus project">
+      <aside class="placement-arc" data-i18n-aria="placement.projectAria" aria-label="LPU Nexus project">
         <span class="placement-arc-mark"><i class="bi bi-mortarboard" aria-hidden="true"></i></span>
         <div class="placement-arc-copy">
-          <div class="placement-arc-kicker">LPU Nexus · Student Success</div>
-          <h2 class="placement-arc-title">Your next opportunity starts here</h2>
-          <p class="placement-arc-description">A campus project supporting student readiness, growth, and career planning.</p>
+          <div class="placement-arc-kicker" data-i18n="placement.arcKicker">LPU Nexus · Student Success</div>
+          <h2 class="placement-arc-title" data-i18n="placement.arcTitle">Your next opportunity starts here</h2>
+          <p class="placement-arc-description" data-i18n="placement.arcDescription">A campus project supporting student readiness, growth, and career planning.</p>
         </div>
       </aside>
       {% if form.non_field_errors %}<div class="alert alert-danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
       {% if result %}
         <section class="placement-result" role="status">
           <div class="placement-result-icon"><i class="bi bi-award" aria-hidden="true"></i></div>
-          <div><div class="small text-uppercase fw-bold">Estimated placement status</div><div class="fs-4 fw-bold">{{ result.status_label }}</div><div class="small">Model confidence: {{ result.confidence_pct }}%{% if result.target_is_single_class %} <span class="fw-semibold">(not reliable: training data had only one status class)</span>{% endif %}</div></div>
+          <div><div class="small text-uppercase fw-bold" data-i18n="placement.estimatedStatus">Estimated placement status</div><div class="fs-4 fw-bold" data-i18n-phrase="{{ result.status_label }}">{{ result.status_label }}</div><div class="small"><span data-i18n="placement.modelConfidence">Model confidence:</span> {{ result.confidence_pct }}%{% if result.target_is_single_class %} <span class="fw-semibold" data-i18n="placement.singleClassWarning">(not reliable: training data had only one status class)</span>{% endif %}</div></div>
         </section>
-        {% if result.target_is_single_class %}<div class="placement-data-note"><strong>Dataset limitation:</strong> every training row is labeled “{{ result.prediction }}”. The model has not learned the difference between placed and not placed, so treat its status and confidence as non-informative. Retrain with examples from both outcome classes.</div>{% endif %}
-        <section class="placement-details" aria-label="Preparation feedback">
-          <div class="placement-detail-card"><h3><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Current strengths</h3>
-            {% if result.strengths %}<ul>{% for strength in result.strengths %}<li>{{ strength }}</li>{% endfor %}</ul>{% else %}<p class="small mb-0">Keep building and recording your preparation activities.</p>{% endif %}
+        {% if result.target_is_single_class %}<div class="placement-data-note"><strong data-i18n="placement.datasetLimitation">Dataset limitation:</strong> <span data-i18n="placement.datasetLimitationBody">Every training row is labeled</span> “{{ result.prediction }}”. <span data-i18n="placement.datasetLimitationTail">The model has not learned the difference between placed and not placed, so treat its status and confidence as non-informative. Retrain with examples from both outcome classes.</span></div>{% endif %}
+        <section class="placement-details" data-i18n-aria="placement.feedbackAria" aria-label="Preparation feedback">
+          <div class="placement-detail-card"><h3><i class="bi bi-check2-circle me-1" aria-hidden="true"></i><span data-i18n="placement.strengthsTitle">Current strengths</span></h3>
+            {% if result.strengths %}<ul>{% for strength in result.strengths %}<li data-i18n-phrase="{{ strength }}">{{ strength }}</li>{% endfor %}</ul>{% else %}<p class="small mb-0" data-i18n="placement.noStrengths">Keep building and recording your preparation activities.</p>{% endif %}
           </div>
-          <div class="placement-detail-card"><h3><i class="bi bi-arrow-up-right-circle me-1" aria-hidden="true"></i>Suggested next steps</h3>
-            {% if result.suggestions %}<ul>{% for suggestion in result.suggestions %}<li>{{ suggestion }}</li>{% endfor %}</ul>{% else %}<p class="small mb-0">Your entered profile meets these preparation guidelines. Keep practicing and updating your profile.</p>{% endif %}
+          <div class="placement-detail-card"><h3><i class="bi bi-arrow-up-right-circle me-1" aria-hidden="true"></i><span data-i18n="placement.suggestionsTitle">Suggested next steps</span></h3>
+            {% if result.suggestions %}<ul>{% for suggestion in result.suggestions %}<li data-i18n-phrase="{{ suggestion }}">{{ suggestion }}</li>{% endfor %}</ul>{% else %}<p class="small mb-0" data-i18n="placement.noSuggestions">Your entered profile meets these preparation guidelines. Keep practicing and updating your profile.</p>{% endif %}
           </div>
         </section>
       {% endif %}
-      <h2 class="placement-section-title"><span><i class="bi bi-person" aria-hidden="true"></i></span>Student profile</h2>
+      <h2 class="placement-section-title"><span><i class="bi bi-person" aria-hidden="true"></i></span><span data-i18n="placement.profileTitle">Student profile</span></h2>
       <div class="row g-3">
         {% for field in form %}
           <div class="col-12 col-sm-6 col-lg-4"><div class="placement-field">
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            <label for="{{ field.id_for_label }}" data-i18n="placement.field.{{ field.name }}">{{ field.label }}</label>
             {{ field }}
-            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% else %}<div class="form-text">&nbsp;</div>{% endif %}
+            {% if field.help_text %}<div class="form-text" data-i18n="placement.help.{{ field.name }}">{{ field.help_text }}</div>{% else %}<div class="form-text">&nbsp;</div>{% endif %}
             {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
           </div></div>
         {% endfor %}
       </div>
       <div class="d-flex flex-wrap align-items-center gap-3 mt-4">
-        <button class="placement-submit" type="submit"><i class="bi bi-graph-up-arrow me-2" aria-hidden="true"></i>Get my estimate</button>
-        <span class="placement-note">For guidance only; actual hiring decisions depend on employers.</span>
+        <button class="placement-submit" type="submit"><i class="bi bi-graph-up-arrow me-2" aria-hidden="true"></i><span data-i18n="placement.submit">Get my estimate</span></button>
+        <span class="placement-note" data-i18n="placement.disclaimer">For guidance only; actual hiring decisions depend on employers.</span>
       </div>
     </form>
   </section>

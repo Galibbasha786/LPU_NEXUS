@@ -7,173 +7,393 @@
 {% load static %}
 <script>
   try {
-    document.documentElement.dataset.theme = localStorage.getItem('lpu-nexus-theme') === 'dark' ? 'dark' : 'light';
-  } catch (error) {
-    console.warn('Unable to load the saved theme preference.', error);
-  }
+    const savedTheme = localStorage.getItem('lpu-nexus-theme');
+    const savedColor = localStorage.getItem('lpu-nexus-color-theme');
+    document.documentElement.dataset.theme = savedTheme === 'dark' ? 'dark' : 'light';
+    if (savedColor && ['maroon','ocean','forest','midnight'].includes(savedColor)) {
+      document.documentElement.dataset.colorTheme = savedColor;
+    }
+  } catch(e) {}
 </script>
 <link rel="icon" href="{% static 'images/logo-icon.png' %}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+Devanagari:wght@400;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'css/nexus-theme.css' %}?v=20261101-globalarc1">
+<link rel="stylesheet" href="{% static 'css/nexus-theme.css' %}?v=20261104-v4">
 {% block extra_head %}{% endblock %}
 </head>
+
 <body class="{% block body_class %}{% if request.session.lpu_user_id %}has-sidebar{% endif %}{% endblock %}">
 
+<!-- ═══════════════════════════════ MARQUEE BAR ═══════════════════════════════ -->
 <div class="nexus-marquee" aria-label="Lovely Professional University Nexus">
   <div class="nexus-marquee-track" aria-hidden="true">
-    {% for _ in "1234" %}
+    {% for _ in "12345" %}
       <span class="nexus-marquee-group">
-        <img src="{% static 'images/lpulogo.png' %}" alt="">
-        <img class="nexus-marquee-app-logo" src="{% static 'images/logo.png' %}" alt="">
+        <img src="{% static 'images/lpulogo-transparent.png' %}" alt="" loading="lazy">
+        <img class="nexus-marquee-app-logo" src="{% static 'images/logo.png' %}" alt="" loading="lazy">
         <span>LPU <b>NEXUS</b></span>
+        <span class="marquee-sep">✦</span>
+        <span class="marquee-tagline">Campus Intelligence Platform</span>
+        <span class="marquee-sep">✦</span>
       </span>
     {% endfor %}
   </div>
 </div>
 
-<div id="crisis-overlay" style="display:none; position:fixed; inset:0; background:rgba(120,20,20,0.95); color:#fff; z-index:9999; padding:60px 20px; text-align:center;">
-  <div style="max-width:720px; margin:0 auto;">
-    <div style="font-size:4rem; margin-bottom:12px;">🚨</div>
-    <h2 style="color:var(--lpu-gold); font-weight:800; letter-spacing:1px;" data-i18n="crisis.title">CAMPUS CRISIS MODE</h2>
-    <p id="crisis-overlay-msg" style="font-size:1.15rem; margin:20px 0;" data-i18n="crisis.body">Follow official instructions. Stay calm. Await updates.</p>
-    <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:16px; margin:20px 0;">
+<!-- ═══════════════════════════════ CRISIS OVERLAY ═══════════════════════════════ -->
+<div id="crisis-overlay" style="display:none;position:fixed;inset:0;background:rgba(120,20,20,0.95);color:#fff;z-index:9999;padding:60px 20px;text-align:center;">
+  <div style="max-width:720px;margin:0 auto;">
+    <div style="font-size:4rem;margin-bottom:12px;">🚨</div>
+    <h2 style="color:var(--lpu-gold);font-weight:800;letter-spacing:1px;" data-i18n="crisis.title">CAMPUS CRISIS MODE</h2>
+    <p id="crisis-overlay-msg" style="font-size:1.15rem;margin:20px 0;" data-i18n="crisis.body">Follow official instructions. Stay calm. Await updates.</p>
+    <div style="background:rgba(255,255,255,0.1);border-radius:12px;padding:16px;margin:20px 0;">
       <strong data-i18n="crisis.numbers">Emergency Numbers:</strong><br>
       Campus Security: <a href="tel:100" style="color:var(--lpu-gold);">100</a> &nbsp;|&nbsp;
       Medical: <a href="tel:108" style="color:var(--lpu-gold);">108</a> &nbsp;|&nbsp;
       LPU Emergency Cell: <a href="tel:+911824444444" style="color:var(--lpu-gold);">+91-1824-444444</a>
     </div>
-    <button onclick="document.getElementById('crisis-overlay').style.display='none';"
-            class="btn btn-gold" data-i18n="crisis.ack">Acknowledge</button>
+    <button onclick="document.getElementById('crisis-overlay').style.display='none';" class="btn btn-gold" data-i18n="crisis.ack">Acknowledge</button>
   </div>
 </div>
 
-<nav class="navbar navbar-expand-lg navbar-lpu">
-  <div class="container">
-    {% block sidebar_toggle %}
-    {% if request.session.lpu_user_id %}
-      <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="nx-sidebar" aria-expanded="false" aria-label="Open menu" title="Open menu">
-        <i class="bi bi-list" aria-hidden="true"></i>
-      </button>
-    {% endif %}
-    {% endblock %}
-    <a class="navbar-brand" href="{% url 'accounts:home' %}">
-      <span class="brand-lockup" aria-label="LPU Nexus">
-        <img src="{% static 'images/lpulogo.png' %}" alt="LPU" class="logo-remove-white">
-        <img src="{% static 'images/logo.png' %}" alt="LPU Nexus app logo">
-      </span>
-      <span>LPU <span class="brand-text-gold">NEXUS</span></span>
-    </a>
-    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#nxnav">
-      <span class="navbar-toggler-icon" style="filter:invert(1);"></span>
+<!-- ═══════════════════════════════ NAVBAR ═══════════════════════════════ -->
+<nav class="navbar navbar-lpu navbar-expand-lg" role="navigation" aria-label="Main navigation">
+  <div class="nx-nav-inner">
+
+    <!-- Left: sidebar toggle + brand -->
+    <div class="nx-nav-left">
+      {% block sidebar_toggle %}
+      {% if request.session.lpu_user_id %}
+        <button class="sidebar-toggle" id="sidebar-toggle" type="button"
+                aria-controls="nx-sidebar" aria-expanded="false"
+                aria-label="Open menu" title="Open menu">
+          <span class="toggle-bar"></span>
+          <span class="toggle-bar"></span>
+          <span class="toggle-bar"></span>
+        </button>
+      {% endif %}
+      {% endblock %}
+
+      <a class="nx-brand" href="{% url 'accounts:home' %}" aria-label="LPU Nexus Home">
+        <div class="nx-brand-logos">
+          <div class="nx-logo-wrap nx-logo-lpu">
+            <img src="{% static 'images/lpulogo-transparent.png' %}" alt="LPU" width="68" height="28" loading="eager">
+          </div>
+          <div class="nx-logo-divider" aria-hidden="true"></div>
+          <div class="nx-logo-wrap nx-logo-nexus">
+            <img src="{% static 'images/logo.png' %}" alt="Nexus" width="32" height="32" loading="eager">
+          </div>
+        </div>
+        <div class="nx-brand-text">
+          <span class="nx-brand-name">LPU <strong>NEXUS</strong></span>
+          <span class="nx-brand-tagline">Campus Intelligence</span>
+        </div>
+      </a>
+    </div>
+
+    <!-- Mobile toggler -->
+    <button class="nx-nav-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nxnav"
+            aria-controls="nxnav" aria-expanded="false" aria-label="Toggle navigation">
+      <i class="bi bi-grid-3x3-gap-fill"></i>
     </button>
-    <div class="collapse navbar-collapse" id="nxnav">
-      <ul class="navbar-nav ms-auto align-items-lg-center">
-        <li class="nav-item"><a class="nav-link" href="{% url 'accounts:home' %}" data-i18n="nav.home">Home</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'accounts:home' %}#about" data-i18n="nav.about">About LPU</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'accounts:home' %}#contact" data-i18n="nav.contact">Contact</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'placement_predictor:predict' %}"><i class="bi bi-graph-up-arrow me-1" aria-hidden="true"></i>Placement Predictor</a></li>
+
+    <!-- Right: nav links -->
+    <div class="collapse navbar-collapse nx-nav-collapse" id="nxnav">
+      <ul class="navbar-nav nx-nav-links">
+        <li class="nav-item"><a class="nav-link nx-link" href="{% url 'accounts:home' %}" data-i18n="nav.home"><i class="bi bi-house-door"></i><span>Home</span></a></li>
+        <li class="nav-item"><a class="nav-link nx-link" href="{% url 'accounts:home' %}#about" data-i18n="nav.about"><i class="bi bi-info-circle"></i><span>About</span></a></li>
+        <li class="nav-item"><a class="nav-link nx-link" href="{% url 'placement_predictor:predict' %}"><i class="bi bi-graph-up-arrow"></i><span data-i18n="nav.placement">Predictor</span></a></li>
+
         {% if request.session.lpu_user_id %}
-          <li class="nav-item d-lg-none"><a class="nav-link" href="{% url 'accounts:dashboard' %}" data-i18n="nav.dashboard">Dashboard</a></li>
-          <li class="nav-item ms-lg-2">
-            <span class="user-badge">
-              <i class="bi bi-person-circle" aria-hidden="true"></i> {{ request.session.lpu_user_name }}
-              <span class="badge-lpu">{{ request.session.lpu_user_role }}</span>
+          <li class="nav-item d-lg-none"><a class="nav-link nx-link" href="{% url 'accounts:dashboard' %}"><i class="bi bi-grid-1x2"></i><span data-i18n="nav.dashboard">Dashboard</span></a></li>
+          <li class="nav-item nx-user-pill">
+            <span class="nx-user-badge">
+              <span class="nx-user-avatar">
+                {% if request.session.lpu_user_image %}
+                  <img src="{{ request.session.lpu_user_image }}" alt="">
+                {% else %}
+                  <i class="bi bi-person-fill"></i>
+                {% endif %}
+              </span>
+              <span class="nx-user-name">{{ request.session.lpu_user_name }}</span>
+              <span class="nx-role-chip nx-role-{{ request.session.lpu_user_role }}">{{ request.session.lpu_user_role }}</span>
             </span>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'accounts:logout' %}" data-i18n="nav.logout">Logout</a>
-          </li>
+          <li class="nav-item"><a class="nav-link nx-link nx-logout" href="{% url 'accounts:logout' %}" data-i18n="nav.logout"><i class="bi bi-box-arrow-right"></i><span>Logout</span></a></li>
         {% else %}
-          <li class="nav-item"><a class="nav-link" href="{% url 'accounts:login' %}" data-i18n="nav.login">Login</a></li>
-          <li class="nav-item">
-            <a class="btn btn-gold btn-sm ms-lg-2 px-3" href="{% url 'accounts:register' %}" data-i18n="nav.register">Register</a>
-          </li>
+          <li class="nav-item"><a class="nav-link nx-link" href="{% url 'accounts:login' %}" data-i18n="nav.login"><i class="bi bi-person-check"></i><span>Login</span></a></li>
+          <li class="nav-item"><a class="nx-cta-btn" href="{% url 'accounts:register' %}" data-i18n="nav.register"><i class="bi bi-person-plus-fill"></i> Register</a></li>
         {% endif %}
-        <li class="nav-item">
-          <div class="lang-switch" role="group" aria-label="Language" data-i18n-aria="lang.label">
-            <button type="button" data-lang="en">EN</button>
-            <button type="button" data-lang="hi">हिंदी</button>
-            <button type="button" data-lang="te">తెలుగు</button>
-          </div>
-        </li>
-        <li class="nav-item">
-          <button class="music-toggle" id="music-toggle" type="button" aria-label="Play background music" title="Play background music" aria-pressed="false">
-            <i class="bi bi-music-note-beamed" aria-hidden="true"></i>
-          </button>
-          <audio id="site-background-music" preload="none" loop>
-            <source src="/media/verto.mp3" type="audio/mpeg">
-          </audio>
-        </li>
-        <li class="nav-item">
-          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch to dark theme" aria-pressed="false">
-            <i class="bi bi-moon-stars-fill" aria-hidden="true"></i>
-          </button>
-        </li>
       </ul>
+
+      <!-- Utility controls -->
+      <div class="nx-nav-controls">
+        <!-- Language switcher -->
+        <div class="nx-lang-switch" role="group" aria-label="Language">
+          <button type="button" data-lang="en" title="English">EN</button>
+          <button type="button" data-lang="hi" title="Hindi">हि</button>
+          <button type="button" data-lang="te" title="Telugu">తె</button>
+        </div>
+
+        <!-- Music -->
+        <button class="nx-ctrl-btn music-toggle" id="music-toggle" type="button"
+                aria-label="Play background music" title="Play music" aria-pressed="false">
+          <i class="bi bi-music-note-beamed"></i>
+        </button>
+        <audio id="site-background-music" preload="none" loop>
+          <source src="/media/verto.mp3" type="audio/mpeg">
+        </audio>
+
+        <!-- Color theme palette -->
+        <div class="theme-panel-wrapper" id="theme-panel-wrapper">
+          <button class="nx-ctrl-btn theme-palette-toggle" id="theme-palette-toggle"
+                  type="button" aria-label="Choose color theme" title="Color theme" aria-expanded="false">
+            <i class="bi bi-palette-fill"></i>
+          </button>
+          <div class="theme-panel" id="theme-panel" role="menu" aria-label="Color themes">
+            <p class="theme-panel-label">🎨 Color Theme</p>
+            <button class="theme-panel-btn" data-color-theme="maroon" role="menuitem">
+              <span class="theme-dot theme-dot-maroon"></span> Maroon &amp; Gold
+            </button>
+            <button class="theme-panel-btn" data-color-theme="ocean" role="menuitem">
+              <span class="theme-dot theme-dot-ocean"></span> Ocean Blue
+            </button>
+            <button class="theme-panel-btn" data-color-theme="forest" role="menuitem">
+              <span class="theme-dot theme-dot-forest"></span> Forest Green
+            </button>
+            <button class="theme-panel-btn" data-color-theme="midnight" role="menuitem">
+              <span class="theme-dot theme-dot-midnight"></span> Midnight Purple
+            </button>
+          </div>
+        </div>
+
+        <!-- Dark/light mode -->
+        <button class="nx-ctrl-btn theme-toggle" id="theme-toggle"
+                type="button" aria-label="Switch to dark theme" title="Dark mode" aria-pressed="false">
+          <i class="bi bi-moon-stars-fill"></i>
+        </button>
+      </div>
     </div>
   </div>
 </nav>
 
+<!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
 {% block sidebar %}
 {% if request.session.lpu_user_id %}
-  <div class="sidebar-overlay" id="sidebar-overlay"></div>
-  <aside class="nx-sidebar" id="nx-sidebar">
-    <p class="sidebar-label" data-i18n="sidebar.menu">Campus menu</p>
-    <a href="{% url 'accounts:dashboard' %}"><i class="bi bi-grid-1x2" aria-hidden="true"></i> <span data-i18n="nav.dashboard">Dashboard</span></a>
-    {% if request.session.lpu_user_role == 'student' or request.session.lpu_user_role == 'staff' %}
-      <a href="{% url 'accounts:profile' %}"><i class="bi bi-person-gear" aria-hidden="true"></i> <span data-i18n="nav.profile">Profile</span></a>
-    {% endif %}
-    <a href="{% url 'navigation:map' %}"><i class="bi bi-map" aria-hidden="true"></i> <span data-i18n="nav.map">Navigation</span></a>
-    <a href="{% url 'placement_predictor:predict' %}"><i class="bi bi-graph-up-arrow" aria-hidden="true"></i> Placement Predictor</a>
-    <a href="{% url 'campus_ai:assistant' %}"><i class="bi bi-stars" aria-hidden="true"></i> <span data-i18n="nav.ai">Campus AI</span></a>
-    <a href="{% url 'accounts:notifications' %}"><i class="bi bi-bell" aria-hidden="true"></i> <span data-i18n="nav.notifications">Notifications</span></a>
-    {% if request.session.lpu_user_role == 'student' %}
-      <a href="{% url 'problems:report' %}"><i class="bi bi-tools" aria-hidden="true"></i> <span data-i18n="nav.reports">Report problem</span></a>
-      <a href="{% url 'problems:my_problems' %}"><i class="bi bi-clipboard-check" aria-hidden="true"></i> <span data-i18n="nav.myReports">My reports</span></a>
-      <a href="{% url 'ideas:list' %}"><i class="bi bi-lightbulb" aria-hidden="true"></i> <span data-i18n="nav.ideas">Campus ideas</span></a>
-      <a href="{% url 'crisis:student_report' %}"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> <span data-i18n="nav.emergency">Emergency</span></a>
-    {% endif %}
-    {% if request.session.lpu_user_role == 'staff' %}
-      <a href="{% url 'accounts:staff_dashboard' %}"><i class="bi bi-inbox" aria-hidden="true"></i> <span data-i18n="nav.queue">Queue</span></a>
-      <a href="{% url 'problems:queue' %}"><i class="bi bi-list-task" aria-hidden="true"></i> <span data-i18n="nav.staffQueue">Staff queue</span></a>
-      <a href="{% url 'crisis:staff_queue' %}"><i class="bi bi-shield-exclamation" aria-hidden="true"></i> <span data-i18n="nav.emergency">Emergency</span></a>
-    {% endif %}
-    {% if request.session.lpu_user_role == 'admin' %}
-      <a href="{% url 'accounts:admin_dashboard' %}"><i class="bi bi-speedometer2" aria-hidden="true"></i> <span data-i18n="nav.admin">Admin</span></a>
-      <a href="{% url 'accounts:admin_list_students' %}"><i class="bi bi-mortarboard" aria-hidden="true"></i> <span data-i18n="nav.students">Students</span></a>
-      <a href="{% url 'accounts:admin_list_staff' %}"><i class="bi bi-people" aria-hidden="true"></i> <span data-i18n="nav.staff">Staff</span></a>
-      <a href="{% url 'ideas:review_queue' %}"><i class="bi bi-lightbulb" aria-hidden="true"></i> <span data-i18n="nav.ideas">Campus ideas</span></a>
-      <a href="{% url 'crisis:admin_restricted_zones' %}"><i class="bi bi-slash-circle" aria-hidden="true"></i> <span data-i18n="nav.zones">Restricted zones</span></a>
-    {% endif %}
+  <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+
+  <aside class="nx-sidebar" id="nx-sidebar" aria-label="Campus navigation">
+
+    <!-- Sidebar header with user info -->
+    <div class="nx-sidebar-header">
+      <div class="nx-sidebar-user">
+        <form class="nx-sidebar-avatar-form" method="post" action="{% url 'accounts:profile_photo' %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input class="nx-sidebar-avatar-input" id="sidebar-profile-photo" type="file" name="profile_image" accept=".jpg,.jpeg,.png,.webp" aria-label="Choose profile photo">
+          <label class="nx-sidebar-avatar" for="sidebar-profile-photo" title="Upload profile photo">
+            {% if request.session.lpu_user_image %}
+              <img src="{{ request.session.lpu_user_image }}" alt="">
+            {% else %}
+              <i class="bi bi-person-fill" aria-hidden="true"></i>
+            {% endif %}
+            <span class="nx-sidebar-avatar-edit"><i class="bi bi-camera-fill" aria-hidden="true"></i></span>
+          </label>
+          <button class="nx-sidebar-avatar-submit" type="submit">Upload photo</button>
+        </form>
+        <div class="nx-sidebar-userinfo">
+          <span class="nx-sidebar-username">{{ request.session.lpu_user_name }}</span>
+          <span class="nx-role-chip nx-role-{{ request.session.lpu_user_role }} nx-role-sm">{{ request.session.lpu_user_role }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="nx-sidebar-divider"></div>
+
+    <!-- Nav group: Core -->
+    <p class="nx-sidebar-label" data-i18n="sidebar.menu">
+      <i class="bi bi-grid-3x3-gap"></i> Campus Menu
+    </p>
+
+    <nav class="nx-sidebar-nav" aria-label="Sidebar navigation">
+      <a href="{% url 'accounts:dashboard' %}" class="nx-sidebar-link" data-tooltip="Dashboard">
+        <span class="nx-slink-icon nx-icon-blue"><i class="bi bi-grid-1x2-fill"></i></span>
+        <span class="nx-slink-text" data-i18n="nav.dashboard">Dashboard</span>
+        <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+      </a>
+
+      {% if request.session.lpu_user_role == 'student' or request.session.lpu_user_role == 'staff' %}
+        <a href="{% url 'accounts:profile' %}" class="nx-sidebar-link" data-tooltip="Profile">
+          <span class="nx-slink-icon nx-icon-purple"><i class="bi bi-person-badge-fill"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.profile">Profile</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+      {% endif %}
+
+      <a href="{% url 'navigation:map' %}" class="nx-sidebar-link" data-tooltip="Campus Map">
+        <span class="nx-slink-icon nx-icon-green"><i class="bi bi-map-fill"></i></span>
+        <span class="nx-slink-text" data-i18n="nav.map">Navigation</span>
+        <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+      </a>
+
+      <a href="{% url 'placement_predictor:predict' %}" class="nx-sidebar-link" data-tooltip="Placement Predictor">
+        <span class="nx-slink-icon nx-icon-teal"><i class="bi bi-graph-up-arrow"></i></span>
+        <span class="nx-slink-text" data-i18n="nav.placement">Predictor</span>
+        <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+      </a>
+
+      <a href="{% url 'campus_ai:assistant' %}" class="nx-sidebar-link" data-tooltip="Campus AI">
+        <span class="nx-slink-icon nx-icon-indigo"><i class="bi bi-stars"></i></span>
+        <span class="nx-slink-text" data-i18n="nav.ai">Campus AI</span>
+        <span class="nx-slink-badge">AI</span>
+        <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+      </a>
+
+      <a href="{% url 'accounts:notifications' %}" class="nx-sidebar-link" data-tooltip="Notifications">
+        <span class="nx-slink-icon nx-icon-amber"><i class="bi bi-bell-fill"></i></span>
+        <span class="nx-slink-text" data-i18n="nav.notifications">Notifications</span>
+        <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+      </a>
+
+      {% if request.session.lpu_user_role == 'student' %}
+        <div class="nx-sidebar-divider nx-sidebar-divider-sm"></div>
+        <p class="nx-sidebar-label nx-sidebar-label-sm"><i class="bi bi-person-workspace"></i> Student</p>
+
+        <a href="{% url 'problems:report' %}" class="nx-sidebar-link" data-tooltip="Report a Problem">
+          <span class="nx-slink-icon nx-icon-blue-alt"><i class="bi bi-tools"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.reports">Report Problem</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+
+        <a href="{% url 'problems:my_problems' %}" class="nx-sidebar-link" data-tooltip="My Reports">
+          <span class="nx-slink-icon nx-icon-cyan"><i class="bi bi-clipboard-check-fill"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.myReports">My Reports</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+
+        <a href="{% url 'ideas:list' %}" class="nx-sidebar-link" data-tooltip="Campus Ideas">
+          <span class="nx-slink-icon nx-icon-yellow"><i class="bi bi-lightbulb-fill"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.ideas">Campus Ideas</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+
+        <a href="{% url 'crisis:student_report' %}" class="nx-sidebar-link nx-sidebar-link-danger" data-tooltip="Emergency">
+          <span class="nx-slink-icon nx-icon-red"><i class="bi bi-exclamation-triangle-fill"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.emergency">Emergency</span>
+          <span class="nx-slink-badge nx-badge-red">SOS</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+      {% endif %}
+
+      {% if request.session.lpu_user_role == 'staff' %}
+        <div class="nx-sidebar-divider nx-sidebar-divider-sm"></div>
+        <p class="nx-sidebar-label nx-sidebar-label-sm"><i class="bi bi-people-fill"></i> Staff</p>
+
+        <a href="{% url 'accounts:staff_dashboard' %}" class="nx-sidebar-link" data-tooltip="Staff Queue">
+          <span class="nx-slink-icon nx-icon-blue"><i class="bi bi-inbox-fill"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.queue">Queue</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+
+        <a href="{% url 'problems:queue' %}" class="nx-sidebar-link" data-tooltip="Problem Queue">
+          <span class="nx-slink-icon nx-icon-teal"><i class="bi bi-list-task"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.staffQueue">Staff Queue</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+
+        <a href="{% url 'crisis:staff_queue' %}" class="nx-sidebar-link nx-sidebar-link-danger" data-tooltip="Emergency Queue">
+          <span class="nx-slink-icon nx-icon-red"><i class="bi bi-shield-exclamation"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.emergency">Emergency</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+      {% endif %}
+
+      {% if request.session.lpu_user_role == 'admin' %}
+        <div class="nx-sidebar-divider nx-sidebar-divider-sm"></div>
+        <p class="nx-sidebar-label nx-sidebar-label-sm"><i class="bi bi-shield-lock-fill"></i> Admin</p>
+
+        <a href="{% url 'accounts:admin_dashboard' %}" class="nx-sidebar-link" data-tooltip="Admin Dashboard">
+          <span class="nx-slink-icon nx-icon-indigo"><i class="bi bi-speedometer2"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.admin">Admin Panel</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+
+        <a href="{% url 'accounts:admin_list_students' %}" class="nx-sidebar-link" data-tooltip="Students">
+          <span class="nx-slink-icon nx-icon-blue"><i class="bi bi-mortarboard-fill"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.students">Students</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+
+        <a href="{% url 'accounts:admin_list_staff' %}" class="nx-sidebar-link" data-tooltip="Staff">
+          <span class="nx-slink-icon nx-icon-green"><i class="bi bi-people-fill"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.staff">Staff</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+
+        <a href="{% url 'ideas:review_queue' %}" class="nx-sidebar-link" data-tooltip="Campus Ideas">
+          <span class="nx-slink-icon nx-icon-yellow"><i class="bi bi-lightbulb-fill"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.ideas">Campus Ideas</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+
+        <a href="{% url 'crisis:admin_restricted_zones' %}" class="nx-sidebar-link" data-tooltip="Restricted Zones">
+          <span class="nx-slink-icon nx-icon-red"><i class="bi bi-slash-circle-fill"></i></span>
+          <span class="nx-slink-text" data-i18n="nav.zones">Restricted Zones</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+      {% endif %}
+    </nav>
+
+    <!-- Sidebar footer -->
+    <div class="nx-sidebar-footer">
+      <a href="{% url 'accounts:logout' %}" class="nx-sidebar-logout">
+        <i class="bi bi-box-arrow-left"></i>
+        <span>Sign Out</span>
+      </a>
+    </div>
+
   </aside>
 {% endif %}
 {% endblock %}
 
-<div class="{% block content_container_class %}container my-4{% endblock %}">
+<!-- ═══════════════════════════════ MAIN CONTENT ═══════════════════════════════ -->
+<div class="{% block content_container_class %}nx-page container my-4{% endblock %}">
   {% if messages %}
-    {% for m in messages %}
-      <div class="alert alert-{{ m.tags|default:'info' }} alert-dismissible fade show">
-        {{ m }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      </div>
-    {% endfor %}
+    <div class="nx-alerts-wrap">
+      {% for m in messages %}
+        <div class="alert alert-{{ m.tags|default:'info' }} alert-dismissible nx-alert fade show" role="alert">
+          <i class="bi {% if m.tags == 'success' %}bi-check-circle-fill{% elif m.tags == 'danger' or m.tags == 'error' %}bi-exclamation-circle-fill{% elif m.tags == 'warning' %}bi-exclamation-triangle-fill{% else %}bi-info-circle-fill{% endif %} me-2"></i>
+          {{ m }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    </div>
   {% endif %}
 
   {% block content %}{% endblock %}
 </div>
 
-<footer class="footer-bar">
-  © 2026 <strong>Lovely Professional University</strong> — LPU Nexus v1.0 &nbsp;|&nbsp;
-  <span data-i18n="footer.copy">Campus Intelligence · Innovation · Emergency Response</span>
+<!-- ═══════════════════════════════ FOOTER ═══════════════════════════════ -->
+<footer class="footer-bar" role="contentinfo">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img src="{% static 'images/logo.png' %}" alt="LPU Nexus" width="28" height="28" loading="lazy">
+      <span>LPU <strong>NEXUS</strong></span>
+    </div>
+    <div class="footer-copy">
+      © 2026 <strong>Lovely Professional University</strong> &nbsp;·&nbsp;
+      <span data-i18n="footer.copy">Campus Intelligence · Innovation · Emergency Response</span>
+    </div>
+    <div class="footer-version">v2.0</div>
+  </div>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{% static 'js/nexus-i18n.js' %}?v=20261101-music3"></script>
-<script src="{% static 'js/nexus-ui.js' %}?v=20261101-music3"></script>
+<script src="{% static 'js/nexus-i18n.js' %}?v=20261103-placement-i18n2"></script>
+<script src="{% static 'js/nexus-ui.js' %}?v=20261104-v3"></script>
 
 <script>
   window.addEventListener('load', () => {
@@ -184,10 +404,9 @@
       canvas.height = image.naturalHeight;
       context.drawImage(image, 0, 0);
       const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-      for (let index = 0; index < pixels.data.length; index += 4) {
-        if (pixels.data[index] > 245 && pixels.data[index + 1] > 245 && pixels.data[index + 2] > 245) {
-          pixels.data[index + 3] = 0;
-        }
+      for (let i = 0; i < pixels.data.length; i += 4) {
+        if (pixels.data[i] > 245 && pixels.data[i+1] > 245 && pixels.data[i+2] > 245)
+          pixels.data[i+3] = 0;
       }
       context.putImageData(pixels, 0, 0);
       image.src = canvas.toDataURL('image/png');
@@ -203,7 +422,6 @@
       .then(data => {
         const overlay = document.getElementById('crisis-overlay');
         if (!overlay) return;
-
         if (data.crisis_mode) {
           if (overlay.style.display === 'none') {
             document.getElementById('crisis-overlay-msg').textContent =
@@ -211,18 +429,22 @@
             overlay.style.display = 'block';
           }
         } else {
-          if (overlay.style.display !== 'none') {
-            overlay.style.display = 'none';
-          }
+          if (overlay.style.display !== 'none') overlay.style.display = 'none';
         }
       })
       .catch(() => {});
     setTimeout(pollCrisis, 30000);
   })();
 </script>
+<script>
+  document.querySelectorAll('.nx-sidebar-avatar-input').forEach((input) => {
+    input.addEventListener('change', () => {
+      if (input.files && input.files.length) input.form.requestSubmit();
+    });
+  });
+</script>
 {% endif %}
 
 {% block extra_js %}{% endblock %}
-
 </body>
 </html>

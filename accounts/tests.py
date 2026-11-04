@@ -177,6 +177,7 @@ class ProfileViewTests(TestCase):
 		self.assertContains(response, 'Change password')
 		self.assertContains(response, 'Delete account')
 		self.assertContains(response, '/media/id_cards/student.png')
+		self.assertContains(response, 'sidebar-profile-photo')
 
 	@patch('accounts.views.set_user_password')
 	@patch('accounts.views.verify_current_password', return_value=True)
@@ -250,6 +251,42 @@ class ProfileViewTests(TestCase):
 		self.assertRedirects(response, '/', fetch_redirect_response=False)
 		delete_account.assert_called_once_with('mongo-user-id', 'current-pass')
 		self.assertNotIn('lpu_user_id', self.client.session)
+
+	@patch('accounts.views.delete_profile_image')
+	@patch('accounts.views.update_profile_image', return_value=True)
+	@patch('accounts.views.save_profile_image')
+	@patch('accounts.views.get_user_by_id')
+	def test_profile_photo_upload_stores_both_urls_and_updates_session(
+		self, get_user, save_image, update_image, delete_image
+	):
+		get_user.return_value = {
+			'_id': 'mongo-user-id',
+			'role': 'student',
+			'profile_image_path': 'profile_images/old.png',
+			'profile_image_public_id': 'lpu_nexus/profile_images/old',
+		}
+		new_image = {
+			'path': 'profile_images/new.png',
+			'url': 'https://res.cloudinary.com/example/image/upload/new.png',
+			'public_id': 'lpu_nexus/profile_images/new',
+		}
+		save_image.return_value = new_image
+		session = self.client.session
+		session['lpu_user_id'] = 'mongo-user-id'
+		session['lpu_user_role'] = 'student'
+		session.save()
+
+		response = self.client.post('/profile/photo/', {
+			'profile_image': SimpleUploadedFile('new.png', b'image', content_type='image/png'),
+		})
+
+		self.assertRedirects(response, '/profile/', fetch_redirect_response=False)
+		update_image.assert_called_once_with('mongo-user-id', new_image)
+		delete_image.assert_called_once_with({
+			'profile_image_path': 'profile_images/old.png',
+			'profile_image_public_id': 'lpu_nexus/profile_images/old',
+		})
+		self.assertEqual(self.client.session['lpu_user_image'], new_image['url'])
 
 
 class RegistrationIdVerificationTests(TestCase):
