@@ -66,10 +66,10 @@
     </section>
   </div>
 
-  {% if user.role == 'student' and profile.id_card_path %}
+  {% if user.role == 'student' and profile.id_card.public_id %}
     <section class="profile-section">
       <h2><i class="bi bi-card-image me-2" aria-hidden="true"></i>Verified LPU ID card</h2>
-      <a href="{% get_media_prefix %}{{ profile.id_card_path }}" target="_blank" rel="noopener noreferrer">View uploaded ID card</a>
+      <a href="{% url 'accounts:id_card' %}" target="_blank" rel="noopener noreferrer">View securely stored ID card</a>
     </section>
   {% endif %}
 

@@ -1,15 +1,14 @@
 # accounts/views.py
 import os
 import re
-import uuid
 import logging
 from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.shortcuts import render, redirect
+from django.http import JsonResponse
 from django.contrib import messages
 from django.conf import settings
-from django.core.files.storage import default_storage
 from django.views.decorators.http import require_http_methods
 from pymongo.errors import PyMongoError
 from crisis.services import crisis_stats
@@ -29,9 +28,13 @@ from .session import (
 )
 from core.mongo import users
 from core.storage import (
+    IdentityCardStorageError,
     ProfileImageUploadError,
+    delete_identity_card,
     delete_profile_image,
+    identity_card_download_url,
     save_profile_image,
+    save_identity_card,
 )
 
 logger = logging.getLogger(__name__)
@@ -81,7 +84,6 @@ def register_view(request):
         if not id_card:
             errors.append("LPU ID card image is required.")
 
-        id_card_path = ''
         if id_card:
             ext = os.path.splitext(id_card.name)[1].lower()
             if ext not in ALLOWED_ID_EXT:
@@ -101,10 +103,6 @@ def register_view(request):
             except IdCardReadError:
                 errors.append("The ID card could not be read. Upload a clear image or PDF and try again.")
 
-        if not errors and id_card:
-            fname = f"id_cards/{uuid.uuid4().hex}{ext}"
-            id_card_path = default_storage.save(fname, id_card)
-
         if errors:
             for e in errors:
                 messages.error(request, e)
@@ -112,20 +110,36 @@ def register_view(request):
                 'form_data': request.POST,
             })
 
-        user, err = create_student(
-            email=email, password=password, full_name=full_name,
-            registration_number=reg_no, department=department,
-            year=year, id_card_path=id_card_path,
-            recovery_question=RECOVERY_QUESTIONS[recovery_question],
-            recovery_answer=recovery_answer,
-        )
-        if err:
-            # clean up orphaned upload
-            if id_card_path:
+        try:
+            id_card_asset = save_identity_card(id_card, full_name, reg_no)
+            user, err = create_student(
+                email=email, password=password, full_name=full_name,
+                registration_number=reg_no, department=department,
+                year=year, id_card=id_card_asset,
+                recovery_question=RECOVERY_QUESTIONS[recovery_question],
+                recovery_answer=recovery_answer,
+            )
+        except IdentityCardStorageError as error:
+            messages.error(request, str(error))
+            return render(request, 'accounts/register.html', {
+                'form_data': request.POST,
+            })
+        except PyMongoError:
+            if 'id_card_asset' in locals():
                 try:
-                    default_storage.delete(id_card_path)
-                except Exception:
-                    pass
+                    delete_identity_card(id_card_asset)
+                except IdentityCardStorageError:
+                    logger.exception('Could not clean up ID card after registration failure')
+            logger.exception('Could not create student account after ID-card upload')
+            messages.error(request, "Your account could not be created. Please try again.")
+            return render(request, 'accounts/register.html', {
+                'form_data': request.POST,
+            })
+        if err:
+            try:
+                delete_identity_card(id_card_asset)
+            except IdentityCardStorageError:
+                logger.exception('Could not clean up an unused ID card after registration failure')
             messages.error(request, err)
             return render(request, 'accounts/register.html', {
                 'form_data': request.POST,
@@ -323,16 +337,25 @@ def profile_view(request):
         if request.POST.get('confirmation', '').strip() != 'DELETE':
             messages.error(request, "Type DELETE to confirm account deletion.")
         else:
-            deleted_user = delete_account(user_id, request.POST.get('delete_password', ''))
+            password = request.POST.get('delete_password', '')
+            if not verify_current_password(user, password):
+                deleted_user = None
+            else:
+                card = (profile or {}).get('id_card') or {}
+                try:
+                    delete_identity_card(card)
+                except IdentityCardStorageError:
+                    logger.exception('Could not remove ID card for account %s', user_id)
+                    messages.error(request, "The ID card could not be removed from Cloudinary; your account was not deleted.")
+                    return render(request, 'accounts/profile.html', {
+                        'user': user,
+                        'profile': profile,
+                        'form_data': {},
+                    })
+                deleted_user = delete_account(user_id, password)
             if not deleted_user:
                 messages.error(request, "The password is incorrect; your account was not deleted.")
             else:
-                id_card_path = profile.get('id_card_path') if profile else ''
-                if id_card_path:
-                    try:
-                        default_storage.delete(id_card_path)
-                    except OSError:
-                        pass
                 logout_session(request)
                 messages.success(request, "Your account has been deleted.")
                 return redirect('accounts:home')
@@ -342,6 +365,29 @@ def profile_view(request):
         'profile': profile,
         'form_data': request.POST if action == 'update_details' else {},
     })
+
+
+@login_required_mongo
+@require_http_methods(["GET"])
+def download_id_card(request, user_id=None):
+    role = request.session.get('lpu_user_role')
+    current_user_id = request.session.get('lpu_user_id')
+    if user_id is None:
+        if role != 'student':
+            return JsonResponse({'error': 'ID card not found.'}, status=404)
+        user_id = current_user_id
+    elif role != 'admin':
+        return JsonResponse({'error': 'You do not have permission to view this ID card.'}, status=403)
+
+    profile = get_student_profile(user_id)
+    if not profile or not profile.get('id_card'):
+        return JsonResponse({'error': 'ID card not found.'}, status=404)
+    try:
+        url = identity_card_download_url(profile['id_card'])
+    except IdentityCardStorageError:
+        logger.exception('Could not create Cloudinary ID-card URL for user %s', user_id)
+        return JsonResponse({'error': 'The ID card is temporarily unavailable.'}, status=503)
+    return redirect(url)
 
 
 @login_required_mongo
@@ -535,7 +581,16 @@ def admin_list_staff(request):
 @role_required('admin')
 def admin_list_students(request):
     from core.utils import serialize_list
+    students = list_students()
+    for student in students:
+        profile = get_student_profile(str(student['_id'])) or {}
+        student.update({
+            'registration_number': profile.get('registration_number', ''),
+            'department': profile.get('department', ''),
+            'year': profile.get('year', ''),
+            'has_id_card': bool((profile.get('id_card') or {}).get('public_id')),
+        })
     return render(request, 'accounts/admin_list_students.html', {
         'user': get_current_user(request),
-        'students': serialize_list(list_students()),
+        'students': serialize_list(students),
     })

@@ -11,15 +11,17 @@
 
 {% if can_broadcast %}
 <section class="card-lpu card-accent-orange mb-4">
-  <h5>Start a live broadcast</h5>
-  <p class="small text-muted">Allow camera and microphone access when prompted. Broadcasts are visible to signed-in students.</p>
+  <h5>Broadcast or schedule campus news</h5>
+  <p class="small text-muted">Choose a time to schedule a broadcast, or leave it blank to go live now. At the scheduled time, the staff host starts the camera manually.</p>
   <form id="live-start-form" action="{% url 'live_news:start_stream' %}" method="post">
     {% csrf_token %}
     <label class="form-label-lpu" for="live-title">Headline</label>
     <input class="form-control form-control-lpu mb-2" id="live-title" name="title" maxlength="140" required>
     <label class="form-label-lpu" for="live-description">Details (optional)</label>
     <textarea class="form-control form-control-lpu mb-3" id="live-description" name="description" rows="3" maxlength="2000"></textarea>
-    <button class="btn btn-lpu" type="submit" id="live-start-button">Go live</button>
+    <label class="form-label-lpu" for="live-scheduled-at">Schedule time (optional, India time)</label>
+    <input class="form-control form-control-lpu mb-3" id="live-scheduled-at" name="scheduled_at" type="datetime-local">
+    <button class="btn btn-lpu" type="submit" id="live-start-button">Go live or schedule</button>
   </form>
 </section>
 {% endif %}
@@ -27,7 +29,7 @@
 <div id="live-status" class="alert d-none" role="status" aria-live="polite"></div>
 <section>
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="mb-0">On air now</h5>
+    <h5 class="mb-0">Live and scheduled broadcasts</h5>
     <button class="btn btn-sm btn-outline-secondary" type="button" id="refresh-streams">Refresh</button>
   </div>
   <div id="live-stream-list" class="row g-3">
@@ -44,19 +46,56 @@
     </div>
     <button class="btn btn-sm btn-outline-secondary" type="button" id="live-disconnect">Leave</button>
   </div>
-  <video id="live-host-video" class="w-100 rounded d-none" autoplay playsinline></video>
-  <div id="live-remote-videos" class="row g-2"></div>
+  <div id="live-video-stage" class="position-relative">
+    <video id="live-host-video" class="w-100 rounded d-none" autoplay playsinline></video>
+    <div id="live-remote-videos" class="row g-2"></div>
+    <div id="live-reaction-overlay" class="position-absolute top-0 start-0 w-100 h-100 overflow-hidden pe-none" aria-live="polite"></div>
+  </div>
+  <section class="mt-4" aria-labelledby="live-chat-title">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 id="live-chat-title" class="mb-0">Live comments and reactions</h6>
+      <span id="live-chat-state" class="small text-muted"></span>
+    </div>
+    <div id="live-chat-messages" class="border rounded p-2 mb-2" role="log" aria-live="polite" style="max-height: 260px; overflow-y: auto"></div>
+    <div id="live-chat-controls">
+      <form id="live-chat-form" class="d-flex gap-2">
+        <input id="live-chat-input" class="form-control form-control-lpu" maxlength="500" placeholder="Write a comment…" autocomplete="off" required>
+        <button class="btn btn-lpu" type="submit">Send</button>
+      </form>
+      <div id="live-emoji-buttons" class="d-flex gap-2 mt-2" aria-label="Send a reaction"></div>
+    </div>
+  </section>
+  <section id="live-viewer-management" class="mt-4 d-none">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="mb-0">Watching now</h6>
+      <button id="refresh-viewers" class="btn btn-sm btn-outline-secondary" type="button">Refresh viewers</button>
+    </div>
+    <div id="live-viewer-list" class="small"></div>
+  </section>
 </section>
 
 <div id="live-endpoint-data"
      data-streams-url="{% url 'live_news:active_streams' %}"
      data-start-url="{% url 'live_news:start_stream' %}"
+     data-go-live-url="{% url 'live_news:go_live_stream' 'STREAM_ID' %}"
      data-token-url="{% url 'live_news:stream_token' 'STREAM_ID' %}"
+     data-heartbeat-url="{% url 'live_news:heartbeat' 'STREAM_ID' %}"
+     data-leave-url="{% url 'live_news:leave_stream' 'STREAM_ID' %}"
+     data-comments-url="{% url 'live_news:comments' 'STREAM_ID' %}"
+     data-moderate-url="{% url 'live_news:moderate_comments' 'STREAM_ID' %}"
+     data-participants-url="{% url 'live_news:participants' 'STREAM_ID' %}"
+     data-remove-participant-url="{% url 'live_news:remove_participant' 'STREAM_ID' 'PARTICIPANT_ID' %}"
      data-end-url="{% url 'live_news:end_stream' 'STREAM_ID' %}"
      data-csrf-token="{{ csrf_token }}"></div>
 {% endblock %}
 
 {% block extra_js %}
+<style>
+  @keyframes live-reaction-float {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(-180px) scale(1.35); }
+  }
+</style>
 <script type="module">
   const config = document.getElementById('live-endpoint-data').dataset;
   const list = document.getElementById('live-stream-list');
@@ -64,6 +103,15 @@
   const player = document.getElementById('live-player-section');
   const hostVideo = document.getElementById('live-host-video');
   const remoteVideos = document.getElementById('live-remote-videos');
+  const reactionOverlay = document.getElementById('live-reaction-overlay');
+  const viewerManagement = document.getElementById('live-viewer-management');
+  const viewerList = document.getElementById('live-viewer-list');
+  const chatMessages = document.getElementById('live-chat-messages');
+  const chatState = document.getElementById('live-chat-state');
+  const chatControls = document.getElementById('live-chat-controls');
+  const chatForm = document.getElementById('live-chat-form');
+  const chatInput = document.getElementById('live-chat-input');
+  const emojiButtons = document.getElementById('live-emoji-buttons');
   const staffPage = Boolean(document.getElementById('live-start-form'));
   let Room;
   let RoomEvent;
@@ -72,6 +120,12 @@
   let room = null;
   let currentStreamId = null;
   let refreshTimer = null;
+  let viewerTimer = null;
+  let chatTimer = null;
+  let lastCommentId = null;
+  let commentsEnabled = true;
+  let lastHeartbeat = 0;
+  let currentStream = null;
 
   function showStatus(message, isError = false) {
     statusBox.textContent = message;
@@ -98,17 +152,38 @@
 
   async function disconnect() {
     if (refreshTimer) clearInterval(refreshTimer);
+    if (chatTimer) clearInterval(chatTimer);
+    if (viewerTimer) clearInterval(viewerTimer);
     refreshTimer = null;
+    chatTimer = null;
+    viewerTimer = null;
     if (room) {
       const oldRoom = room;
+      const leavingStreamId = currentStreamId;
       room = null;
+      currentStreamId = null;
+      if (leavingStreamId) {
+        try {
+          await post(endpoint(config.leaveUrl, leavingStreamId));
+        } catch (error) {
+          console.warn('Could not update live chat presence.', error);
+        }
+      }
       await oldRoom.disconnect();
     }
     currentStreamId = null;
+    currentStream = null;
+    lastCommentId = null;
     player.classList.add('d-none');
     hostVideo.srcObject = null;
     hostVideo.classList.add('d-none');
     remoteVideos.replaceChildren();
+    chatMessages.replaceChildren();
+    reactionOverlay.replaceChildren();
+    viewerList.replaceChildren();
+    viewerManagement.classList.add('d-none');
+    chatState.textContent = '';
+    chatControls.classList.remove('d-none');
   }
 
   function attachTrack(track, participant) {
@@ -138,6 +213,7 @@
     }
     await disconnect();
     currentStreamId = stream.id;
+    currentStream = stream;
     document.getElementById('live-player-title').textContent = stream.title;
     document.getElementById('live-player-description').textContent = stream.description || '';
     player.classList.remove('d-none');
@@ -150,8 +226,34 @@
         attachTrack(track, participant);
       });
       room.on(RoomEvent.TrackUnsubscribed, (track) => track.detach().forEach(element => element.remove()));
+      room.on(RoomEvent.DataReceived, (payload, participant) => {
+        if (!commentsEnabled) return;
+        if (participant?.identity === room?.localParticipant.identity) return;
+        try {
+          const reaction = JSON.parse(new TextDecoder().decode(payload));
+          if (reaction.type !== 'emoji' || !['👍', '❤️', '😂', '👏', '🔥', '🎉'].includes(reaction.emoji)) {
+            return;
+          }
+          displayReaction(reaction.emoji, participant?.name || 'LPU user');
+        } catch (error) {
+          console.warn('Ignoring an invalid live reaction.', error);
+        }
+      });
       room.on(RoomEvent.Disconnected, () => {
-        if (currentStreamId) showStatus('The broadcast has ended.', true);
+        if (currentStreamId) {
+          showStatus('You were disconnected from the live broadcast.', true);
+          room = null;
+          currentStreamId = null;
+          currentStream = null;
+          clearInterval(chatTimer);
+          clearInterval(refreshTimer);
+          clearInterval(viewerTimer);
+          chatTimer = null;
+          refreshTimer = null;
+          viewerTimer = null;
+          viewerManagement.classList.add('d-none');
+          updateChatControls();
+        }
       });
       await room.connect(connection.url, connection.token);
       if (connection.is_host) {
@@ -166,6 +268,13 @@
         showStatus('You are live. Keep this page open while broadcasting.');
       } else {
         showStatus('Connected to live broadcast.');
+      }
+      await loadComments(true);
+      chatTimer = setInterval(() => loadComments(false), 3000);
+      if (stream.can_moderate) {
+        viewerManagement.classList.remove('d-none');
+        await loadViewers();
+        viewerTimer = setInterval(loadViewers, 5000);
       }
 
       refreshTimer = setInterval(async () => {
@@ -206,8 +315,10 @@
         const card = document.createElement('article');
         card.className = 'card-lpu h-100';
         const badge = document.createElement('span');
-        badge.className = `badge ${stream.status === 'ending' ? 'bg-secondary' : 'bg-danger'} mb-2`;
-        badge.textContent = stream.status === 'ending' ? 'ENDING' : 'LIVE';
+        badge.className = `badge ${stream.status === 'scheduled' ? 'bg-primary' : stream.status === 'ending' ? 'bg-secondary' : 'bg-danger'} mb-2`;
+        badge.textContent = stream.status === 'scheduled'
+          ? `SCHEDULED · ${new Date(`${stream.scheduled_at}Z`).toLocaleString()}`
+          : stream.status === 'ending' ? 'ENDING' : 'LIVE';
         const title = document.createElement('h6');
         title.textContent = stream.title;
         const description = document.createElement('p');
@@ -223,6 +334,22 @@
         join.disabled = stream.status !== 'live';
         join.addEventListener('click', () => joinStream(stream));
         card.append(badge, title, description, byline, join);
+        if (stream.status === 'scheduled' && stream.can_start) {
+          const goLive = document.createElement('button');
+          goLive.className = 'btn btn-sm btn-lpu ms-2';
+          goLive.type = 'button';
+          goLive.textContent = 'Start scheduled broadcast';
+          goLive.addEventListener('click', async () => {
+            try {
+              const started = await post(endpoint(config.goLiveUrl, stream.id));
+              await loadStreams();
+              await joinStream(started.stream);
+            } catch (error) {
+              showStatus(error.message, true);
+            }
+          });
+          card.appendChild(goLive);
+        }
         if (stream.can_end) {
           const end = document.createElement('button');
           end.className = 'btn btn-sm btn-outline-danger ms-2';
@@ -240,6 +367,29 @@
           });
           card.appendChild(end);
         }
+        if (stream.can_moderate && stream.status !== 'ending') {
+          const moderate = document.createElement('button');
+          moderate.className = 'btn btn-sm btn-outline-secondary ms-2';
+          moderate.type = 'button';
+          moderate.textContent = stream.comments_enabled
+            ? 'Turn comments off' : 'Turn comments on';
+          moderate.addEventListener('click', async () => {
+            try {
+              const data = await post(endpoint(config.moderateUrl, stream.id), new URLSearchParams({
+                enabled: String(!stream.comments_enabled),
+              }));
+              stream.comments_enabled = data.comments_enabled;
+              if (currentStreamId === stream.id) {
+                commentsEnabled = data.comments_enabled;
+                updateChatControls();
+              }
+              await loadStreams();
+            } catch (error) {
+              showStatus(error.message, true);
+            }
+          });
+          card.appendChild(moderate);
+        }
         column.appendChild(card);
         list.appendChild(column);
       });
@@ -253,7 +403,8 @@
   if (startForm) {
     startForm.addEventListener('submit', async event => {
       event.preventDefault();
-      if (sdkLoadError) {
+      const scheduledAt = document.getElementById('live-scheduled-at').value;
+      if (!scheduledAt && sdkLoadError) {
         showStatus(sdkLoadError, true);
         return;
       }
@@ -263,7 +414,11 @@
         const body = new URLSearchParams(new FormData(startForm));
         const data = await post(config.startUrl, body);
         await loadStreams();
-        await joinStream(data.stream);
+        if (data.stream.status === 'live') {
+          await joinStream(data.stream);
+        } else {
+          showStatus(`Broadcast scheduled for ${new Date(`${data.stream.scheduled_at}Z`).toLocaleString()}.`);
+        }
         startForm.reset();
       } catch (error) {
         showStatus(error.message, true);
@@ -278,6 +433,148 @@
     await disconnect();
     showStatus('You left the live broadcast.');
   });
+  function updateChatControls() {
+    const connected = Boolean(room && currentStreamId);
+    chatControls.classList.toggle('d-none', !connected || !commentsEnabled);
+    chatState.textContent = !connected
+      ? 'Join the live broadcast to participate.'
+      : commentsEnabled ? 'Comments are on.' : 'Comments are turned off by the broadcast host.';
+  }
+
+  function displayReaction(emoji, displayName) {
+    const reaction = document.createElement('div');
+    reaction.className = 'position-absolute fs-2 fw-bold text-white';
+    reaction.style.cssText = `left:${10 + Math.random() * 75}%;bottom:8%;text-shadow:0 2px 6px #000;animation:live-reaction-float 3s ease-out forwards;`;
+    reaction.textContent = `${emoji} ${displayName}`;
+    reactionOverlay.appendChild(reaction);
+    window.setTimeout(() => reaction.remove(), 3000);
+  }
+
+  function appendComment(comment) {
+    const row = document.createElement('div');
+    row.className = 'small py-1 border-bottom';
+    const author = document.createElement('strong');
+    author.textContent = `${comment.display_name}: `;
+    const body = document.createElement('span');
+    body.textContent = comment.content;
+    row.append(author, body);
+    chatMessages.appendChild(row);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  async function loadComments(initial) {
+    if (!currentStreamId) return;
+    try {
+      if (Date.now() - lastHeartbeat > 15000) {
+        await post(endpoint(config.heartbeatUrl, currentStreamId));
+        lastHeartbeat = Date.now();
+      }
+      const url = endpoint(config.commentsUrl, currentStreamId)
+        + (lastCommentId ? `?after=${encodeURIComponent(lastCommentId)}` : '');
+      const response = await fetch(url);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not load live comments.');
+      commentsEnabled = data.comments_enabled;
+      if (currentStream) currentStream.comments_enabled = commentsEnabled;
+      data.comments.forEach(comment => {
+        if (chatMessages.dataset.empty) {
+          chatMessages.replaceChildren();
+          delete chatMessages.dataset.empty;
+        }
+        appendComment(comment);
+        lastCommentId = comment.id;
+      });
+      if (initial && !data.comments.length) {
+        chatMessages.textContent = 'No comments yet. Be the first to join the conversation.';
+        chatMessages.dataset.empty = 'true';
+      }
+      updateChatControls();
+    } catch (error) {
+      chatState.textContent = error.message;
+      chatState.classList.add('text-danger');
+    }
+  }
+
+  chatForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (!currentStreamId || !commentsEnabled || !chatInput.value.trim()) return;
+    try {
+      const data = await post(endpoint(config.commentsUrl, currentStreamId), new URLSearchParams({
+        type: 'text',
+        content: chatInput.value.trim(),
+      }));
+      if (chatMessages.dataset.empty) {
+        chatMessages.replaceChildren();
+        delete chatMessages.dataset.empty;
+      }
+      appendComment(data.message);
+      lastCommentId = data.message.id;
+      chatInput.value = '';
+    } catch (error) {
+      showStatus(error.message, true);
+    }
+  });
+
+  ['👍', '❤️', '😂', '👏', '🔥', '🎉'].forEach(emoji => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-sm btn-outline-secondary';
+    button.textContent = emoji;
+    button.setAttribute('aria-label', `Send ${emoji} reaction`);
+    button.addEventListener('click', async () => {
+      if (!room || !currentStreamId || !commentsEnabled) return;
+      try {
+        const reaction = new TextEncoder().encode(JSON.stringify({
+          type: 'emoji',
+          emoji,
+        }));
+        await room.localParticipant.publishData(reaction, { reliable: true });
+        displayReaction(emoji, room.localParticipant.name || 'You');
+      } catch (error) {
+        showStatus(error.message, true);
+      }
+    });
+    emojiButtons.appendChild(button);
+  });
+
+  async function loadViewers() {
+    if (!currentStreamId || !currentStream?.can_moderate) return;
+    try {
+      const response = await fetch(endpoint(config.participantsUrl, currentStreamId));
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not load viewers.');
+      viewerList.replaceChildren();
+      if (!data.participants.length) {
+        viewerList.textContent = 'No students are watching right now.';
+        return;
+      }
+      data.participants.forEach(participant => {
+        const row = document.createElement('div');
+        row.className = 'd-flex justify-content-between align-items-center border-bottom py-2';
+        const name = document.createElement('span');
+        name.textContent = participant.display_name;
+        const remove = document.createElement('button');
+        remove.className = 'btn btn-sm btn-outline-danger';
+        remove.type = 'button';
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', async () => {
+          if (!window.confirm(`Remove ${participant.display_name} from this broadcast?`)) return;
+          try {
+            await post(endpoint(config.removeParticipantUrl, currentStreamId)
+              .replace('PARTICIPANT_ID', encodeURIComponent(participant.user_id)));
+            await loadViewers();
+          } catch (error) {
+            showStatus(error.message, true);
+          }
+        });
+        row.append(name, remove);
+        viewerList.appendChild(row);
+      });
+    } catch (error) {
+      viewerList.textContent = error.message;
+    }
+  }
+  document.getElementById('refresh-viewers').addEventListener('click', loadViewers);
   setInterval(loadStreams, 15000);
   window.addEventListener('beforeunload', () => {
     if (room && staffPage && currentStreamId) {
@@ -295,6 +592,7 @@
     sdkLoadError = 'Could not load live video. Check your internet connection and reload the page.';
   }
   await loadStreams();
+  updateChatControls();
   if (sdkLoadError) showStatus(sdkLoadError, true);
 </script>
 {% endblock %}

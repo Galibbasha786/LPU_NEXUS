@@ -1,6 +1,8 @@
 # accounts/mongo_auth.py
 import re
+import logging
 from django.contrib.auth.hashers import make_password, check_password
+from pymongo.errors import PyMongoError
 from core.mongo import users, student_profiles
 from core.utils import now, to_object_id
 
@@ -9,10 +11,11 @@ from core.utils import now, to_object_id
 #  FIXED ADMIN EMAIL (only this email can be admin)
 # =====================================================
 FIXED_ADMIN_EMAIL = "syedsunnygalibbasha786@gmail.com"
+logger = logging.getLogger(__name__)
 
 
 def create_student(email, password, full_name, registration_number,
-                   department='', year='', id_card_path='',
+                   department='', year='', id_card=None,
                    recovery_question='', recovery_answer=''):
     """Self-registration path. Role is forced to 'student'."""
     email = email.strip().lower()
@@ -41,16 +44,24 @@ def create_student(email, password, full_name, registration_number,
         'created_at': now(),
         'updated_at': now(),
     }
-    result = users().insert_one(user_doc)
-
-    student_profiles().insert_one({
-        'user_id': result.inserted_id,
-        'registration_number': registration_number.strip(),
-        'department': department.strip(),
-        'year': year.strip(),
-        'id_card_path': id_card_path,      # relative path under /media/
-        'created_at': now(),
-    })
+    result = None
+    try:
+        result = users().insert_one(user_doc)
+        student_profiles().insert_one({
+            'user_id': result.inserted_id,
+            'registration_number': registration_number.strip(),
+            'department': department.strip(),
+            'year': year.strip(),
+            'id_card': id_card or {},
+            'created_at': now(),
+        })
+    except PyMongoError:
+        if result:
+            try:
+                users().delete_one({'_id': result.inserted_id})
+            except PyMongoError:
+                logger.exception('Could not roll back student after profile creation failed')
+        raise
 
     user_doc['_id'] = result.inserted_id
     return user_doc, None

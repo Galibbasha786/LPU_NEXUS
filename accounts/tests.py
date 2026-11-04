@@ -163,7 +163,11 @@ class ProfileViewTests(TestCase):
 		}
 		get_profile.return_value = {
 			'registration_number': '12345678', 'department': 'CSE', 'year': '2',
-			'id_card_path': 'id_cards/student.png',
+			'id_card': {
+				'public_id': 'lpu_nexus/id_cards/student',
+				'resource_type': 'image', 'format': 'png',
+				'delivery_type': 'authenticated',
+			},
 		}
 		session = self.client.session
 		session['lpu_user_id'] = 'mongo-user-id'
@@ -176,8 +180,48 @@ class ProfileViewTests(TestCase):
 		self.assertContains(response, '12345678')
 		self.assertContains(response, 'Change password')
 		self.assertContains(response, 'Delete account')
-		self.assertContains(response, '/media/id_cards/student.png')
+		self.assertContains(response, '/profile/id-card/')
 		self.assertContains(response, 'sidebar-profile-photo')
+
+	@patch('accounts.views.identity_card_download_url', return_value='https://res.cloudinary.com/private-card')
+	@patch('accounts.views.get_student_profile')
+	def test_student_id_card_redirects_to_temporary_cloudinary_url(
+		self, get_profile, cloudinary_url
+	):
+		get_profile.return_value = {
+			'id_card': {
+				'public_id': 'lpu_nexus/id_cards/student',
+				'resource_type': 'image', 'format': 'png',
+				'delivery_type': 'authenticated',
+			},
+		}
+		session = self.client.session
+		session['lpu_user_id'] = 'mongo-user-id'
+		session['lpu_user_role'] = 'student'
+		session.save()
+
+		response = self.client.get('/profile/id-card/')
+
+		self.assertRedirects(
+			response, cloudinary_url.return_value, fetch_redirect_response=False,
+		)
+		cloudinary_url.assert_called_once_with(get_profile.return_value['id_card'])
+
+	@patch('accounts.views.identity_card_download_url')
+	@patch('accounts.views.get_student_profile')
+	def test_student_cannot_access_another_students_id_card_route(
+		self, get_profile, cloudinary_url
+	):
+		session = self.client.session
+		session['lpu_user_id'] = 'mongo-user-id'
+		session['lpu_user_role'] = 'student'
+		session.save()
+
+		response = self.client.get('/nexus-admin/students/other-user/id-card/')
+
+		self.assertEqual(response.status_code, 403)
+		get_profile.assert_not_called()
+		cloudinary_url.assert_not_called()
 
 	@patch('accounts.views.set_user_password')
 	@patch('accounts.views.verify_current_password', return_value=True)
@@ -230,8 +274,9 @@ class ProfileViewTests(TestCase):
 
 	@patch('accounts.views.delete_account')
 	@patch('accounts.views.get_user_by_id')
+	@patch('accounts.views.verify_current_password', return_value=True)
 	def test_profile_deletes_account_only_after_password_and_confirmation(
-		self, get_user, delete_account
+		self, verify_password, get_user, delete_account
 	):
 		get_user.return_value = {
 			'_id': 'mongo-user-id', 'role': 'staff', 'full_name': 'Staff Example',
@@ -299,7 +344,11 @@ class RegistrationIdVerificationTests(TestCase):
 		self.assertTrue(result['name_matches'])
 		self.assertTrue(result['registration_number_matches'])
 
-	@patch('accounts.views.default_storage.save', return_value='id_cards/verified.png')
+	@patch('accounts.views.save_identity_card', return_value={
+		'public_id': 'lpu_nexus/id_cards/verified',
+		'resource_type': 'image', 'format': 'png',
+		'delivery_type': 'authenticated',
+	})
 	@patch('accounts.views.create_student')
 	@patch('accounts.views.verify_student_id_card')
 	def test_matching_card_is_saved_and_account_is_created(
@@ -326,10 +375,10 @@ class RegistrationIdVerificationTests(TestCase):
 		save_upload.assert_called_once()
 		create_student.assert_called_once()
 		self.assertEqual(
-			create_student.call_args.kwargs['id_card_path'], 'id_cards/verified.png'
+			create_student.call_args.kwargs['id_card'], save_upload.return_value
 		)
 
-	@patch('accounts.views.default_storage.save')
+	@patch('accounts.views.save_identity_card')
 	@patch('accounts.views.create_student')
 	@patch('accounts.views.verify_student_id_card')
 	def test_registration_rejects_name_mismatch_before_saving_card(

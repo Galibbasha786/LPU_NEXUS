@@ -14,6 +14,7 @@ urlpatterns = [
     path('dashboard/staff/', views.staff_dashboard, name='staff_dashboard'),
     path('dashboard/admin/', views.admin_dashboard, name='admin_dashboard'),
     path('profile/photo/', views.upload_profile_photo, name='profile_photo'),
+    path('profile/id-card/', views.download_id_card, name='id_card'),
     path('notifications/', notification_views.notification_inbox, name='notifications'),
     path('notifications/<str:notification_id>/read/', notification_views.mark_notification_read_view, name='notification_read'),
 
@@ -21,6 +22,11 @@ urlpatterns = [
     path('nexus-admin/staff/create/', views.admin_create_staff, name='admin_create_staff'),
     path('nexus-admin/staff/', views.admin_list_staff, name='admin_list_staff'),
     path('nexus-admin/students/', views.admin_list_students, name='admin_list_students'),
+    path(
+        'nexus-admin/students/<str:user_id>/id-card/',
+        views.download_id_card,
+        name='admin_student_id_card',
+    ),
 
     # auth
     path('register/', views.register_view, name='register'),

@@ -45,6 +45,8 @@ def crisis_state():     return get_db()['crisis_state']
 def audit_log():        return get_db()['audit_log']
 def placement_predictions(): return get_db()['placement_predictions']
 def live_streams():         return get_db()['live_streams']
+def live_comments():        return get_db()['live_comments']
+def live_participants():    return get_db()['live_participants']
 
 def init_indexes():
     """Create MongoDB indexes. Safe to call repeatedly."""
@@ -119,6 +121,14 @@ def init_indexes():
         audit_log().create_index([("action", ASCENDING)])
 
         live_streams().create_index([("status", ASCENDING), ("created_at", DESCENDING)])
+        live_comments().create_index([("stream_id", ASCENDING), ("_id", ASCENDING)])
+        live_participants().create_index(
+            [("stream_id", ASCENDING), ("user_id", ASCENDING)],
+            unique=True,
+        )
+        live_participants().create_index(
+            [("last_seen", ASCENDING)], expireAfterSeconds=86400,
+        )
 
         logger.info("✅ MongoDB indexes ensured")
     except Exception as e:

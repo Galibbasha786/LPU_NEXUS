@@ -1,8 +1,10 @@
 import builtins
+from datetime import timedelta
 from unittest.mock import patch
 
 from bson import ObjectId
 from django.test import TestCase, override_settings
+from django.utils import timezone
 import jwt
 
 
@@ -32,7 +34,7 @@ class LiveNewsViewTests(TestCase):
         response = self.client.get('/live-news/')
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Start a live broadcast')
+        self.assertContains(response, 'Broadcast or schedule campus news')
         self.assertContains(response, 'livekit-client@2')
 
     @patch('live_news.views.live_streams')
@@ -111,10 +113,17 @@ class LiveNewsViewTests(TestCase):
         LIVEKIT_API_KEY='test-key',
         LIVEKIT_API_SECRET='test-secret-that-is-long-enough-for-hs256',
     )
+    @patch('live_news.views.live_participants')
+    @patch('live_news.views.student_profiles')
     @patch('live_news.views.live_streams')
-    def test_student_token_can_subscribe_but_cannot_publish(self, live_streams):
+    def test_student_token_can_subscribe_but_cannot_publish(
+        self, live_streams, student_profiles, live_participants
+    ):
         self.login_as('student', 'student-1', 'Student')
         live_streams.return_value.find_one.return_value = self.live_stream
+        student_profiles.return_value.find_one.return_value = {
+            'registration_number': '12345678',
+        }
 
         response = self.client.post(f'/live-news/api/{self.stream_id}/token/')
 
@@ -133,8 +142,11 @@ class LiveNewsViewTests(TestCase):
         LIVEKIT_API_KEY='test-key',
         LIVEKIT_API_SECRET='test-secret-that-is-long-enough-for-hs256',
     )
+    @patch('live_news.views.live_participants')
     @patch('live_news.views.live_streams')
-    def test_only_the_stream_owner_gets_a_publishing_token(self, live_streams):
+    def test_only_the_stream_owner_gets_a_publishing_token(
+        self, live_streams, live_participants
+    ):
         self.login_as('staff')
         live_streams.return_value.find_one.return_value = self.live_stream
 
@@ -153,10 +165,16 @@ class LiveNewsViewTests(TestCase):
         LIVEKIT_API_KEY='test-key',
         LIVEKIT_API_SECRET='test-secret',
     )
+    @patch('live_news.views.student_profiles')
     @patch('live_news.views.live_streams')
-    def test_missing_jwt_dependency_returns_actionable_error(self, live_streams):
+    def test_missing_jwt_dependency_returns_actionable_error(
+        self, live_streams, student_profiles
+    ):
         self.login_as('student', 'student-1', 'Student')
         live_streams.return_value.find_one.return_value = self.live_stream
+        student_profiles.return_value.find_one.return_value = {
+            'registration_number': '12345678',
+        }
         original_import = builtins.__import__
 
         def import_without_jwt(name, *args, **kwargs):
@@ -223,3 +241,247 @@ class LiveNewsViewTests(TestCase):
 
         self.assertEqual(response.status_code, 503)
         self.assertIn('Install the project requirements', response.json()['error'])
+
+    @patch('live_news.views.live_streams')
+    def test_staff_can_schedule_a_future_broadcast(self, live_streams):
+        self.login_as('staff')
+        live_streams.return_value.find_one.return_value = None
+        scheduled_at = timezone.localtime(
+            timezone.now() + timedelta(days=1)
+        ).strftime('%Y-%m-%dT%H:%M')
+
+        response = self.client.post('/live-news/api/start/', {
+            'title': 'Tomorrow update',
+            'scheduled_at': scheduled_at,
+        })
+
+        self.assertEqual(response.status_code, 201)
+        saved = live_streams.return_value.insert_one.call_args.args[0]
+        self.assertEqual(saved['status'], 'scheduled')
+        self.assertFalse(saved['room_name'])
+        self.assertIsNotNone(saved['scheduled_at'])
+        self.assertTrue(response.json()['stream']['can_start'])
+
+    @patch('live_news.views.live_streams')
+    def test_scheduled_broadcast_rejects_past_time(self, live_streams):
+        self.login_as('staff')
+        past = timezone.localtime(
+            timezone.now() - timedelta(days=1)
+        ).strftime('%Y-%m-%dT%H:%M')
+
+        response = self.client.post('/live-news/api/start/', {
+            'title': 'Past update',
+            'scheduled_at': past,
+        })
+
+        self.assertEqual(response.status_code, 400)
+        live_streams.return_value.insert_one.assert_not_called()
+
+    @override_settings(
+        LIVEKIT_URL='wss://live.example',
+        LIVEKIT_API_KEY='test-key',
+        LIVEKIT_API_SECRET='test-secret',
+    )
+    @patch('live_news.views.live_streams')
+    def test_host_can_start_an_arrived_scheduled_broadcast(self, live_streams):
+        self.login_as('staff')
+        started = {
+            **self.live_stream,
+            'status': 'live',
+            'room_name': 'new-live-room',
+            'scheduled_at': timezone.now().replace(tzinfo=None) - timedelta(minutes=1),
+        }
+        live_streams.return_value.find_one_and_update.return_value = started
+
+        response = self.client.post(f'/live-news/api/{self.stream_id}/go-live/')
+
+        self.assertEqual(response.status_code, 200)
+        query = live_streams.return_value.find_one_and_update.call_args.args[0]
+        self.assertEqual(query['host_id'], 'staff-1')
+        self.assertEqual(query['status'], 'scheduled')
+
+    @patch('live_news.views.live_comments')
+    @patch('live_news.views.live_participants')
+    @patch('live_news.views.live_streams')
+    def test_joined_student_can_post_comment_as_registration_number(
+        self, live_streams, live_participants, live_comments
+    ):
+        self.login_as('student', 'student-1', 'Student Name')
+        live_streams.return_value.find_one.return_value = {
+            **self.live_stream, 'comments_enabled': True,
+        }
+        live_participants.return_value.find_one.return_value = {
+            'display_name': '12345678',
+        }
+        live_comments.return_value.insert_one.return_value.inserted_id = ObjectId()
+
+        response = self.client.post(
+            f'/live-news/api/{self.stream_id}/comments/',
+            {'type': 'text', 'content': 'Campus update looks good'},
+        )
+
+        self.assertEqual(response.status_code, 201)
+        message = live_comments.return_value.insert_one.call_args.args[0]
+        self.assertEqual(message['display_name'], '12345678')
+        self.assertEqual(message['content'], 'Campus update looks good')
+        self.assertEqual(response.json()['message']['type'], 'text')
+
+    @patch('live_news.views.live_comments')
+    @patch('live_news.views.live_participants')
+    @patch('live_news.views.live_streams')
+    def test_emoji_is_not_accepted_by_persistent_comment_endpoint(
+        self, live_streams, live_participants, live_comments
+    ):
+        self.login_as('student', 'student-1', 'Student')
+        live_streams.return_value.find_one.return_value = {
+            **self.live_stream, 'comments_enabled': True,
+        }
+        live_participants.return_value.find_one.return_value = {
+            'display_name': '12345678',
+        }
+
+        response = self.client.post(
+            f'/live-news/api/{self.stream_id}/comments/',
+            {'type': 'emoji', 'content': '🔥'},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        live_comments.return_value.insert_one.assert_not_called()
+
+    @patch('live_news.views.live_comments')
+    @patch('live_news.views.live_participants')
+    @patch('live_news.views.live_streams')
+    def test_joined_users_cannot_post_when_admin_disables_comments(
+        self, live_streams, live_participants, live_comments
+    ):
+        self.login_as('student', 'student-1', 'Student')
+        live_streams.return_value.find_one.return_value = {
+            **self.live_stream, 'comments_enabled': False,
+        }
+        live_participants.return_value.find_one.return_value = {
+            'display_name': '12345678',
+        }
+
+        response = self.client.post(
+            f'/live-news/api/{self.stream_id}/comments/',
+            {'type': 'emoji', 'content': '🔥'},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        live_comments.return_value.insert_one.assert_not_called()
+
+    @patch('live_news.views.live_streams')
+    def test_broadcast_host_can_toggle_live_comments(self, live_streams):
+        self.login_as('staff', 'staff-1', 'Staff Member')
+        live_streams.return_value.find_one.return_value = self.live_stream
+        live_streams.return_value.update_one.return_value.matched_count = 1
+
+        response = self.client.post(
+            f'/live-news/api/{self.stream_id}/comments/moderate/',
+            {'enabled': 'false'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()['comments_enabled'])
+        update = live_streams.return_value.update_one.call_args.args
+        self.assertEqual(update[1]['$set']['comments_enabled'], False)
+
+    @patch('live_news.views.live_streams')
+    def test_staff_who_does_not_host_cannot_toggle_comments(self, live_streams):
+        self.login_as('staff', 'staff-2', 'Other Staff')
+        live_streams.return_value.find_one.return_value = self.live_stream
+
+        response = self.client.post(
+            f'/live-news/api/{self.stream_id}/comments/moderate/',
+            {'enabled': 'false'},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        live_streams.return_value.update_one.assert_not_called()
+
+    @override_settings(
+        LIVEKIT_URL='wss://live.example',
+        LIVEKIT_API_KEY='test-key',
+        LIVEKIT_API_SECRET='test-secret',
+    )
+    @patch('live_news.views.live_participants')
+    @patch('live_news.views.live_streams')
+    @patch('live_news.views._remove_livekit_participant')
+    def test_broadcast_host_can_remove_a_student_viewer(
+        self, remove_from_livekit, live_streams, live_participants
+    ):
+        self.login_as('staff', 'staff-1', 'Staff Member')
+        live_streams.return_value.find_one.return_value = self.live_stream
+        live_participants.return_value.find_one.return_value = {
+            'user_id': 'student-1',
+            'identity': 'student-1-session',
+            'display_name': '12345678',
+            'role': 'student',
+        }
+
+        response = self.client.post(
+            f'/live-news/api/{self.stream_id}/participants/student-1/remove/',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        remove_from_livekit.assert_called_once_with(
+            'private-live-room', 'student-1-session',
+        )
+        self.assertEqual(
+            live_streams.return_value.update_one.call_args.args[1]['$addToSet'],
+            {'kicked_user_ids': 'student-1'},
+        )
+        live_participants.return_value.delete_one.assert_called_once()
+
+    @override_settings(
+        LIVEKIT_URL='wss://live.example',
+        LIVEKIT_API_KEY='test-key',
+        LIVEKIT_API_SECRET='test-secret',
+    )
+    @patch('live_news.views.live_participants')
+    @patch('live_news.views.live_streams')
+    @patch('live_news.views._remove_livekit_participant')
+    def test_non_host_staff_cannot_remove_a_student_viewer(
+        self, remove_from_livekit, live_streams, live_participants
+    ):
+        self.login_as('staff', 'staff-2', 'Other Staff')
+        live_streams.return_value.find_one.return_value = self.live_stream
+
+        response = self.client.post(
+            f'/live-news/api/{self.stream_id}/participants/student-1/remove/',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        remove_from_livekit.assert_not_called()
+        live_participants.return_value.find_one.assert_not_called()
+
+    @patch('live_news.views.live_streams')
+    def test_kicked_student_cannot_rejoin_broadcast(self, live_streams):
+        self.login_as('student', 'student-1', 'Student')
+        live_streams.return_value.find_one.return_value = {
+            **self.live_stream,
+            'kicked_user_ids': ['student-1'],
+        }
+
+        response = self.client.post(f'/live-news/api/{self.stream_id}/token/')
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('removed you', response.json()['error'])
+
+    @patch('live_news.views.live_comments')
+    @patch('live_news.views.live_participants')
+    @patch('live_news.views.live_streams')
+    def test_non_joined_user_cannot_post_live_comments(
+        self, live_streams, live_participants, live_comments
+    ):
+        self.login_as('student', 'student-1', 'Student')
+        live_streams.return_value.find_one.return_value = self.live_stream
+        live_participants.return_value.find_one.return_value = None
+
+        response = self.client.post(
+            f'/live-news/api/{self.stream_id}/comments/',
+            {'type': 'text', 'content': 'A message'},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        live_comments.return_value.insert_one.assert_not_called()

@@ -5,7 +5,14 @@ from PIL import Image
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, override_settings
 
-from .storage import ProfileImageUploadError, save_profile_image
+from .storage import (
+    IdentityCardStorageError,
+    ProfileImageUploadError,
+    delete_identity_card,
+    identity_card_download_url,
+    save_identity_card,
+    save_profile_image,
+)
 
 
 class ProfileImageStorageTests(SimpleTestCase):
@@ -69,3 +76,80 @@ class ProfileImageStorageTests(SimpleTestCase):
             ProfileImageUploadError, 'does not match its file type'
         ):
             save_profile_image(uploaded_file)
+
+
+class IdentityCardStorageTests(SimpleTestCase):
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='test-cloud',
+        CLOUDINARY_API_KEY='test-key',
+        CLOUDINARY_API_SECRET='test-secret',
+    )
+    @patch('core.storage.cloudinary.uploader.upload')
+    def test_identity_card_is_uploaded_as_authenticated_cloudinary_asset(self, upload):
+        upload.return_value = {
+            'public_id': 'lpu_nexus/id_cards/card-id',
+            'resource_type': 'image',
+            'format': 'png',
+            'type': 'authenticated',
+        }
+        uploaded_file = SimpleUploadedFile('card.png', b'image-data')
+
+        result = save_identity_card(uploaded_file, 'Student Example', '12345678')
+
+        self.assertEqual(result['public_id'], upload.return_value['public_id'])
+        self.assertEqual(result['delivery_type'], 'authenticated')
+        self.assertEqual(upload.call_args.kwargs['type'], 'authenticated')
+        self.assertEqual(upload.call_args.kwargs['context'], {
+            'full_name': 'Student Example',
+            'registration_number': '12345678',
+        })
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='test-cloud',
+        CLOUDINARY_API_KEY='test-key',
+        CLOUDINARY_API_SECRET='test-secret',
+    )
+    @patch('core.storage.cloudinary.utils.private_download_url')
+    def test_identity_card_download_url_is_short_lived_and_cloudinary_signed(self, download):
+        card = {
+            'public_id': 'lpu_nexus/id_cards/card-id',
+            'resource_type': 'raw',
+            'format': 'pdf',
+            'delivery_type': 'authenticated',
+        }
+        download.return_value = 'https://res.cloudinary.com/private-card'
+
+        result = identity_card_download_url(card)
+
+        self.assertEqual(result, download.return_value)
+        self.assertEqual(download.call_args.kwargs['type'], 'authenticated')
+        self.assertEqual(download.call_args.kwargs['resource_type'], 'raw')
+        self.assertGreater(download.call_args.kwargs['expires_at'], 0)
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='test-cloud',
+        CLOUDINARY_API_KEY='test-key',
+        CLOUDINARY_API_SECRET='test-secret',
+    )
+    @patch('core.storage.cloudinary.uploader.destroy')
+    def test_identity_card_deletes_authenticated_cloudinary_asset(self, destroy):
+        destroy.return_value = {'result': 'ok'}
+
+        delete_identity_card({
+            'public_id': 'lpu_nexus/id_cards/card-id',
+            'resource_type': 'raw',
+            'delivery_type': 'authenticated',
+        })
+
+        self.assertEqual(destroy.call_args.args[0], 'lpu_nexus/id_cards/card-id')
+        self.assertEqual(destroy.call_args.kwargs['type'], 'authenticated')
+        self.assertEqual(destroy.call_args.kwargs['resource_type'], 'raw')
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='',
+        CLOUDINARY_API_KEY='',
+        CLOUDINARY_API_SECRET='',
+    )
+    def test_identity_card_upload_fails_if_private_cloudinary_storage_is_not_configured(self):
+        with self.assertRaises(IdentityCardStorageError):
+            save_identity_card(SimpleUploadedFile('card.png', b'image-data'), 'Name', '123')

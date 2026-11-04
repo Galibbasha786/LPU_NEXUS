@@ -3,10 +3,12 @@
 Storage abstraction — swap between local and Cloudinary via env.
 """
 import os
+import time
 import uuid
 import logging
 
 import cloudinary.uploader
+import cloudinary.utils
 from PIL import Image, UnidentifiedImageError
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -28,6 +30,10 @@ logger = logging.getLogger(__name__)
 
 class ProfileImageUploadError(Exception):
     """An expected validation or storage error while uploading a profile image."""
+
+
+class IdentityCardStorageError(Exception):
+    """An expected validation or storage error for an identity card."""
 
 
 def _cloudinary_credentials():
@@ -125,6 +131,110 @@ def save_profile_image(uploaded_file):
         'url': cloud_url,
         'public_id': cloud_public_id,
     }
+
+
+def save_identity_card(uploaded_file, full_name, registration_number):
+    extension = os.path.splitext(uploaded_file.name or '')[1].lower()
+    if extension not in {'.jpg', '.jpeg', '.png', '.webp', '.pdf'}:
+        raise IdentityCardStorageError('Use a JPG, PNG, WEBP, or PDF ID card.')
+    if getattr(uploaded_file, 'size', 0) > 5 * 1024 * 1024:
+        raise IdentityCardStorageError('ID cards must be 5 MB or smaller.')
+
+    try:
+        credentials = _cloudinary_credentials()
+    except ProfileImageUploadError as error:
+        raise IdentityCardStorageError(
+            'Private ID-card storage is unavailable. Contact the administrator.'
+        ) from error
+
+    resource_type = 'raw' if extension == '.pdf' else 'image'
+    public_id = uuid.uuid4().hex + (extension if resource_type == 'raw' else '')
+    try:
+        uploaded_file.seek(0)
+        result = cloudinary.uploader.upload(
+            uploaded_file,
+            folder='lpu_nexus/id_cards',
+            public_id=public_id,
+            overwrite=False,
+            unique_filename=False,
+            resource_type=resource_type,
+            type='authenticated',
+            context={
+                'full_name': full_name.strip(),
+                'registration_number': registration_number.strip(),
+            },
+            **credentials,
+        )
+    except Exception as error:
+        logger.exception('ID-card upload to Cloudinary failed')
+        raise IdentityCardStorageError(
+            'The ID card could not be uploaded securely. Please try again.'
+        ) from error
+    finally:
+        uploaded_file.seek(0)
+
+    cloud_public_id = result.get('public_id')
+    if not cloud_public_id:
+        raise IdentityCardStorageError('Cloudinary did not confirm the ID-card upload.')
+    return {
+        'public_id': cloud_public_id,
+        'resource_type': result.get('resource_type', resource_type),
+        'format': result.get('format', extension.lstrip('.')),
+        'delivery_type': result.get('type', 'authenticated'),
+    }
+
+
+def identity_card_download_url(card):
+    if not card or not card.get('public_id') or not card.get('format'):
+        raise IdentityCardStorageError('No Cloudinary ID card is available.')
+    try:
+        credentials = _cloudinary_credentials()
+    except ProfileImageUploadError as error:
+        raise IdentityCardStorageError(
+            'Private ID-card storage is unavailable. Contact the administrator.'
+        ) from error
+    try:
+        return cloudinary.utils.private_download_url(
+            card['public_id'],
+            card['format'],
+            resource_type=card.get('resource_type', 'image'),
+            type=card.get('delivery_type', 'authenticated'),
+            expires_at=int(time.time()) + 600,
+            attachment=False,
+            secure=True,
+            **credentials,
+        )
+    except Exception as error:
+        logger.exception('Could not generate an expiring Cloudinary ID-card URL')
+        raise IdentityCardStorageError(
+            'The ID card is temporarily unavailable.'
+        ) from error
+
+
+def delete_identity_card(card):
+    if not card or not card.get('public_id'):
+        return
+    try:
+        credentials = _cloudinary_credentials()
+    except ProfileImageUploadError as error:
+        raise IdentityCardStorageError(
+            'Private ID-card storage is unavailable. Contact the administrator.'
+        ) from error
+    try:
+        result = cloudinary.uploader.destroy(
+            card['public_id'],
+            resource_type=card.get('resource_type', 'image'),
+            type=card.get('delivery_type', 'authenticated'),
+            invalidate=True,
+            **credentials,
+        )
+    except Exception as error:
+        logger.exception('Could not delete Cloudinary ID card %s', card['public_id'])
+        raise IdentityCardStorageError(
+            'The ID card could not be removed from Cloudinary.'
+        ) from error
+    if result.get('result') not in {'ok', 'not found'}:
+        raise IdentityCardStorageError('Cloudinary did not confirm ID-card deletion.')
 
 
 def delete_profile_image(image):
