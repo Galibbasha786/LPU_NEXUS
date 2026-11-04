@@ -102,8 +102,27 @@ def _delete_livekit_room(room_name):
 
     try:
         async_to_sync(delete_room)()
-    except (api.TwirpError, aiohttp.ClientError, TimeoutError, ValueError) as error:
-        raise LiveKitShutdownError('LiveKit could not close the room.') from error
+    except api.TwirpError as error:
+        error_code = error.code.casefold().replace('-', '_')
+        error_message = error.message.casefold()
+        if error_code in {'not_found', 'room_not_found'} or (
+            'room' in error_message and 'not found' in error_message
+        ):
+            logger.info('LiveKit room %s was already closed', room_name)
+            return
+        logger.exception(
+            'LiveKit rejected room shutdown (code=%s, status=%s)',
+            error.code, error.status,
+        )
+        raise LiveKitShutdownError(
+            f'LiveKit rejected room shutdown (code: {error.code}, HTTP {error.status}). '
+            'Check LIVEKIT_URL and the API key permissions.'
+        ) from error
+    except (aiohttp.ClientError, TimeoutError, ValueError, RuntimeError) as error:
+        logger.exception('Could not reach LiveKit to close room %s', room_name)
+        raise LiveKitShutdownError(
+            'Could not reach LiveKit to close the room. Check LIVEKIT_URL and try again.'
+        ) from error
 
 
 def _remove_livekit_participant(room_name, identity):
@@ -304,6 +323,10 @@ def stream_comments(request, stream_id):
     if request.method == 'POST':
         if not stream.get('comments_enabled', True):
             return JsonResponse({'error': 'Comments are turned off for this broadcast.'}, status=403)
+        if request.POST.get('type', 'text') != 'text':
+            return JsonResponse({
+                'error': 'Only text comments are stored. Send reactions through the live player.'
+            }, status=400)
         content = request.POST.get('content', '').strip()
         if not content or len(content) > MAX_COMMENT_LENGTH:
             return JsonResponse({

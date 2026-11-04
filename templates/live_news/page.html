@@ -47,6 +47,11 @@
     <button class="btn btn-sm btn-outline-secondary" type="button" id="live-disconnect">Leave</button>
   </div>
   <div id="live-video-stage" class="position-relative">
+    <div id="host-camera-controls" class="d-none mb-2">
+      <button id="flip-camera" class="btn btn-sm btn-outline-secondary" type="button">
+        <i class="bi bi-camera-reverse me-1" aria-hidden="true"></i>Flip camera
+      </button>
+    </div>
     <video id="live-host-video" class="w-100 rounded d-none" autoplay playsinline></video>
     <div id="live-remote-videos" class="row g-2"></div>
     <div id="live-reaction-overlay" class="position-absolute top-0 start-0 w-100 h-100 overflow-hidden pe-none" aria-live="polite"></div>
@@ -102,6 +107,8 @@
   const statusBox = document.getElementById('live-status');
   const player = document.getElementById('live-player-section');
   const hostVideo = document.getElementById('live-host-video');
+  const hostCameraControls = document.getElementById('host-camera-controls');
+  const flipCameraButton = document.getElementById('flip-camera');
   const remoteVideos = document.getElementById('live-remote-videos');
   const reactionOverlay = document.getElementById('live-reaction-overlay');
   const viewerManagement = document.getElementById('live-viewer-management');
@@ -177,6 +184,7 @@
     player.classList.add('d-none');
     hostVideo.srcObject = null;
     hostVideo.classList.add('d-none');
+    hostCameraControls.classList.add('d-none');
     remoteVideos.replaceChildren();
     chatMessages.replaceChildren();
     reactionOverlay.replaceChildren();
@@ -264,6 +272,7 @@
           camera.track.attach(hostVideo);
           hostVideo.muted = true;
           hostVideo.classList.remove('d-none');
+          hostCameraControls.classList.remove('d-none');
         }
         showStatus('You are live. Keep this page open while broadcasting.');
       } else {
@@ -432,6 +441,45 @@
   document.getElementById('live-disconnect').addEventListener('click', async () => {
     await disconnect();
     showStatus('You left the live broadcast.');
+  });
+  flipCameraButton.addEventListener('click', async () => {
+    if (!room) return;
+    flipCameraButton.disabled = true;
+    try {
+      const publication = room.localParticipant.getTrackPublication(Track.Source.Camera);
+      const activeDeviceId = publication?.track?.mediaStreamTrack?.getSettings().deviceId;
+      const devices = (await navigator.mediaDevices.enumerateDevices())
+        .filter(device => device.kind === 'videoinput' && device.deviceId);
+      if (devices.length < 2) {
+        showStatus('No other camera is available on this device.', true);
+        return;
+      }
+
+      const activeDevice = devices.find(device => device.deviceId === activeDeviceId);
+      const activeLabel = activeDevice?.label.toLowerCase() || '';
+      const preferredPattern = /front|user|facetime/.test(activeLabel)
+        ? /back|rear|environment/
+        : /front|user|facetime/;
+      const nextDevice = devices.find(device =>
+        device.deviceId !== activeDeviceId && preferredPattern.test(device.label.toLowerCase())
+      ) || devices.find(device => device.deviceId !== activeDeviceId);
+
+      if (!nextDevice) {
+        showStatus('No other camera is available on this device.', true);
+        return;
+      }
+      await room.switchActiveDevice('videoinput', nextDevice.deviceId);
+      const updatedTrack = room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+      if (updatedTrack) {
+        updatedTrack.attach(hostVideo);
+        hostVideo.muted = true;
+      }
+      showStatus(`Switched to ${nextDevice.label || 'the other camera'}.`);
+    } catch (error) {
+      showStatus(error.message || 'Could not switch camera. Check camera permissions.', true);
+    } finally {
+      flipCameraButton.disabled = false;
+    }
   });
   function updateChatControls() {
     const connected = Boolean(room && currentStreamId);

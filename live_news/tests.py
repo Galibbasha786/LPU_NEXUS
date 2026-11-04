@@ -5,7 +5,10 @@ from unittest.mock import patch
 from bson import ObjectId
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from livekit import api
 import jwt
+
+from .views import LiveKitShutdownError, _delete_livekit_room
 
 
 class LiveNewsViewTests(TestCase):
@@ -28,6 +31,25 @@ class LiveNewsViewTests(TestCase):
         session['lpu_user_name'] = name
         session.save()
 
+    @patch('live_news.views.async_to_sync')
+    def test_shutdown_treats_already_missing_livekit_room_as_closed(self, async_to_sync):
+        async_to_sync.return_value.side_effect = api.TwirpError(
+            'not_found', 'room not found', status=404,
+        )
+
+        _delete_livekit_room('already-closed-room')
+
+    @patch('live_news.views.async_to_sync')
+    def test_shutdown_reports_livekit_permission_errors(self, async_to_sync):
+        async_to_sync.return_value.side_effect = api.TwirpError(
+            'permission_denied', 'not allowed', status=403,
+        )
+
+        with self.assertRaisesMessage(
+            LiveKitShutdownError, 'code: permission_denied, HTTP 403'
+        ):
+            _delete_livekit_room('private-live-room')
+
     def test_staff_page_renders_broadcast_controls(self):
         self.login_as('staff')
 
@@ -35,6 +57,7 @@ class LiveNewsViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Broadcast or schedule campus news')
+        self.assertContains(response, 'Flip camera')
         self.assertContains(response, 'livekit-client@2')
 
     @patch('live_news.views.live_streams')
