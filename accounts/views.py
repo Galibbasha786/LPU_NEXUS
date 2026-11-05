@@ -101,6 +101,7 @@ def register_view(request):
             except OcrUnavailableError:
                 errors.append("ID verification is temporarily unavailable. Contact the administrator.")
             except IdCardReadError:
+                logger.exception('Could not read uploaded student ID card')
                 errors.append("The ID card could not be read. Upload a clear image or PDF and try again.")
 
         if errors:

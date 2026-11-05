@@ -15,6 +15,12 @@ from pymongo.errors import PyMongoError
 
 from accounts.session import login_required_mongo, role_required
 from core.mongo import live_comments, live_participants, live_streams, student_profiles
+from core.storage import (
+    LiveNewsPosterStorageError,
+    LiveNewsPosterValidationError,
+    delete_live_news_poster,
+    save_live_news_poster,
+)
 from core.utils import to_object_id
 
 logger = logging.getLogger(__name__)
@@ -62,6 +68,7 @@ def _stream_payload(stream, role='', user_id=''):
         'id': str(stream['_id']),
         'title': stream['title'],
         'description': stream.get('description', ''),
+        'poster_url': stream.get('poster_url', ''),
         'host_name': stream.get('host_name', 'LPU Staff'),
         'created_at': created_at.isoformat() if created_at else '',
         'scheduled_at': scheduled_at.isoformat() if scheduled_at else '',
@@ -450,6 +457,7 @@ def start_stream(request):
         return JsonResponse({
             'error': f'The description must be {MAX_DESCRIPTION_LENGTH} characters or fewer.'
         }, status=400)
+    poster_file = request.FILES.get('poster')
     scheduled_at = None
     scheduled_input = request.POST.get('scheduled_at', '').strip()
     if scheduled_input:
@@ -482,12 +490,21 @@ def start_stream(request):
             'error': 'End your current broadcast before starting another one.'
         }, status=409)
 
+    try:
+        poster = save_live_news_poster(poster_file)
+    except LiveNewsPosterValidationError as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    except LiveNewsPosterStorageError as error:
+        return JsonResponse({'error': str(error)}, status=503)
+
     status = 'scheduled' if scheduled_at else 'live'
     stream_id = ObjectId()
     stream = {
         '_id': stream_id,
         'title': title,
         'description': description,
+        'poster_url': poster['url'] if poster else '',
+        'poster_public_id': poster['public_id'] if poster else '',
         'room_name': f'lpu-live-{uuid.uuid4().hex}' if status == 'live' else '',
         'host_id': host_id,
         'host_name': request.session.get('lpu_user_name', 'LPU Staff'),
@@ -501,6 +518,8 @@ def start_stream(request):
     try:
         live_streams().insert_one(stream)
     except PyMongoError:
+        if poster:
+            delete_live_news_poster(poster)
         logger.exception('Could not create live news stream')
         return JsonResponse({'error': 'Could not start the live broadcast.'}, status=503)
     return JsonResponse({

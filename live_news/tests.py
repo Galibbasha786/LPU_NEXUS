@@ -3,6 +3,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from bson import ObjectId
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from livekit import api
@@ -64,13 +65,21 @@ class LiveNewsViewTests(TestCase):
     def test_student_sees_active_stream_without_room_credentials(self, live_streams):
         self.login_as('student', 'student-1', 'Student')
         collection = live_streams.return_value
-        collection.find.return_value.sort.return_value.limit.return_value = [self.live_stream]
+        stream = {
+            **self.live_stream,
+            'poster_url': 'https://res.cloudinary.com/test/live-news/poster.png',
+        }
+        collection.find.return_value.sort.return_value.limit.return_value = [stream]
 
         response = self.client.get('/live-news/api/streams/')
 
         self.assertEqual(response.status_code, 200)
         stream = response.json()['streams'][0]
         self.assertEqual(stream['title'], 'Campus update')
+        self.assertEqual(
+            stream['poster_url'],
+            'https://res.cloudinary.com/test/live-news/poster.png',
+        )
         self.assertNotIn('room_name', stream)
         self.assertNotIn('host_id', stream)
         self.assertFalse(stream['can_end'])
@@ -284,6 +293,42 @@ class LiveNewsViewTests(TestCase):
         self.assertFalse(saved['room_name'])
         self.assertIsNotNone(saved['scheduled_at'])
         self.assertTrue(response.json()['stream']['can_start'])
+
+    @patch('live_news.views.save_live_news_poster', return_value={
+        'url': 'https://res.cloudinary.com/test/live-news/poster.png',
+        'public_id': 'lpu_nexus/live_news/poster',
+    })
+    @patch('live_news.views.live_streams')
+    def test_scheduled_broadcast_shares_uploaded_poster_with_all_viewers(
+        self, live_streams, save_poster
+    ):
+        self.login_as('staff')
+        live_streams.return_value.find_one.return_value = None
+        scheduled_at = timezone.localtime(
+            timezone.now() + timedelta(days=1)
+        ).strftime('%Y-%m-%dT%H:%M')
+        poster_file = SimpleUploadedFile(
+            'poster.png', b'poster-data', content_type='image/png',
+        )
+
+        response = self.client.post('/live-news/api/start/', {
+            'title': 'Campus event',
+            'scheduled_at': scheduled_at,
+            'poster': poster_file,
+        })
+
+        self.assertEqual(response.status_code, 201)
+        save_poster.assert_called_once()
+        self.assertEqual(save_poster.call_args.args[0].name, 'poster.png')
+        saved = live_streams.return_value.insert_one.call_args.args[0]
+        self.assertEqual(
+            saved['poster_url'],
+            'https://res.cloudinary.com/test/live-news/poster.png',
+        )
+        self.assertEqual(
+            response.json()['stream']['poster_url'],
+            saved['poster_url'],
+        )
 
     @patch('live_news.views.live_streams')
     def test_scheduled_broadcast_rejects_past_time(self, live_streams):

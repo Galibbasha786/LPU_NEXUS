@@ -24,6 +24,12 @@ PROFILE_IMAGE_FORMATS = {
     'PNG': {'.png'},
     'WEBP': {'.webp'},
 }
+LIVE_NEWS_POSTER_FORMATS = {
+    'JPEG': {'.jpg', '.jpeg'},
+    'PNG': {'.png'},
+    'WEBP': {'.webp'},
+}
+MAX_LIVE_NEWS_POSTER_SIZE = 8 * 1024 * 1024
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +40,14 @@ class ProfileImageUploadError(Exception):
 
 class IdentityCardStorageError(Exception):
     """An expected validation or storage error for an identity card."""
+
+
+class LiveNewsPosterValidationError(Exception):
+    """An expected validation error for a live-news poster."""
+
+
+class LiveNewsPosterStorageError(Exception):
+    """An expected remote storage error for a live-news poster."""
 
 
 def _cloudinary_credentials():
@@ -47,6 +61,96 @@ def _cloudinary_credentials():
             'Photo uploads are unavailable until Cloudinary is configured.'
         )
     return credentials
+
+
+def save_live_news_poster(uploaded_file):
+    if not uploaded_file:
+        return None
+
+    extension = os.path.splitext(uploaded_file.name or '')[1].lower()
+    if extension not in {'.jpg', '.jpeg', '.png', '.webp'}:
+        raise LiveNewsPosterValidationError('Use a JPG, PNG, or WEBP poster image.')
+    if getattr(uploaded_file, 'size', 0) > MAX_LIVE_NEWS_POSTER_SIZE:
+        raise LiveNewsPosterValidationError('Poster images must be 8 MB or smaller.')
+
+    try:
+        uploaded_file.seek(0)
+        with Image.open(uploaded_file) as image:
+            image_format = image.format
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        raise LiveNewsPosterValidationError('The selected poster is not a valid image.') from None
+    finally:
+        uploaded_file.seek(0)
+
+    if extension not in LIVE_NEWS_POSTER_FORMATS.get(image_format, set()):
+        raise LiveNewsPosterValidationError(
+            'The poster image content does not match its file type.'
+        )
+
+    try:
+        credentials = _cloudinary_credentials()
+    except ProfileImageUploadError as error:
+        raise LiveNewsPosterStorageError(
+            'Poster uploads are unavailable. Contact the administrator.'
+        ) from error
+
+    public_id = uuid.uuid4().hex
+    try:
+        result = cloudinary.uploader.upload(
+            uploaded_file,
+            folder='lpu_nexus/live_news',
+            public_id=public_id,
+            overwrite=False,
+            unique_filename=False,
+            resource_type='image',
+            **credentials,
+        )
+    except Exception as error:
+        logger.exception('Live-news poster upload to Cloudinary failed')
+        raise LiveNewsPosterStorageError(
+            'The poster could not be uploaded. Please try again.'
+        ) from error
+    finally:
+        uploaded_file.seek(0)
+
+    poster_url = result.get('secure_url')
+    cloud_public_id = result.get('public_id')
+    if not poster_url or not cloud_public_id:
+        if cloud_public_id:
+            delete_live_news_poster({'public_id': cloud_public_id})
+        raise LiveNewsPosterStorageError(
+            'Cloudinary did not confirm the poster upload.'
+        )
+    return {'url': poster_url, 'public_id': cloud_public_id}
+
+
+def delete_live_news_poster(poster):
+    if not poster or not poster.get('public_id'):
+        return
+    if not all((
+        settings.CLOUDINARY_CLOUD_NAME,
+        settings.CLOUDINARY_API_KEY,
+        settings.CLOUDINARY_API_SECRET,
+    )):
+        logger.error('Cannot clean up live-news poster without Cloudinary credentials')
+        return
+    try:
+        result = cloudinary.uploader.destroy(
+            poster['public_id'],
+            resource_type='image',
+            invalidate=True,
+            cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+            api_key=settings.CLOUDINARY_API_KEY,
+            api_secret=settings.CLOUDINARY_API_SECRET,
+        )
+        if result.get('result') not in {'ok', 'not found'}:
+            logger.error(
+                'Cloudinary did not confirm deletion of live-news poster %s',
+                poster['public_id'],
+            )
+    except Exception:
+        logger.exception('Could not delete live-news poster %s', poster['public_id'])
 
 
 def _delete_local_profile_image(path):
