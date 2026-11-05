@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% block title %}Student Calculators • LPU Nexus{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ STATIC_URL }}css/student-calculators.css">
+{% endblock %}
+
+{% block content %}
+<main class="student-calculators" data-active-calculator="{{ active_calculator }}">
+  <div class="hero-header">
+    <span class="hero-badge">STUDENT TOOLS</span>
+    <h2>Attendance &amp; grade calculators</h2>
+    <p>Plan your attendance and estimate your term or cumulative GPA. Your entries are used only for these calculations and are not saved.</p>
+  </div>
+
+  <div class="calculator-tabs" role="tablist" aria-label="Student calculators">
+    <button class="calculator-tab" id="attendance-tab" type="button" role="tab"
+            aria-controls="attendance-panel" aria-selected="true">
+      <i class="bi bi-calendar-check" aria-hidden="true"></i> Attendance
+    </button>
+    <button class="calculator-tab" id="gpa-tab" type="button" role="tab"
+            aria-controls="gpa-panel" aria-selected="false">
+      <i class="bi bi-mortarboard" aria-hidden="true"></i> TGPA &amp; CGPA
+    </button>
+  </div>
+
+  <section class="calculator-panel card-lpu" id="attendance-panel" role="tabpanel"
+           aria-labelledby="attendance-tab">
+    <h3 class="h4">75% attendance planner</h3>
+    <p class="text-muted">Enter classes already held, classes you attended, and classes still scheduled. The planner tells you how many upcoming classes you must attend to finish at 75% or higher.</p>
+
+    {% if attendance_error %}
+      <div class="alert alert-danger" role="alert">{{ attendance_error }}</div>
+    {% endif %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="calculator_type" value="attendance">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label-lpu" for="total-classes">Total classes held</label>
+          <input class="form-control form-control-lpu" id="total-classes" name="total_classes"
+                 type="number" min="1" step="1" required
+                 value="{{ attendance_values.total_classes|default:'' }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label-lpu" for="classes-attended">Classes attended</label>
+          <input class="form-control form-control-lpu" id="classes-attended" name="classes_attended"
+                 type="number" min="0" step="1" required
+                 value="{{ attendance_values.classes_attended|default:'' }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label-lpu" for="classes-remaining">Classes remaining</label>
+          <input class="form-control form-control-lpu" id="classes-remaining" name="classes_remaining"
+                 type="number" min="0" step="1" required
+                 value="{{ attendance_values.classes_remaining|default:'' }}">
+        </div>
+      </div>
+      <button class="btn btn-lpu mt-3" type="submit">Calculate attendance plan</button>
+    </form>
+
+    {% if attendance_result %}
+      <div class="calculator-result mt-4" aria-live="polite">
+        <h4>Your attendance outlook</h4>
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <div class="calculator-stat">
+              <span>Current attendance</span>
+              <strong>{{ attendance_result.attendance_percent }}%</strong>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="calculator-stat">
+              <span>Classes left to attend</span>
+              <strong>{{ attendance_result.classes_to_attend }} of {{ attendance_result.classes_remaining }}</strong>
+            </div>
+          </div>
+        </div>
+        {% if attendance_result.can_reach_target %}
+          <p>
+            You can miss up to <strong>{{ attendance_result.max_classes_to_miss }}</strong>
+            of your {{ attendance_result.classes_remaining }} remaining classes and still finish at or above 75%.
+            Attend at least <strong>{{ attendance_result.classes_to_attend }}</strong> remaining classes.
+          </p>
+        {% else %}
+          <div class="alert alert-warning" role="status">
+            Attending every remaining class would bring you to only
+            <strong>{{ attendance_result.projected_percent_if_attend_all }}%</strong>.
+            You cannot reach 75% based on the remaining schedule. Attend every class and check with your academic office about your options.
+          </div>
+        {% endif %}
+        {% if attendance_result.classes_needed_to_recover %}
+          <p class="mb-0">
+            Since your current attendance is below 75%, attend the next
+            <strong>{{ attendance_result.classes_needed_to_recover }} classes consecutively</strong>
+            to bring your running attendance back to 75% (if that many classes remain).
+          </p>
+        {% elif attendance_result.attendance_percent >= 75 %}
+          <p class="mb-0">Your current attendance is at or above the 75% threshold.</p>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="calculator-panel card-lpu d-none" id="gpa-panel" role="tabpanel"
+           aria-labelledby="gpa-tab" hidden>
+    <h3 class="h4">Credit-weighted TGPA &amp; CGPA</h3>
+    <p class="text-muted">Enter marks out of 100 and course credits. Grade points are calculated as marks ÷ 10; Satisfactory (S) courses do not count toward GPA or graded credits.</p>
+
+    {% if gpa_error %}
+      <div class="alert alert-danger" role="alert">{{ gpa_error }}</div>
+    {% endif %}
+    <form method="post" id="gpa-form" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="calculator_type" value="gpa">
+      <div class="row g-3 mb-3">
+        <div class="col-md-5">
+          <label class="form-label-lpu" for="gpa-mode">Calculation</label>
+          <select class="form-select form-control-lpu" id="gpa-mode" name="gpa_mode">
+            <option value="tgpa" {% if gpa_mode == 'tgpa' %}selected{% endif %}>TGPA — these courses only</option>
+            <option value="cgpa" {% if gpa_mode == 'cgpa' %}selected{% endif %}>CGPA — combine with previous terms</option>
+          </select>
+        </div>
+        <div class="col-md-7 cumulative-fields">
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label-lpu" for="previous-gpa">Previous CGPA</label>
+              <input class="form-control form-control-lpu" id="previous-gpa" name="previous_gpa"
+                     type="number" min="0" max="10" step="0.001"
+                     value="{{ previous_gpa }}">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label-lpu" for="previous-credits">Previous graded credits</label>
+              <input class="form-control form-control-lpu" id="previous-credits" name="previous_credits"
+                     type="number" min="0" step="0.001"
+                     value="{{ previous_credits }}">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="calculator-course-heading">
+        <h4 class="h5 mb-0">Courses</h4>
+        <button class="btn btn-outline-secondary btn-sm" type="button" id="add-course">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i> Add course
+        </button>
+      </div>
+      <div id="course-list">
+        {% for course in course_rows %}
+          <div class="calculator-course-row">
+            <div class="calculator-course-fields">
+              <div>
+                <label class="form-label-lpu" for="course-name-{{ forloop.counter }}">Course name</label>
+                <input class="form-control form-control-lpu" id="course-name-{{ forloop.counter }}"
+                       name="course_name" type="text" maxlength="120" required
+                       value="{{ course.name }}">
+              </div>
+              <div class="course-grade-inputs">
+                <label class="form-label-lpu" for="course-credits-{{ forloop.counter }}">Credits</label>
+                <input class="form-control form-control-lpu" id="course-credits-{{ forloop.counter }}"
+                       name="course_credits" type="number" min="0.001" step="0.001" required
+                       value="{{ course.credits }}">
+              </div>
+              <div class="course-grade-inputs">
+                <label class="form-label-lpu" for="course-marks-{{ forloop.counter }}">Marks / 100</label>
+                <input class="form-control form-control-lpu" id="course-marks-{{ forloop.counter }}"
+                       name="course_marks" type="number" min="0" max="100" step="0.01" required
+                       value="{{ course.marks }}">
+              </div>
+              <div>
+                <label class="form-label-lpu" for="course-type-{{ forloop.counter }}">Grading type</label>
+                <select class="form-select form-control-lpu course-type" id="course-type-{{ forloop.counter }}"
+                        name="course_type">
+                  <option value="graded" {% if course.type == 'graded' %}selected{% endif %}>Credit-bearing</option>
+                  <option value="satisfactory" {% if course.type == 'satisfactory' %}selected{% endif %}>Satisfactory (S)</option>
+                </select>
+              </div>
+              <button class="btn btn-outline-danger remove-course" type="button" aria-label="Remove course">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <button class="btn btn-lpu mt-3" type="submit">Calculate GPA</button>
+    </form>
+
+    {% if gpa_result %}
+      <div class="calculator-result mt-4" aria-live="polite">
+        <h4>{% if gpa_result.cumulative %}Estimated CGPA{% else %}TGPA{% endif %}</h4>
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <div class="calculator-stat">
+              <span>Grade point average</span>
+              <strong>{{ gpa_result.gpa }}</strong>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="calculator-stat">
+              <span>Total graded credits</span>
+              <strong>{{ gpa_result.graded_credits }}</strong>
+            </div>
+          </div>
+        </div>
+        <p>Weighted grade points: <strong>{{ gpa_result.weighted_points }}</strong>. Formula: sum of (grade points × credits) ÷ total graded credits.</p>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr><th>Course</th><th>Credits</th><th>Marks / 100</th><th>Grade points</th><th>Grade</th></tr>
+            </thead>
+            <tbody>
+              {% for course in gpa_result.courses %}
+                <tr>
+                  <th scope="row">{{ course.name }}</th>
+                  <td>{% if course.satisfactory %}—{% else %}{{ course.credits }}{% endif %}</td>
+                  <td>{% if course.satisfactory %}—{% else %}{{ course.marks }}{% endif %}</td>
+                  <td>{% if course.satisfactory %}—{% else %}{{ course.grade_point }}{% endif %}</td>
+                  <td>{{ course.grade }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+
+    <details class="grade-scale mt-4">
+      <summary>View grade-point scale</summary>
+      <div class="table-responsive mt-2">
+        <table class="table table-sm">
+          <thead><tr><th>Marks out of 100</th><th>Grade points</th><th>Grade</th></tr></thead>
+          <tbody>
+            <tr><td>100</td><td>10.000</td><td>10.000 Grade Points</td></tr>
+            <tr><td>90–99.99</td><td>9.000–9.999</td><td>A+ (Excellent)</td></tr>
+            <tr><td>80–89.99</td><td>8.000–8.999</td><td>A (Very Good)</td></tr>
+            <tr><td>70–79.99</td><td>7.000–7.999</td><td>B+ (Good)</td></tr>
+            <tr><td>60–69.99</td><td>6.000–6.999</td><td>B (Above Average)</td></tr>
+            <tr><td>50–59.99</td><td>5.000–5.999</td><td>C (Average)</td></tr>
+            <tr><td>40–49.99</td><td>4.000–4.999</td><td>D (Pass)</td></tr>
+            <tr><td>Below 40</td><td>0.000–3.999</td><td>F (Fail)</td></tr>
+            <tr><td>Qualifying / non-credit course</td><td>Not counted</td><td>S (Satisfactory)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ STATIC_URL }}js/student-calculators.js"></script>
+{% endblock %}

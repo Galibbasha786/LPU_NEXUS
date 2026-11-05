@@ -1,4 +1,5 @@
 from io import BytesIO
+from decimal import Decimal
 from unittest.mock import Mock, patch
 
 from bson import ObjectId
@@ -23,6 +24,11 @@ from .mongo_auth import (
 	create_student,
 	find_user_by_identifier,
 	verify_recovery_answer,
+)
+from .student_calculators import (
+	CalculatorInputError,
+	calculate_attendance,
+	calculate_gpa,
 )
 
 
@@ -640,3 +646,170 @@ class NotificationServiceTests(SimpleTestCase):
 		self.assertTrue(updated)
 		query = notifications.return_value.update_one.call_args.args[0]
 		self.assertEqual(query, {'_id': notification_id, 'user_id': user_id})
+
+
+class StudentCalculatorTests(SimpleTestCase):
+    def test_attendance_plan_observes_exact_75_percent_boundary(self):
+        result = calculate_attendance(20, 15, 4)
+
+        self.assertEqual(result['attendance_percent'], Decimal('75.00'))
+        self.assertTrue(result['can_reach_target'])
+        self.assertEqual(result['max_classes_to_miss'], 1)
+        self.assertEqual(result['classes_to_attend'], 3)
+
+    def test_attendance_plan_reports_when_target_is_no_longer_reachable(self):
+        result = calculate_attendance(10, 6, 4)
+
+        self.assertFalse(result['can_reach_target'])
+        self.assertIsNone(result['max_classes_to_miss'])
+        self.assertEqual(result['classes_to_attend'], 4)
+        self.assertEqual(result['classes_needed_to_recover'], 6)
+        self.assertEqual(
+            result['projected_percent_if_attend_all'], Decimal('71.43'),
+        )
+
+    def test_attendance_rejects_counts_outside_valid_range(self):
+        with self.assertRaises(CalculatorInputError):
+            calculate_attendance(5, 6, 3)
+        with self.assertRaises(CalculatorInputError):
+            calculate_attendance(5, 3, -1)
+
+    def test_gpa_uses_credit_weighted_points_and_maps_marks_to_grades(self):
+        result = calculate_gpa(
+            ['Algorithms', 'Networks'],
+            ['3', '1'],
+            ['90', '80'],
+            ['graded', 'graded'],
+        )
+
+        self.assertEqual(result['gpa'], Decimal('8.750'))
+        self.assertEqual(result['graded_credits'], Decimal('4.000'))
+        self.assertEqual(result['courses'][0]['grade'], 'A+ (Excellent)')
+        self.assertEqual(result['courses'][1]['grade'], 'A (Very Good)')
+
+    def test_grade_scale_boundaries_match_marks_out_of_100(self):
+        result = calculate_gpa(
+            [
+                'Perfect', 'Excellent', 'Very good', 'Good', 'Above average',
+                'Average', 'Pass', 'Fail',
+            ],
+            ['1'] * 8,
+            ['100', '90', '80', '70', '60', '50', '40', '39.99'],
+            ['graded'] * 8,
+        )
+
+        self.assertEqual(
+            [course['grade'] for course in result['courses']],
+            [
+                '10.000 Grade Points',
+                'A+ (Excellent)',
+                'A (Very Good)',
+                'B+ (Good)',
+                'B (Above Average)',
+                'C (Average)',
+                'D (Pass)',
+                'F (Fail)',
+            ],
+        )
+
+    def test_cumulative_gpa_combines_previous_graded_credits(self):
+        result = calculate_gpa(
+            ['Current course'],
+            ['3'],
+            ['90'],
+            ['graded'],
+            cumulative=True,
+            previous_gpa='8',
+            previous_credits='30',
+        )
+
+        self.assertEqual(result['gpa'], Decimal('8.091'))
+        self.assertEqual(result['graded_credits'], Decimal('33.000'))
+
+    def test_satisfactory_courses_are_excluded_from_gpa_and_credits(self):
+        result = calculate_gpa(
+            ['Credit course', 'Qualifying course'],
+            ['3', ''],
+            ['80', ''],
+            ['graded', 'satisfactory'],
+        )
+
+        self.assertEqual(result['gpa'], Decimal('8.000'))
+        self.assertEqual(result['graded_credits'], Decimal('3.000'))
+        self.assertEqual(result['courses'][1]['grade'], 'S (Satisfactory)')
+
+    def test_gpa_rejects_invalid_marks_and_unweighted_only_courses(self):
+        with self.assertRaises(CalculatorInputError):
+            calculate_gpa(['Course'], ['3'], ['101'], ['graded'])
+        with self.assertRaises(CalculatorInputError):
+            calculate_gpa(['Qualifying course'], [''], [''], ['satisfactory'])
+
+
+class StudentCalculatorViewTests(TestCase):
+    def setUp(self):
+        session = self.client.session
+        session['lpu_user_id'] = 'student-id'
+        session['lpu_user_role'] = 'student'
+        session.save()
+
+    def test_student_can_open_calculators(self):
+        response = self.client.get('/student/calculators/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '75% attendance planner')
+        self.assertContains(response, 'Credit-weighted TGPA &amp; CGPA')
+
+    def test_non_student_cannot_open_calculators(self):
+        session = self.client.session
+        session['lpu_user_role'] = 'staff'
+        session.save()
+
+        response = self.client.get('/student/calculators/')
+
+        self.assertRedirects(
+            response, '/dashboard/', fetch_redirect_response=False,
+        )
+
+    def test_attendance_form_renders_calculation_result(self):
+        response = self.client.post('/student/calculators/', {
+            'calculator_type': 'attendance',
+            'total_classes': '20',
+            'classes_attended': '15',
+            'classes_remaining': '4',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context['attendance_result']['max_classes_to_miss'], 1,
+        )
+
+    def test_gpa_form_renders_calculation_result(self):
+        response = self.client.post('/student/calculators/', {
+            'calculator_type': 'gpa',
+            'gpa_mode': 'tgpa',
+            'course_name': ['Algorithms'],
+            'course_credits': ['3'],
+            'course_marks': ['90'],
+            'course_type': ['graded'],
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '9.000')
+        self.assertContains(response, 'A+ (Excellent)')
+
+
+class StaleStudentDashboardSessionTests(TestCase):
+	def setUp(self):
+		session = self.client.session
+		session['lpu_user_id'] = 'deleted-user-id'
+		session['lpu_user_role'] = 'student'
+		session.save()
+
+	@patch('accounts.views.get_current_user', return_value=None)
+	def test_missing_user_clears_session_and_redirects_to_login(self, _get_user):
+		response = self.client.get('/dashboard/student/')
+
+		self.assertRedirects(
+			response, '/login/', fetch_redirect_response=False,
+		)
+		self.assertNotIn('lpu_user_id', self.client.session)

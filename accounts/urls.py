@@ -11,6 +11,11 @@ urlpatterns = [
 
     # dashboards
     path('dashboard/student/', views.student_dashboard, name='student_dashboard'),
+    path(
+        'student/calculators/',
+        views.student_calculators_view,
+        name='student_calculators',
+    ),
     path('dashboard/staff/', views.staff_dashboard, name='staff_dashboard'),
     path('dashboard/admin/', views.admin_dashboard, name='admin_dashboard'),
     path(

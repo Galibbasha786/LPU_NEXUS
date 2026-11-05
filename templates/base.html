@@ -262,6 +262,12 @@
         <div class="nx-sidebar-divider nx-sidebar-divider-sm"></div>
         <p class="nx-sidebar-label nx-sidebar-label-sm"><i class="bi bi-person-workspace"></i> Student</p>
 
+        <a href="{% url 'accounts:student_calculators' %}" class="nx-sidebar-link" data-tooltip="Student Calculators">
+          <span class="nx-slink-icon nx-icon-teal"><i class="bi bi-calculator-fill"></i></span>
+          <span class="nx-slink-text">Attendance &amp; GPA</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+
         <a href="{% url 'problems:report' %}" class="nx-sidebar-link" data-tooltip="Report a Problem">
           <span class="nx-slink-icon nx-icon-blue-alt"><i class="bi bi-tools"></i></span>
           <span class="nx-slink-text" data-i18n="nav.reports">Report Problem</span>

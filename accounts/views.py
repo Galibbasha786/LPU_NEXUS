@@ -27,6 +27,7 @@ from .session import (
     login_session, logout_session, get_current_user,
     login_required_mongo, role_required,
 )
+from .student_calculators import CalculatorInputError, calculate_attendance, calculate_gpa
 from core.mongo import users
 from core.storage import (
     IdentityCardStorageError,
@@ -491,6 +492,11 @@ def dashboard_view(request):
 @role_required('student')
 def student_dashboard(request):
     user = get_current_user(request)
+    if not user:
+        logout_session(request)
+        messages.warning(request, "Your session has expired. Please sign in again.")
+        return redirect('accounts:login')
+
     profile = get_student_profile(request.session.get('lpu_user_id'))
     from core.mongo import incidents, ideas, problems
     from core.utils import serialize_doc, serialize_list, to_object_id
@@ -512,6 +518,78 @@ def student_dashboard(request):
         'latest_notifications': serialize_list(latest_notifications),
         'unread_notifications': unread_notifications,
     })
+
+
+@login_required_mongo
+@role_required('student')
+@require_http_methods(["GET", "POST"])
+def student_calculators_view(request):
+    context = {
+        'active_calculator': 'attendance',
+        'attendance_values': {},
+        'course_rows': [{
+            'name': '',
+            'credits': '',
+            'marks': '',
+            'type': 'graded',
+        }],
+        'gpa_mode': 'tgpa',
+        'previous_gpa': '',
+        'previous_credits': '',
+    }
+    if request.method == 'POST':
+        calculator_type = request.POST.get('calculator_type', '')
+        if calculator_type == 'attendance':
+            context['active_calculator'] = 'attendance'
+            context['attendance_values'] = {
+                'total_classes': request.POST.get('total_classes', ''),
+                'classes_attended': request.POST.get('classes_attended', ''),
+                'classes_remaining': request.POST.get('classes_remaining', ''),
+            }
+            try:
+                context['attendance_result'] = calculate_attendance(
+                    context['attendance_values']['total_classes'],
+                    context['attendance_values']['classes_attended'],
+                    context['attendance_values']['classes_remaining'],
+                )
+            except CalculatorInputError as error:
+                context['attendance_error'] = str(error)
+        elif calculator_type == 'gpa':
+            context['active_calculator'] = 'gpa'
+            context['gpa_mode'] = request.POST.get('gpa_mode', 'tgpa')
+            context['previous_gpa'] = request.POST.get('previous_gpa', '')
+            context['previous_credits'] = request.POST.get('previous_credits', '')
+            names = request.POST.getlist('course_name')
+            credits = request.POST.getlist('course_credits')
+            marks = request.POST.getlist('course_marks')
+            types = request.POST.getlist('course_type')
+            context['course_rows'] = [
+                {
+                    'name': name,
+                    'credits': credit,
+                    'marks': mark,
+                    'type': course_type,
+                }
+                for name, credit, mark, course_type in zip(names, credits, marks, types)
+            ] or context['course_rows']
+            try:
+                if context['gpa_mode'] not in {'tgpa', 'cgpa'}:
+                    raise CalculatorInputError('Choose TGPA or CGPA.')
+                context['gpa_result'] = calculate_gpa(
+                    names,
+                    credits,
+                    marks,
+                    types,
+                    cumulative=context['gpa_mode'] == 'cgpa',
+                    previous_gpa=context['previous_gpa'],
+                    previous_credits=context['previous_credits'],
+                )
+            except CalculatorInputError as error:
+                context['gpa_error'] = str(error)
+        else:
+            context['active_calculator'] = 'attendance'
+            context['attendance_error'] = 'Choose a calculator and try again.'
+    return render(request, 'accounts/student_calculators.html', context)
 
 
 # ============================================================

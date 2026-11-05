@@ -1,0 +1,103 @@
+.student-calculators {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.calculator-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.5rem 0 1rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.calculator-tab {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--bs-secondary-color);
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+}
+
+.calculator-tab[aria-selected="true"] {
+  border-bottom-color: var(--nx-coral, #a21d32);
+  color: var(--bs-emphasis-color);
+}
+
+.calculator-panel {
+  margin-bottom: 2rem;
+}
+
+.calculator-panel[hidden] {
+  display: none !important;
+}
+
+.calculator-result {
+  border-top: 1px solid var(--bs-border-color);
+  padding-top: 1.25rem;
+}
+
+.calculator-stat {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-radius: 0.75rem;
+  background: var(--bs-tertiary-bg);
+  padding: 1rem;
+}
+
+.calculator-stat strong {
+  font-size: 1.5rem;
+}
+
+.calculator-course-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0 0.75rem;
+}
+
+.calculator-course-row {
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 1rem;
+}
+
+.calculator-course-fields {
+  display: grid;
+  grid-template-columns: minmax(10rem, 2fr) repeat(3, minmax(7rem, 1fr)) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.calculator-course-fields .form-label-lpu {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.calculator-course-fields .remove-course {
+  min-height: 2.5rem;
+}
+
+.grade-scale summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+@media (max-width: 767.98px) {
+  .calculator-course-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .calculator-course-fields > div:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .calculator-course-fields .remove-course {
+    grid-column: 2;
+    justify-self: end;
+  }
+}
