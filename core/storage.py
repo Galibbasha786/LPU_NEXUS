@@ -48,6 +48,10 @@ class IdentityCardStorageError(Exception):
     """An expected validation or storage error for an identity card."""
 
 
+class IncidentMediaStorageError(Exception):
+    """An expected storage error for emergency-report media."""
+
+
 class LiveNewsPosterValidationError(Exception):
     """An expected validation error for a live-news poster."""
 
@@ -421,6 +425,33 @@ def identity_card_download_url(card):
         ) from error
 
 
+def incident_media_download_url(media):
+    if not media or not media.get('public_id') or not media.get('format'):
+        raise IncidentMediaStorageError('No emergency-report media is available.')
+    try:
+        credentials = _cloudinary_credentials()
+    except ProfileImageUploadError as error:
+        raise IncidentMediaStorageError(
+            'Private emergency-media storage is unavailable.'
+        ) from error
+    try:
+        return cloudinary.utils.private_download_url(
+            media['public_id'],
+            media['format'],
+            resource_type=media.get('resource_type', 'image'),
+            type=media.get('delivery_type', 'authenticated'),
+            expires_at=int(time.time()) + 600,
+            attachment=False,
+            secure=True,
+            **credentials,
+        )
+    except Exception as error:
+        logger.exception('Could not generate an expiring emergency-media URL')
+        raise IncidentMediaStorageError(
+            'Emergency-report media is temporarily unavailable.'
+        ) from error
+
+
 def delete_identity_card(card):
     if not card or not card.get('public_id'):
         return
@@ -476,8 +507,8 @@ def delete_profile_image(image):
 
 def save_incident_media(uploaded_file):
     """
-    Validate + save a media file under media/incidents/<uuid>.<ext>.
-    Returns (relative_path, error).
+    Validate and privately store incident media in Cloudinary.
+    Returns (asset metadata, error).
     """
     if not uploaded_file:
         return None, None
@@ -497,8 +528,48 @@ def save_incident_media(uploaded_file):
     if is_video and size > MAX_VIDEO_SIZE:
         return None, "Video exceeds 40 MB."
 
-    # Path
     folder = "incidents/images" if is_image else "incidents/videos"
-    fname = f"{folder}/{uuid.uuid4().hex}{ext}"
-    saved = default_storage.save(fname, uploaded_file)
-    return saved, None
+    resource_type = 'image' if is_image else 'video'
+    try:
+        credentials = _cloudinary_credentials()
+    except ProfileImageUploadError as error:
+        return None, str(error)
+
+    try:
+        uploaded_file.seek(0)
+        result = cloudinary.uploader.upload(
+            uploaded_file,
+            folder=f'lpu_nexus/{folder}',
+            public_id=uuid.uuid4().hex,
+            overwrite=False,
+            unique_filename=False,
+            resource_type=resource_type,
+            type='authenticated',
+            **credentials,
+        )
+    except Exception:
+        logger.exception('Emergency-report media upload to Cloudinary failed')
+        return None, 'The emergency media could not be uploaded. Please try again.'
+    finally:
+        uploaded_file.seek(0)
+
+    public_id = result.get('public_id')
+    file_format = result.get('format')
+    if not public_id or not file_format:
+        if public_id:
+            try:
+                cloudinary.uploader.destroy(
+                    public_id,
+                    resource_type=resource_type,
+                    type='authenticated',
+                    **credentials,
+                )
+            except Exception:
+                logger.exception('Could not clean up incomplete incident media upload')
+        return None, 'Cloudinary did not confirm the emergency media upload.'
+    return {
+        'public_id': public_id,
+        'resource_type': result.get('resource_type', resource_type),
+        'format': file_format,
+        'delivery_type': result.get('type', 'authenticated'),
+    }, None

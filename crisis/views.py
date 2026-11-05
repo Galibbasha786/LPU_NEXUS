@@ -1,17 +1,26 @@
 # crisis/views.py
+import logging
+
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
+from django.http import HttpResponseForbidden, HttpResponseNotFound, JsonResponse
 from django.contrib import messages
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from accounts.session import login_required_mongo, get_current_user, role_required
-from core.storage import save_incident_media
+from core.storage import (
+    IncidentMediaStorageError,
+    incident_media_download_url,
+    save_incident_media,
+)
 from core.mongo import users
 from core.utils import serialize_doc, serialize_list
 
 from . import services
 from .constants import CATEGORIES, SEVERITIES, STATUSES, STAFF_TRANSITIONS
 from .permissions import crisis_required, admin_required, audit
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================
@@ -77,6 +86,8 @@ def my_reports(request):
 def incident_detail(request, incident_id):
     """View a single incident — student sees their own; staff sees all."""
     user = get_current_user(request)
+    if not user:
+        return redirect("accounts:login")
     incident = services.get_incident(incident_id)
     if not incident:
         messages.error(request, "Incident not found.")
@@ -89,14 +100,50 @@ def incident_detail(request, incident_id):
         return redirect("accounts:dashboard")
 
     timeline = services.list_incident_timeline(incident_id)
+    media_url = (
+        reverse("crisis:incident_media", kwargs={"incident_id": incident_id})
+        if incident.get("media_path") else ""
+    )
     return render(request, "crisis/incident_detail.html", {
         "user": user,
         "incident": serialize_doc(incident),
+        "media_url": media_url,
         "timeline": serialize_list(timeline),
         "can_manage": role in ("staff", "admin"),
         "statuses": STATUSES,
         "transitions": STAFF_TRANSITIONS.get(incident.get("status"), []),
     })
+
+
+@login_required_mongo
+@require_http_methods(["GET"])
+def incident_media(request, incident_id):
+    user = get_current_user(request)
+    if not user:
+        return redirect("accounts:login")
+    incident = services.get_incident(incident_id)
+    if not incident or not incident.get("media_path"):
+        return HttpResponseNotFound("Incident media not found.")
+
+    role = request.session.get("lpu_user_role")
+    is_owner = str(incident.get("reported_by")) == user["id"]
+    if role not in ("staff", "admin") and not is_owner:
+        return HttpResponseForbidden("You don't have access to this incident media.")
+
+    media = incident["media_path"]
+    if isinstance(media, str):
+        return redirect(f"/media/{media}")
+    try:
+        url = incident_media_download_url(media)
+    except IncidentMediaStorageError:
+        logger.exception(
+            "Could not create Cloudinary incident-media URL for %s", incident_id,
+        )
+        return JsonResponse(
+            {"error": "Emergency-report media is temporarily unavailable."},
+            status=503,
+        )
+    return redirect(url)
 
 
 # =============================================================

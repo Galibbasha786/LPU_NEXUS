@@ -17,7 +17,12 @@ from .id_card_verification import (
 	registration_number_matches,
 	verify_student_id_card,
 )
-from .mongo_auth import create_student, find_user_by_identifier, verify_recovery_answer
+from .mongo_auth import (
+	approve_student_verification,
+	create_student,
+	find_user_by_identifier,
+	verify_recovery_answer,
+)
 
 
 class AccountRecoveryTests(SimpleTestCase):
@@ -81,6 +86,29 @@ class StudentAccountCreationTests(SimpleTestCase):
 		self.assertIsNotNone(user)
 		profile = student_profiles.return_value.insert_one.call_args.args[0]
 		self.assertNotIn('id_card', profile)
+
+	@patch('accounts.mongo_auth.users')
+	@patch('accounts.mongo_auth.student_profiles')
+	def test_admin_can_approve_only_student_with_a_stored_id_card(
+		self, student_profiles, users,
+	):
+		student_id = ObjectId()
+		reviewer_id = ObjectId()
+		student_profiles.return_value.find_one.return_value = {
+			'id_card': {'public_id': 'lpu_nexus/id_cards/student'},
+		}
+		users.return_value.update_one.return_value.modified_count = 1
+
+		approved = approve_student_verification(
+			str(student_id), str(reviewer_id),
+		)
+
+		self.assertTrue(approved)
+		query = users.return_value.update_one.call_args.args[0]
+		self.assertEqual(query['id_verification_status'], 'pending')
+		updates = users.return_value.update_one.call_args.args[1]['$set']
+		self.assertEqual(updates['id_verification_status'], 'verified')
+		self.assertEqual(updates['id_verified_by'], reviewer_id)
 
 
 class PasswordResetViewTests(TestCase):
@@ -374,9 +402,15 @@ class RegistrationIdVerificationTests(TestCase):
 
 	@patch('accounts.views.create_student')
 	@patch('accounts.views.verify_student_id_card')
+	@patch('accounts.views.save_identity_card')
 	def test_matching_card_is_saved_and_account_is_created(
-		self, verify_card, create_student
+		self, save_card, verify_card, create_student
 	):
+		save_card.return_value = {
+			'public_id': 'lpu_nexus/id_cards/student',
+			'resource_type': 'image', 'format': 'png',
+			'delivery_type': 'authenticated',
+		}
 		verify_card.return_value = {
 			'name_matches': True, 'registration_number_matches': True,
 		}
@@ -396,16 +430,35 @@ class RegistrationIdVerificationTests(TestCase):
 		self.assertRedirects(response, '/dashboard/', fetch_redirect_response=False)
 		verify_card.assert_called_once()
 		create_student.assert_called_once()
-		self.assertNotIn('id_card', create_student.call_args.kwargs)
+		save_card.assert_called_once()
+		self.assertEqual(
+			create_student.call_args.kwargs['id_card'],
+			save_card.return_value,
+		)
+		self.assertEqual(
+			create_student.call_args.kwargs['id_verification_status'],
+			'verified',
+		)
 
 	@patch('accounts.views.create_student')
 	@patch('accounts.views.verify_student_id_card')
-	def test_registration_rejects_name_mismatch_before_saving_card(
-		self, verify_card, create_student
+	@patch('accounts.views.save_identity_card')
+	def test_registration_sends_uncertain_ocr_to_private_manual_review(
+		self, save_card, verify_card, create_student
 	):
+		save_card.return_value = {
+			'public_id': 'lpu_nexus/id_cards/student',
+			'resource_type': 'image', 'format': 'png',
+			'delivery_type': 'authenticated',
+		}
 		verify_card.return_value = {
 			'name_matches': False, 'registration_number_matches': True,
 		}
+		create_student.return_value = ({
+			'_id': 'mongo-user-id', 'role': 'student',
+			'full_name': 'Student Example',
+			'id_verification_status': 'pending',
+		}, None)
 		response = self.client.post('/register/', {
 			'full_name': 'Student Example',
 			'registration_number': '12345678',
@@ -419,9 +472,70 @@ class RegistrationIdVerificationTests(TestCase):
 			'id_card': SimpleUploadedFile('id.png', b'image', content_type='image/png'),
 		})
 
-		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, 'name on the ID card does not match')
-		create_student.assert_not_called()
+		self.assertRedirects(
+			response, '/verification/pending/', fetch_redirect_response=False,
+		)
+		self.assertEqual(
+			create_student.call_args.kwargs['id_verification_status'], 'pending',
+		)
+		self.assertEqual(
+			create_student.call_args.kwargs['id_card'], save_card.return_value,
+		)
+		self.assertEqual(
+			self.client.session['lpu_id_verification_status'], 'pending',
+		)
+
+	def test_pending_student_is_blocked_from_application_routes(self):
+		session = self.client.session
+		session['lpu_user_id'] = 'mongo-user-id'
+		session['lpu_user_role'] = 'student'
+		session['lpu_id_verification_status'] = 'pending'
+		session.save()
+
+		response = self.client.get('/profile/')
+
+		self.assertRedirects(
+			response, '/verification/pending/', fetch_redirect_response=False,
+		)
+
+	@patch('accounts.views.identity_card_download_url')
+	@patch('accounts.views.get_student_profile')
+	@patch('accounts.views.get_user_by_id')
+	def test_staff_can_view_only_pending_student_id_cards(
+		self, get_user, get_profile, download_url,
+	):
+		pending_user_id = str(ObjectId())
+		session = self.client.session
+		session['lpu_user_id'] = str(ObjectId())
+		session['lpu_user_role'] = 'staff'
+		session.save()
+		get_user.return_value = {
+			'role': 'student', 'id_verification_status': 'pending',
+		}
+		get_profile.return_value = {
+			'id_card': {
+				'public_id': 'lpu_nexus/id_cards/pending',
+				'resource_type': 'image', 'format': 'png',
+				'delivery_type': 'authenticated',
+			},
+		}
+		download_url.return_value = 'https://cloudinary.example/temporary'
+
+		response = self.client.get(
+			f'/nexus-admin/students/{pending_user_id}/id-card/',
+		)
+
+		self.assertEqual(response.status_code, 302)
+		self.assertEqual(response.url, download_url.return_value)
+
+		get_user.return_value = {
+			'role': 'student', 'id_verification_status': 'verified',
+		}
+		response = self.client.get(
+			f'/nexus-admin/students/{pending_user_id}/id-card/',
+		)
+		self.assertEqual(response.status_code, 403)
+		self.assertEqual(download_url.call_count, 1)
 
 
 class IdCardDocumentReadTests(SimpleTestCase):

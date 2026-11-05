@@ -7,6 +7,7 @@ from django.test import SimpleTestCase, override_settings
 
 from .storage import (
     IdentityCardStorageError,
+    IncidentMediaStorageError,
     LiveNewsPosterStorageError,
     LiveNewsPosterValidationError,
     ProblemImageStorageError,
@@ -14,6 +15,8 @@ from .storage import (
     ProfileImageUploadError,
     delete_identity_card,
     identity_card_download_url,
+    incident_media_download_url,
+    save_incident_media,
     save_live_news_poster,
     save_problem_image,
     save_identity_card,
@@ -110,6 +113,7 @@ class IdentityCardStorageTests(SimpleTestCase):
             'registration_number': '12345678',
         })
 
+
     @override_settings(
         CLOUDINARY_CLOUD_NAME='test-cloud',
         CLOUDINARY_API_KEY='test-key',
@@ -159,6 +163,54 @@ class IdentityCardStorageTests(SimpleTestCase):
     def test_identity_card_upload_fails_if_private_cloudinary_storage_is_not_configured(self):
         with self.assertRaises(IdentityCardStorageError):
             save_identity_card(SimpleUploadedFile('card.png', b'image-data'), 'Name', '123')
+
+
+class IncidentMediaStorageTests(SimpleTestCase):
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='test-cloud',
+        CLOUDINARY_API_KEY='test-key',
+        CLOUDINARY_API_SECRET='test-secret',
+    )
+    @patch('core.storage.cloudinary.uploader.upload')
+    def test_incident_media_is_stored_as_private_cloudinary_asset(self, upload):
+        upload.return_value = {
+            'public_id': 'lpu_nexus/incidents/images/incident-photo',
+            'resource_type': 'image', 'format': 'png',
+            'type': 'authenticated',
+        }
+        uploaded_file = SimpleUploadedFile('evidence.png', b'image-data')
+
+        media, error = save_incident_media(uploaded_file)
+
+        self.assertIsNone(error)
+        self.assertEqual(media['public_id'], upload.return_value['public_id'])
+        self.assertEqual(media['delivery_type'], 'authenticated')
+        self.assertEqual(upload.call_args.kwargs['resource_type'], 'image')
+        self.assertEqual(upload.call_args.kwargs['type'], 'authenticated')
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='test-cloud',
+        CLOUDINARY_API_KEY='test-key',
+        CLOUDINARY_API_SECRET='test-secret',
+    )
+    @patch('core.storage.cloudinary.utils.private_download_url')
+    def test_incident_media_download_uses_expiring_authenticated_url(self, download):
+        download.return_value = 'https://cloudinary.example/temporary-url'
+        media = {
+            'public_id': 'lpu_nexus/incidents/images/incident-photo',
+            'resource_type': 'image', 'format': 'png',
+            'delivery_type': 'authenticated',
+        }
+
+        url = incident_media_download_url(media)
+
+        self.assertEqual(url, download.return_value)
+        self.assertEqual(download.call_args.kwargs['type'], 'authenticated')
+        self.assertEqual(download.call_args.kwargs['resource_type'], 'image')
+
+    def test_incident_media_download_requires_asset_metadata(self):
+        with self.assertRaises(IncidentMediaStorageError):
+            incident_media_download_url(None)
 
 
 class ProblemImageStorageTests(SimpleTestCase):

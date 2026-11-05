@@ -14,10 +14,11 @@ from pymongo.errors import PyMongoError
 from crisis.services import crisis_stats
 from .mongo_auth import (
     create_student, create_staff, authenticate_user,
-    list_staff, list_students, get_student_profile, find_user_by_identifier,
+    list_staff, list_students, list_pending_students, get_student_profile,
+    find_user_by_identifier,
     get_user_by_id, set_user_password, verify_recovery_answer,
     verify_current_password, update_account_details, update_profile_image,
-    delete_account,
+    delete_account, approve_student_verification,
 )
 from .id_card_verification import (
     IdCardReadError, OcrUnavailableError, verify_student_id_card,
@@ -33,6 +34,7 @@ from core.storage import (
     delete_identity_card,
     delete_profile_image,
     identity_card_download_url,
+    save_identity_card,
     save_profile_image,
 )
 
@@ -90,18 +92,20 @@ def register_view(request):
             elif id_card.size > MAX_ID_SIZE:
                 errors.append("ID card must be under 5 MB.")
 
+        verification_status = 'verified'
         if not errors:
             try:
                 matches = verify_student_id_card(id_card, full_name, reg_no)
-                if not matches['name_matches']:
-                    errors.append("The name on the ID card does not match the name entered.")
-                if not matches['registration_number_matches']:
-                    errors.append("The UID on the ID card does not match the registration number entered.")
+                if not (
+                    matches['name_matches']
+                    and matches['registration_number_matches']
+                ):
+                    verification_status = 'pending'
             except OcrUnavailableError:
-                errors.append("ID verification is temporarily unavailable. Contact the administrator.")
+                verification_status = 'pending'
             except IdCardReadError:
                 logger.exception('Could not read uploaded student ID card')
-                errors.append("The ID card could not be read. Upload a clear image or PDF and try again.")
+                verification_status = 'pending'
 
         if errors:
             for e in errors:
@@ -110,27 +114,53 @@ def register_view(request):
                 'form_data': request.POST,
             })
 
+        card = None
         try:
+            card = save_identity_card(id_card, full_name, reg_no)
             user, err = create_student(
                 email=email, password=password, full_name=full_name,
                 registration_number=reg_no, department=department,
                 year=year,
                 recovery_question=RECOVERY_QUESTIONS[recovery_question],
                 recovery_answer=recovery_answer,
+                id_card=card,
+                id_verification_status=verification_status,
             )
+        except IdentityCardStorageError as error:
+            logger.exception('Could not store uploaded student ID card')
+            messages.error(request, str(error))
+            return render(request, 'accounts/register.html', {
+                'form_data': request.POST,
+            })
         except PyMongoError:
-            logger.exception('Could not create student account after ID-card verification')
+            if card:
+                try:
+                    delete_identity_card(card)
+                except IdentityCardStorageError:
+                    logger.exception('Could not clean up ID card after account creation failed')
+            logger.exception('Could not create student account after ID-card upload')
             messages.error(request, "Your account could not be created. Please try again.")
             return render(request, 'accounts/register.html', {
                 'form_data': request.POST,
             })
         if err:
+            if card:
+                try:
+                    delete_identity_card(card)
+                except IdentityCardStorageError:
+                    logger.exception('Could not clean up ID card after account creation failed')
             messages.error(request, err)
             return render(request, 'accounts/register.html', {
                 'form_data': request.POST,
             })
 
         login_session(request, user)
+        if verification_status == 'pending':
+            messages.info(
+                request,
+                "Your account was created and is awaiting staff verification of your ID card.",
+            )
+            return redirect('accounts:verification_pending')
         messages.success(request, f"Welcome, {full_name}!")
         return redirect('accounts:dashboard')
 
@@ -151,11 +181,28 @@ def login_view(request):
         user = authenticate_user(identifier, password)
         if user:
             login_session(request, user)
+            if user.get('id_verification_status') == 'pending':
+                messages.info(
+                    request,
+                    "Your account is awaiting staff verification of your ID card.",
+                )
+                return redirect('accounts:verification_pending')
             messages.success(request, f"Welcome back, {user.get('full_name')}!")
             return redirect('accounts:dashboard')
         messages.error(request, "Invalid UID, email, or password.")
 
     return render(request, 'accounts/login.html')
+
+
+@require_http_methods(["GET"])
+def verification_pending_view(request):
+    if not request.session.get('lpu_user_id'):
+        return redirect('accounts:login')
+    if request.session.get('lpu_id_verification_status') != 'pending':
+        return redirect('accounts:dashboard')
+    return render(request, 'accounts/verification_pending.html', {
+        'user': get_current_user(request),
+    })
 
 
 @require_http_methods(["GET", "POST"])
@@ -361,8 +408,17 @@ def download_id_card(request, user_id=None):
         if role != 'student':
             return JsonResponse({'error': 'ID card not found.'}, status=404)
         user_id = current_user_id
-    elif role != 'admin':
+    elif role not in ('admin', 'staff'):
         return JsonResponse({'error': 'You do not have permission to view this ID card.'}, status=403)
+
+    if user_id != current_user_id and role == 'staff':
+        student = get_user_by_id(user_id)
+        if (
+            not student
+            or student.get('role') != 'student'
+            or student.get('id_verification_status') != 'pending'
+        ):
+            return JsonResponse({'error': 'You do not have permission to view this ID card.'}, status=403)
 
     profile = get_student_profile(user_id)
     if not profile or not profile.get('id_card'):
@@ -574,8 +630,47 @@ def admin_list_students(request):
             'department': profile.get('department', ''),
             'year': profile.get('year', ''),
             'has_id_card': bool((profile.get('id_card') or {}).get('public_id')),
+            'id_verification_status': student.get(
+                'id_verification_status', 'verified',
+            ),
         })
     return render(request, 'accounts/admin_list_students.html', {
         'user': get_current_user(request),
         'students': serialize_list(students),
     })
+
+
+@login_required_mongo
+@role_required('staff', 'admin')
+def staff_student_verification_queue(request):
+    from core.utils import serialize_list
+    students = list_pending_students()
+    for student in students:
+        profile = get_student_profile(str(student['_id'])) or {}
+        student.update({
+            'registration_number': profile.get('registration_number', ''),
+            'has_id_card': bool((profile.get('id_card') or {}).get('public_id')),
+        })
+    return render(request, 'accounts/staff_verification_queue.html', {
+        'user': get_current_user(request),
+        'students': serialize_list(students),
+    })
+
+
+@login_required_mongo
+@role_required('staff', 'admin')
+@require_http_methods(["POST"])
+def admin_approve_student(request, user_id):
+    if not approve_student_verification(
+        user_id, request.session.get('lpu_user_id'),
+    ):
+        messages.error(
+            request,
+            "The pending student or stored ID card could not be found.",
+        )
+    else:
+        messages.success(
+            request,
+            "Student ID card approved. They can access their account after signing in again.",
+        )
+    return redirect('accounts:admin_list_students')

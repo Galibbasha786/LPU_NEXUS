@@ -12,6 +12,9 @@ def login_session(request, user_doc):
     """Store user id in Django session."""
     request.session[SESSION_KEY] = str(user_doc['_id'])
     request.session['lpu_user_role'] = user_doc.get('role', 'student')
+    request.session['lpu_id_verification_status'] = user_doc.get(
+        'id_verification_status', 'verified',
+    )
     request.session['lpu_user_name'] = user_doc.get('full_name', '')
     image_url = user_doc.get('profile_image_url')
     if image_url:
@@ -23,6 +26,7 @@ def login_session(request, user_doc):
 def logout_session(request):
     request.session.pop(SESSION_KEY, None)
     request.session.pop('lpu_user_role', None)
+    request.session.pop('lpu_id_verification_status', None)
     request.session.pop('lpu_user_name', None)
     request.session.pop('lpu_user_image', None)
     request.session.flush()
@@ -46,6 +50,16 @@ def login_required_mongo(view_func):
         if not request.session.get(SESSION_KEY):
             messages.warning(request, "Please log in first.")
             return redirect('accounts:login')
+        if (
+            request.session.get('lpu_id_verification_status') == 'pending'
+            and getattr(request.resolver_match, 'view_name', '')
+            != 'accounts:verification_pending'
+        ):
+            messages.info(
+                request,
+                "Your student account is awaiting ID-card verification.",
+            )
+            return redirect('accounts:verification_pending')
         return view_func(request, *args, **kwargs)
     return wrapper
 

@@ -8,6 +8,7 @@ urlpatterns = [
     # Student
     path("report/", views.student_report, name="student_report"),
     path("my-reports/", views.my_reports, name="my_reports"),
+    path("incident/<str:incident_id>/media/", views.incident_media, name="incident_media"),
     path("incident/<str:incident_id>/", views.incident_detail, name="incident_detail"),
 
     # Staff

@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 def create_student(email, password, full_name, registration_number,
                    department='', year='', id_card=None,
-                   recovery_question='', recovery_answer=''):
+                   recovery_question='', recovery_answer='',
+                   id_verification_status='verified'):
     """Self-registration path. Role is forced to 'student'."""
     email = email.strip().lower()
 
@@ -39,6 +40,7 @@ def create_student(email, password, full_name, registration_number,
         'full_name': full_name.strip(),
         'role': 'student',
         'active': True,
+        'id_verification_status': id_verification_status,
         'recovery_question': recovery_question,
         'recovery_answer_hash': make_password(recovery_answer.strip().casefold()),
         'created_at': now(),
@@ -254,3 +256,39 @@ def list_staff():
 
 def list_students():
     return list(users().find({'role': 'student'}).sort('created_at', -1))
+
+
+def list_pending_students():
+    return list(
+        users().find({
+            'role': 'student',
+            'id_verification_status': 'pending',
+        }).sort('created_at', -1)
+    )
+
+
+def approve_student_verification(user_id, reviewer_id):
+    oid = to_object_id(user_id)
+    reviewer_oid = to_object_id(reviewer_id)
+    if not oid or not reviewer_oid:
+        return False
+    profile = student_profiles().find_one({
+        'user_id': oid,
+        'id_card.public_id': {'$exists': True},
+    })
+    if not profile:
+        return False
+    result = users().update_one(
+        {
+            '_id': oid,
+            'role': 'student',
+            'id_verification_status': 'pending',
+        },
+        {'$set': {
+            'id_verification_status': 'verified',
+            'id_verified_by': reviewer_oid,
+            'id_verified_at': now(),
+            'updated_at': now(),
+        }},
+    )
+    return result.modified_count == 1

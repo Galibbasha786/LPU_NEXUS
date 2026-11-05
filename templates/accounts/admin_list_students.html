@@ -12,7 +12,7 @@
     <div class="table-responsive">
       <table class="table align-middle mb-0">
         <thead>
-          <tr><th>Name</th><th>Email</th><th>Reg No</th><th>Dept</th><th>Year</th><th>Joined</th><th>ID card</th></tr>
+          <tr><th>Name</th><th>Email</th><th>Reg No</th><th>Dept</th><th>Year</th><th>Joined</th><th>ID card</th><th>Verification</th></tr>
         </thead>
         <tbody>
           {% for s in students %}
@@ -24,6 +24,19 @@
               <td>{{ s.year|default:"—" }}</td>
               <td class="text-muted small">{{ s.created_at|slice:":10" }}</td>
               <td>{% if s.has_id_card %}<a href="{% url 'accounts:admin_student_id_card' s.id %}" target="_blank" rel="noopener noreferrer">View securely</a>{% else %}—{% endif %}</td>
+              <td>
+                {% if s.id_verification_status == 'pending' %}
+                  <span class="badge text-bg-warning">Pending review</span>
+                  {% if s.has_id_card %}
+                    <form method="post" action="{% url 'accounts:admin_approve_student' s.id %}" class="mt-2">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-success">Approve ID</button>
+                    </form>
+                  {% endif %}
+                {% else %}
+                  <span class="badge text-bg-success">Verified</span>
+                {% endif %}
+              </td>
             </tr>
           {% endfor %}
         </tbody>

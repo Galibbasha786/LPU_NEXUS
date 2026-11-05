@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Student ID reviews • LPU Nexus{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Pending Student ID Reviews</h3>
+  <a href="{% url 'accounts:staff_dashboard' %}" class="btn btn-sm btn-outline-secondary">Back</a>
+</div>
+
+<div class="card card-nx p-3">
+  {% if students %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr><th>Name entered</th><th>Email</th><th>UID entered</th><th>Submitted</th><th>ID card</th><th>Decision</th></tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
+            <tr>
+              <td>{{ student.full_name }}</td>
+              <td>{{ student.email }}</td>
+              <td>{{ student.registration_number|default:"—" }}</td>
+              <td class="text-muted small">{{ student.created_at|slice:":10" }}</td>
+              <td>
+                {% if student.has_id_card %}
+                  <a href="{% url 'accounts:admin_student_id_card' student.id %}" target="_blank" rel="noopener noreferrer">View securely</a>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>
+                {% if student.has_id_card %}
+                  <form method="post" action="{% url 'accounts:admin_approve_student' student.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-success">Approve ID</button>
+                  </form>
+                {% else %}
+                  <span class="text-muted">ID card unavailable</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted mb-0 text-center py-4">There are no pending student ID reviews.</p>
+  {% endif %}
+</div>
+{% endblock %}
