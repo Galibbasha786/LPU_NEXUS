@@ -275,6 +275,16 @@
     </a>
   </div>
   <div class="col-md-4">
+    <a href="https://skill-swap-iota-ten.vercel.app/" target="_blank"
+       rel="noopener noreferrer" class="text-decoration-none">
+      <div class="feature-card feature-idea h-100">
+      <h6><i class="bi bi-arrow-left-right me-1" aria-hidden="true"></i>Skill Swap</h6>
+      <p class="small mb-0">Meet LPU peers, share what you know, and learn a skill from someone new.</p>
+      <span class="feature-chip">Open Skill Swap in a new tab <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></span>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
     <a href="{% url 'placement_predictor:predict' %}" class="text-decoration-none">
       <div class="feature-card feature-navigation h-100">
         <h6><i class="bi bi-graph-up-arrow me-1" aria-hidden="true"></i><span data-i18n="nav.placement">Placement Predictor</span></h6>
@@ -284,6 +294,7 @@
     </a>
   </div>
 </div>
+
 <div class="dashboard-followups">
   <a href="{% url 'problems:my_problems' %}" class="btn btn-outline-secondary">Track my problem reports ({{ stats.my_reports }})</a>
   <a href="{% url 'ideas:list' %}" class="btn btn-outline-secondary">Browse campus ideas ({{ stats.my_ideas }})</a>

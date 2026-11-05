@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 from bson import ObjectId
 from django.contrib.auth.hashers import make_password
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from PIL import Image
 import pymupdf
 
@@ -813,3 +813,22 @@ class StaleStudentDashboardSessionTests(TestCase):
 			response, '/login/', fetch_redirect_response=False,
 		)
 		self.assertNotIn('lpu_user_id', self.client.session)
+
+
+class LoginRecaptchaTests(TestCase):
+	@override_settings(
+		DEBUG=False,
+		RECAPTCHA_SITE_KEY='site-key',
+		RECAPTCHA_SECRET_KEY='secret-key',
+	)
+	@patch('accounts.views.verify_google_recaptcha', return_value=False)
+	@patch('accounts.views.authenticate_user')
+	def test_login_rejects_unverified_recaptcha(self, authenticate, _verify):
+		response = self.client.post('/login/', {
+			'identifier': 'student@lpu.in',
+			'password': 'password',
+			'g-recaptcha-response': 'invalid-token',
+		})
+
+		self.assertEqual(response.status_code, 200)
+		authenticate.assert_not_called()

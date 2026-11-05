@@ -2,7 +2,10 @@
 import os
 import re
 import logging
+import json
 from datetime import datetime
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.shortcuts import render, redirect
@@ -48,6 +51,29 @@ RECOVERY_QUESTIONS = {
     'movie': 'What is your favorite movie?',
     'inspiration': 'Who is your inspiration?',
 }
+
+
+def verify_google_recaptcha(token):
+    secret_key = settings.RECAPTCHA_SECRET_KEY
+    if not token or not secret_key:
+        return False
+
+    payload = urlencode({
+        'secret': secret_key,
+        'response': token,
+    }).encode()
+    verification_request = Request(
+        'https://www.google.com/recaptcha/api/siteverify',
+        data=payload,
+        headers={'Content-Type': 'application/x-www-form-urlencoded'},
+    )
+    try:
+        with urlopen(verification_request, timeout=3) as response:
+            result = json.loads(response.read().decode('utf-8'))
+    except (OSError, ValueError, TimeoutError):
+        logger.warning('Google reCAPTCHA verification request failed.')
+        return False
+    return result.get('success') is True
 
 
 def home_view(request):
@@ -176,7 +202,26 @@ def login_view(request):
     if request.session.get('lpu_user_id'):
         return redirect('accounts:dashboard')
 
+    recaptcha_site_key = settings.RECAPTCHA_SITE_KEY
+    recaptcha_configured = bool(
+        recaptcha_site_key and settings.RECAPTCHA_SECRET_KEY
+    )
+    recaptcha_context = {
+        'recaptcha_site_key': recaptcha_site_key if recaptcha_configured else '',
+        'recaptcha_setup_error': not recaptcha_configured and not settings.DEBUG,
+        'recaptcha_development_notice': not recaptcha_configured and settings.DEBUG,
+    }
+
     if request.method == 'POST':
+        if not recaptcha_configured and not settings.DEBUG:
+            messages.error(request, "Login is unavailable until Google reCAPTCHA is configured.")
+            return render(request, 'accounts/login.html', recaptcha_context)
+        if recaptcha_configured and not verify_google_recaptcha(
+            request.POST.get('g-recaptcha-response', ''),
+        ):
+            messages.error(request, "Please complete the Google reCAPTCHA check.")
+            return render(request, 'accounts/login.html', recaptcha_context)
+
         identifier = request.POST.get('identifier', '').strip()
         password = request.POST.get('password', '')
         user = authenticate_user(identifier, password)
@@ -192,7 +237,7 @@ def login_view(request):
             return redirect('accounts:dashboard')
         messages.error(request, "Invalid UID, email, or password.")
 
-    return render(request, 'accounts/login.html')
+    return render(request, 'accounts/login.html', recaptcha_context)
 
 
 @require_http_methods(["GET"])
@@ -504,6 +549,7 @@ def student_dashboard(request):
     user_id = to_object_id(request.session.get('lpu_user_id'))
     from .notification_services import inbox_for_user
     latest_notifications, unread_notifications = inbox_for_user(user['id'], limit=5)
+    latest_notifications = serialize_list(latest_notifications)
     stats = {
         'my_reports': problems().count_documents({'reported_by': user_id}) if user_id else 0,
         'affected_confirmations': 0,
@@ -515,7 +561,7 @@ def student_dashboard(request):
     }
     return render(request, 'accounts/dashboard_student.html', {
         'user': user, 'profile': profile, 'stats': stats,
-        'latest_notifications': serialize_list(latest_notifications),
+        'latest_notifications': latest_notifications,
         'unread_notifications': unread_notifications,
     })
 

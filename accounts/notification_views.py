@@ -53,6 +53,8 @@ def notification_inbox(request):
 @login_required_mongo
 @require_http_methods(["POST"])
 def mark_notification_read_view(request, notification_id):
-    if not mark_notification_read(notification_id, request.session.get("lpu_user_id")):
+    if not mark_notification_read(
+        notification_id, request.session.get("lpu_user_id"),
+    ):
         messages.error(request, "Notification not found.")
     return redirect("accounts:notifications")
