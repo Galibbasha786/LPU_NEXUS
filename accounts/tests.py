@@ -11,7 +11,9 @@ import pymupdf
 from .id_card_verification import (
 	MAX_OCR_IMAGE_DIMENSION,
 	_prepare_image,
+	_extract_image_text,
 	_run_image_ocr,
+	normalize_id_text,
 	registration_number_matches,
 	verify_student_id_card,
 )
@@ -443,6 +445,21 @@ class IdCardDocumentReadTests(SimpleTestCase):
 		self.assertEqual(text, 'UID 12345678')
 		self.assertTrue(timed_out)
 		self.assertEqual(pytesseract.image_to_string.call_args.args[0].size, (1200, 600))
+
+	def test_ocr_checks_name_layout_after_first_layout_finds_uid(self):
+		image = Image.new('RGB', (400, 200), 'white')
+		pytesseract = Mock()
+		pytesseract.image_to_string.side_effect = [
+			'UID: 12345678',
+			'Name: Asha Rao',
+		]
+
+		text = _extract_image_text(image, pytesseract, '12345678')
+
+		self.assertEqual(pytesseract.image_to_string.call_count, 2)
+		self.assertIn('asharao', normalize_id_text(text))
+		self.assertTrue(registration_number_matches(text, '12345678'))
+		pytesseract.image_to_data.assert_not_called()
 
 	@patch('accounts.id_card_verification._extract_image_text')
 	def test_pdf_ocr_scans_the_full_page_with_embedded_images(self, extract_text):

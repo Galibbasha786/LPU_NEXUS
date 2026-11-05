@@ -110,13 +110,13 @@ def _extract_image_text(image, pytesseract, registration_number):
             image, pytesseract, f'--oem 3 --psm {page_segmentation_mode}',
         )
         recognized_text.append(text)
-        if normalized_registration_number and registration_number_matches(
-            text, registration_number,
-        ):
-            return '\n'.join(recognized_text)
         if timed_out:
             return '\n'.join(recognized_text)
     if not normalized_registration_number:
+        return '\n'.join(recognized_text)
+    if registration_number_matches(
+        '\n'.join(recognized_text), registration_number,
+    ):
         return '\n'.join(recognized_text)
 
     try:
