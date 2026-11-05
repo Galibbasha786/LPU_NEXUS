@@ -9,7 +9,7 @@ from core.mongo import (
 from core.utils import now, to_object_id
 
 
-def create_problem(reporter, title, description, category, location, priority):
+def create_problem(reporter, title, description, category, location, priority, image=None):
     reporter_id = to_object_id(reporter["id"])
     if not reporter_id:
         raise ValueError("The reporter account could not be identified.")
@@ -26,6 +26,8 @@ def create_problem(reporter, title, description, category, location, priority):
         "reporter_name": reporter.get("full_name", ""),
         "reporter_email": reporter.get("email", ""),
         "registration_number": profile.get("registration_number", ""),
+        "image_url": image.get("url", "") if image else "",
+        "image_public_id": image.get("public_id", "") if image else "",
         "assigned_to": None,
         "created_at": now(),
         "updated_at": now(),

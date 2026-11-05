@@ -10,6 +10,7 @@
     <section class="card-lpu mb-3">
       <h5>Report details</h5>
       <p class="mb-2">{{ problem.description|linebreaksbr }}</p>
+      {% if problem.image_url %}<a href="{{ problem.image_url }}" target="_blank" rel="noopener noreferrer"><img src="{{ problem.image_url }}" class="img-fluid rounded my-3" alt="Image attached to {{ problem.title }}" loading="lazy"></a>{% endif %}
       <div class="small text-muted">Location: {{ problem.location|default:"Not provided" }}</div>
       <hr>
       <div class="small"><strong>Reported by:</strong> {{ problem.reporter_name }} · <a href="mailto:{{ problem.reporter_email }}">{{ problem.reporter_email }}</a>{% if problem.registration_number %} · {{ problem.registration_number }}{% endif %}</div>

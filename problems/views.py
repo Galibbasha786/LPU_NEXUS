@@ -1,13 +1,24 @@
+import logging
+
 from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
+from pymongo.errors import PyMongoError
 
 from accounts.session import get_current_user, login_required_mongo, role_required
 from core.mongo import users
+from core.storage import (
+    ProblemImageStorageError,
+    ProblemImageValidationError,
+    delete_problem_image,
+    save_problem_image,
+)
 from core.utils import serialize_doc, serialize_list, to_object_id
 
 from . import services
 from .constants import PROBLEM_CATEGORIES, PROBLEM_PRIORITIES, PROBLEM_STATUSES
+
+logger = logging.getLogger(__name__)
 
 
 @login_required_mongo
@@ -28,20 +39,35 @@ def report_problem(request):
         elif len(title) > 140 or len(description) > 5000 or len(location) > 200:
             messages.error(request, "Please shorten the title, description, or location.")
         else:
-            problem = services.create_problem(
-                user, title, description, category, location, priority,
-            )
-            from accounts.notification_services import notify_roles
-            notify_roles(
-                ["staff", "admin"],
-                "New campus problem",
-                f"{title} — reported by {user['full_name']}.",
-                sender=user,
-                kind="problem",
-                target_url=f"/problems/queue/{problem['_id']}/",
-            )
-            messages.success(request, "Your problem is in the staff queue.")
-            return redirect("problems:my_problems")
+            try:
+                image = save_problem_image(request.FILES.get("image"))
+            except ProblemImageValidationError as error:
+                messages.error(request, str(error))
+            except ProblemImageStorageError as error:
+                messages.error(request, str(error))
+            else:
+                try:
+                    problem = services.create_problem(
+                        user, title, description, category, location, priority,
+                        image=image,
+                    )
+                except PyMongoError:
+                    if image:
+                        delete_problem_image(image)
+                    logger.exception("Could not save problem report")
+                    messages.error(request, "Your report could not be saved. Please try again.")
+                else:
+                    from accounts.notification_services import notify_roles
+                    notify_roles(
+                        ["staff", "admin"],
+                        "New campus problem",
+                        f"{title} — reported by {user['full_name']}.",
+                        sender=user,
+                        kind="problem",
+                        target_url=f"/problems/queue/{problem['_id']}/",
+                    )
+                    messages.success(request, "Your problem is in the staff queue.")
+                    return redirect("problems:my_problems")
     return render(request, "problems/report_form.html", {
         "user": user,
         "categories": PROBLEM_CATEGORIES,

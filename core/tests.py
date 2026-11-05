@@ -9,10 +9,13 @@ from .storage import (
     IdentityCardStorageError,
     LiveNewsPosterStorageError,
     LiveNewsPosterValidationError,
+    ProblemImageStorageError,
+    ProblemImageValidationError,
     ProfileImageUploadError,
     delete_identity_card,
     identity_card_download_url,
     save_live_news_poster,
+    save_problem_image,
     save_identity_card,
     save_profile_image,
 )
@@ -156,6 +159,61 @@ class IdentityCardStorageTests(SimpleTestCase):
     def test_identity_card_upload_fails_if_private_cloudinary_storage_is_not_configured(self):
         with self.assertRaises(IdentityCardStorageError):
             save_identity_card(SimpleUploadedFile('card.png', b'image-data'), 'Name', '123')
+
+
+class ProblemImageStorageTests(SimpleTestCase):
+    def setUp(self):
+        image_buffer = BytesIO()
+        Image.new('RGB', (2, 2), color='maroon').save(image_buffer, format='PNG')
+        self.image_bytes = image_buffer.getvalue()
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='test-cloud',
+        CLOUDINARY_API_KEY='test-key',
+        CLOUDINARY_API_SECRET='test-secret',
+    )
+    @patch('core.storage.cloudinary.uploader.upload')
+    def test_problem_image_is_uploaded_as_public_cloudinary_asset(self, upload):
+        upload.return_value = {
+            'secure_url': 'https://res.cloudinary.com/test/problem_reports/image.png',
+            'public_id': 'lpu_nexus/problem_reports/image',
+        }
+        uploaded_file = SimpleUploadedFile(
+            'report.png', self.image_bytes, content_type='image/png',
+        )
+
+        result = save_problem_image(uploaded_file)
+
+        self.assertEqual(result['url'], upload.return_value['secure_url'])
+        self.assertEqual(result['public_id'], upload.return_value['public_id'])
+        self.assertEqual(upload.call_args.kwargs['folder'], 'lpu_nexus/problem_reports')
+        self.assertEqual(upload.call_args.kwargs['type'], 'upload')
+
+    @patch('core.storage.cloudinary.uploader.upload')
+    def test_problem_image_rejects_mismatched_file_content(self, upload):
+        uploaded_file = SimpleUploadedFile(
+            'report.jpg', self.image_bytes, content_type='image/jpeg',
+        )
+
+        with self.assertRaisesMessage(
+            ProblemImageValidationError, 'does not match its file type'
+        ):
+            save_problem_image(uploaded_file)
+
+        upload.assert_not_called()
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='',
+        CLOUDINARY_API_KEY='',
+        CLOUDINARY_API_SECRET='',
+    )
+    def test_problem_image_requires_cloudinary_configuration(self):
+        uploaded_file = SimpleUploadedFile(
+            'report.png', self.image_bytes, content_type='image/png',
+        )
+
+        with self.assertRaises(ProblemImageStorageError):
+            save_problem_image(uploaded_file)
 
 
 class LiveNewsPosterStorageTests(SimpleTestCase):

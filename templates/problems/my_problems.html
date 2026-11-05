@@ -16,6 +16,7 @@
           </div>
           <p class="small text-muted mb-2">{{ problem.category|title }}{% if problem.location %} · {{ problem.location }}{% endif %}</p>
           <p class="mb-2">{{ problem.description|truncatechars:180 }}</p>
+          {% if problem.image_url %}<img src="{{ problem.image_url }}" class="img-fluid rounded mb-2" alt="Image attached to {{ problem.title }}" loading="lazy">{% endif %}
           <span class="small text-muted">Updated {{ problem.updated_at|slice:":16" }}</span>
         </article>
       </a>

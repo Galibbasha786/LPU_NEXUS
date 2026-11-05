@@ -30,6 +30,12 @@ LIVE_NEWS_POSTER_FORMATS = {
     'WEBP': {'.webp'},
 }
 MAX_LIVE_NEWS_POSTER_SIZE = 8 * 1024 * 1024
+MAX_PROBLEM_IMAGE_SIZE = 8 * 1024 * 1024
+PROBLEM_IMAGE_FORMATS = {
+    'JPEG': {'.jpg', '.jpeg'},
+    'PNG': {'.png'},
+    'WEBP': {'.webp'},
+}
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +54,14 @@ class LiveNewsPosterValidationError(Exception):
 
 class LiveNewsPosterStorageError(Exception):
     """An expected remote storage error for a live-news poster."""
+
+
+class ProblemImageValidationError(Exception):
+    """An expected validation error for a problem-report image."""
+
+
+class ProblemImageStorageError(Exception):
+    """An expected remote storage error for a problem-report image."""
 
 
 def _cloudinary_credentials():
@@ -104,6 +118,7 @@ def save_live_news_poster(uploaded_file):
             overwrite=False,
             unique_filename=False,
             resource_type='image',
+            type='upload',
             **credentials,
         )
     except Exception as error:
@@ -123,6 +138,97 @@ def save_live_news_poster(uploaded_file):
             'Cloudinary did not confirm the poster upload.'
         )
     return {'url': poster_url, 'public_id': cloud_public_id}
+
+
+def save_problem_image(uploaded_file):
+    if not uploaded_file:
+        return None
+
+    extension = os.path.splitext(uploaded_file.name or '')[1].lower()
+    if extension not in {'.jpg', '.jpeg', '.png', '.webp'}:
+        raise ProblemImageValidationError('Use a JPG, PNG, or WEBP image.')
+    if getattr(uploaded_file, 'size', 0) > MAX_PROBLEM_IMAGE_SIZE:
+        raise ProblemImageValidationError('Images must be 8 MB or smaller.')
+
+    try:
+        uploaded_file.seek(0)
+        with Image.open(uploaded_file) as image:
+            image_format = image.format
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        raise ProblemImageValidationError('The selected file is not a valid image.') from None
+    finally:
+        uploaded_file.seek(0)
+
+    if extension not in PROBLEM_IMAGE_FORMATS.get(image_format, set()):
+        raise ProblemImageValidationError(
+            'The image content does not match its file type.'
+        )
+
+    try:
+        credentials = _cloudinary_credentials()
+    except ProfileImageUploadError as error:
+        raise ProblemImageStorageError(
+            'Problem-report image uploads are unavailable. Contact the administrator.'
+        ) from error
+
+    public_id = uuid.uuid4().hex
+    try:
+        result = cloudinary.uploader.upload(
+            uploaded_file,
+            folder='lpu_nexus/problem_reports',
+            public_id=public_id,
+            overwrite=False,
+            unique_filename=False,
+            resource_type='image',
+            type='upload',
+            **credentials,
+        )
+    except Exception as error:
+        logger.exception('Problem-report image upload to Cloudinary failed')
+        raise ProblemImageStorageError(
+            'The image could not be uploaded. Please try again.'
+        ) from error
+    finally:
+        uploaded_file.seek(0)
+
+    image_url = result.get('secure_url')
+    cloud_public_id = result.get('public_id')
+    if not image_url or not cloud_public_id:
+        if cloud_public_id:
+            delete_problem_image({'public_id': cloud_public_id})
+        raise ProblemImageStorageError(
+            'Cloudinary did not confirm the image upload.'
+        )
+    return {'url': image_url, 'public_id': cloud_public_id}
+
+
+def delete_problem_image(image):
+    if not image or not image.get('public_id'):
+        return
+    if not all((
+        settings.CLOUDINARY_CLOUD_NAME,
+        settings.CLOUDINARY_API_KEY,
+        settings.CLOUDINARY_API_SECRET,
+    )):
+        logger.error('Cannot clean up problem-report image without Cloudinary credentials')
+        return
+    try:
+        result = cloudinary.uploader.destroy(
+            image['public_id'],
+            resource_type='image',
+            invalidate=True,
+            cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+            api_key=settings.CLOUDINARY_API_KEY,
+            api_secret=settings.CLOUDINARY_API_SECRET,
+        )
+        if result.get('result') not in {'ok', 'not found'}:
+            logger.error(
+                'Cloudinary did not confirm deletion of problem-report image %s',
+                image['public_id'],
+            )
+    except Exception:
+        logger.exception('Could not delete problem-report image %s', image['public_id'])
 
 
 def delete_live_news_poster(poster):

@@ -9,7 +9,7 @@ from .id_card_verification import (
 	registration_number_matches,
 	verify_student_id_card,
 )
-from .mongo_auth import find_user_by_identifier, verify_recovery_answer
+from .mongo_auth import create_student, find_user_by_identifier, verify_recovery_answer
 
 
 class AccountRecoveryTests(SimpleTestCase):
@@ -53,6 +53,26 @@ class AccountRecoveryTests(SimpleTestCase):
 	def test_uid_matching_tolerates_ocr_digit_confusions_and_separated_groups(self):
 		self.assertTrue(registration_number_matches('UID: 12B4 56Z8', '12845628'))
 		self.assertFalse(registration_number_matches('UID: 12345679', '12345678'))
+
+
+class StudentAccountCreationTests(SimpleTestCase):
+	@patch('accounts.mongo_auth.student_profiles')
+	@patch('accounts.mongo_auth.users')
+	def test_registration_profile_does_not_store_verified_id_card(
+		self, users, student_profiles
+	):
+		users.return_value.insert_one.return_value.inserted_id = ObjectId()
+		users.return_value.find_one.return_value = None
+		student_profiles.return_value.find_one.return_value = None
+
+		user, error = create_student(
+			'student@lpu.in', 'pass1234', 'Student Example', '12345678',
+		)
+
+		self.assertIsNone(error)
+		self.assertIsNotNone(user)
+		profile = student_profiles.return_value.insert_one.call_args.args[0]
+		self.assertNotIn('id_card', profile)
 
 
 class PasswordResetViewTests(TestCase):
@@ -344,15 +364,10 @@ class RegistrationIdVerificationTests(TestCase):
 		self.assertTrue(result['name_matches'])
 		self.assertTrue(result['registration_number_matches'])
 
-	@patch('accounts.views.save_identity_card', return_value={
-		'public_id': 'lpu_nexus/id_cards/verified',
-		'resource_type': 'image', 'format': 'png',
-		'delivery_type': 'authenticated',
-	})
 	@patch('accounts.views.create_student')
 	@patch('accounts.views.verify_student_id_card')
 	def test_matching_card_is_saved_and_account_is_created(
-		self, verify_card, create_student, save_upload
+		self, verify_card, create_student
 	):
 		verify_card.return_value = {
 			'name_matches': True, 'registration_number_matches': True,
@@ -372,17 +387,13 @@ class RegistrationIdVerificationTests(TestCase):
 
 		self.assertRedirects(response, '/dashboard/', fetch_redirect_response=False)
 		verify_card.assert_called_once()
-		save_upload.assert_called_once()
 		create_student.assert_called_once()
-		self.assertEqual(
-			create_student.call_args.kwargs['id_card'], save_upload.return_value
-		)
+		self.assertNotIn('id_card', create_student.call_args.kwargs)
 
-	@patch('accounts.views.save_identity_card')
 	@patch('accounts.views.create_student')
 	@patch('accounts.views.verify_student_id_card')
 	def test_registration_rejects_name_mismatch_before_saving_card(
-		self, verify_card, create_student, save_upload
+		self, verify_card, create_student
 	):
 		verify_card.return_value = {
 			'name_matches': False, 'registration_number_matches': True,
@@ -403,7 +414,6 @@ class RegistrationIdVerificationTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, 'name on the ID card does not match')
 		create_student.assert_not_called()
-		save_upload.assert_not_called()
 
 
 class NotificationServiceTests(SimpleTestCase):

@@ -8,7 +8,7 @@
 </div>
 <div class="row justify-content-center">
   <div class="col-lg-8">
-    <form method="post" class="card-lpu">
+    <form method="post" enctype="multipart/form-data" class="card-lpu">
       {% csrf_token %}
       <div class="mb-3">
         <label class="form-label-lpu" for="problem-title">Short title</label>
@@ -36,6 +36,11 @@
       <div class="mt-3">
         <label class="form-label-lpu" for="problem-description">What happened?</label>
         <textarea id="problem-description" name="description" class="form-control form-control-lpu" rows="6" maxlength="5000" required placeholder="Include details that will help staff investigate.">{{ request.POST.description }}</textarea>
+      </div>
+      <div class="mt-3">
+        <label class="form-label-lpu" for="problem-image">Attach an image (optional)</label>
+        <input id="problem-image" name="image" type="file" class="form-control form-control-lpu" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+        <div class="form-text">JPG, PNG, or WEBP; max 8 MB. Uploaded images are stored on Cloudinary and are publicly accessible.</div>
       </div>
       <section class="ml-predictor-panel mt-4" aria-labelledby="ml-predictor-heading">
         <div class="d-flex align-items-start gap-3">

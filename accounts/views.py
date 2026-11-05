@@ -34,7 +34,6 @@ from core.storage import (
     delete_profile_image,
     identity_card_download_url,
     save_profile_image,
-    save_identity_card,
 )
 
 logger = logging.getLogger(__name__)
@@ -112,35 +111,20 @@ def register_view(request):
             })
 
         try:
-            id_card_asset = save_identity_card(id_card, full_name, reg_no)
             user, err = create_student(
                 email=email, password=password, full_name=full_name,
                 registration_number=reg_no, department=department,
-                year=year, id_card=id_card_asset,
+                year=year,
                 recovery_question=RECOVERY_QUESTIONS[recovery_question],
                 recovery_answer=recovery_answer,
             )
-        except IdentityCardStorageError as error:
-            messages.error(request, str(error))
-            return render(request, 'accounts/register.html', {
-                'form_data': request.POST,
-            })
         except PyMongoError:
-            if 'id_card_asset' in locals():
-                try:
-                    delete_identity_card(id_card_asset)
-                except IdentityCardStorageError:
-                    logger.exception('Could not clean up ID card after registration failure')
-            logger.exception('Could not create student account after ID-card upload')
+            logger.exception('Could not create student account after ID-card verification')
             messages.error(request, "Your account could not be created. Please try again.")
             return render(request, 'accounts/register.html', {
                 'form_data': request.POST,
             })
         if err:
-            try:
-                delete_identity_card(id_card_asset)
-            except IdentityCardStorageError:
-                logger.exception('Could not clean up an unused ID card after registration failure')
             messages.error(request, err)
             return render(request, 'accounts/register.html', {
                 'form_data': request.POST,

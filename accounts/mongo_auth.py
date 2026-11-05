@@ -47,14 +47,16 @@ def create_student(email, password, full_name, registration_number,
     result = None
     try:
         result = users().insert_one(user_doc)
-        student_profiles().insert_one({
+        profile_doc = {
             'user_id': result.inserted_id,
             'registration_number': registration_number.strip(),
             'department': department.strip(),
             'year': year.strip(),
-            'id_card': id_card or {},
             'created_at': now(),
-        })
+        }
+        if id_card:
+            profile_doc['id_card'] = id_card
+        student_profiles().insert_one(profile_doc)
     except PyMongoError:
         if result:
             try:
