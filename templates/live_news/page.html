@@ -2,36 +2,90 @@
 {% load static %}
 {% block title %}Live News • LPU Nexus{% endblock %}
 
+{% block extra_head %}
+<style>
+  .live-news-header { padding: clamp(18px, 3vw, 30px); }
+  .live-broadcast-composer { padding: clamp(16px, 2.4vw, 24px); }
+  .live-stream-card { min-width: 0; padding: clamp(14px, 2vw, 22px); }
+  .live-stream-poster-frame {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 240px;
+    overflow: hidden;
+    border-radius: 10px;
+    background: var(--surface-2, #f1f3f5);
+  }
+  .live-stream-poster {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .live-stream-title,
+  .live-stream-description { overflow-wrap: anywhere; }
+  .live-stream-description {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+  .live-poster-preview {
+    max-width: 100%;
+    max-height: 180px;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+  @media (max-width: 575.98px) {
+    .live-stream-poster-frame { aspect-ratio: 16 / 10; max-height: 190px; }
+    #live-stream-list { --bs-gutter-x: .75rem; --bs-gutter-y: .75rem; }
+    #live-player-section { padding: 14px; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<header class="hero-header mb-4">
+<header class="hero-header live-news-header mb-3">
   <span class="hero-badge">LPU NEXUS · LIVE</span>
   <h2>Live campus news</h2>
   <p class="mb-0">Official live updates from LPU staff.</p>
 </header>
 
 {% if can_broadcast %}
-<section class="card-lpu card-accent-orange mb-4">
-  <h5>Broadcast or schedule campus news</h5>
-  <p class="small text-muted">Choose a time to schedule a broadcast, or leave it blank to go live now. At the scheduled time, the staff host starts the camera manually.</p>
-  <form id="live-start-form" action="{% url 'live_news:start_stream' %}" method="post" enctype="multipart/form-data">
+<section class="card-lpu card-accent-orange live-broadcast-composer mb-3">
+  <h5 class="mb-1">Broadcast or schedule campus news</h5>
+  <p class="small text-muted mb-3">Schedule a broadcast or start one now. Scheduled broadcasts are started by the host.</p>
+  <form id="live-start-form" class="row g-2" action="{% url 'live_news:start_stream' %}" method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    <label class="form-label-lpu" for="live-title">Headline</label>
-    <input class="form-control form-control-lpu mb-2" id="live-title" name="title" maxlength="140" required>
-    <label class="form-label-lpu" for="live-description">Details (optional)</label>
-    <textarea class="form-control form-control-lpu mb-3" id="live-description" name="description" rows="3" maxlength="2000"></textarea>
-    <label class="form-label-lpu" for="live-scheduled-at">Schedule time (optional, India time)</label>
-    <input class="form-control form-control-lpu mb-3" id="live-scheduled-at" name="scheduled_at" type="datetime-local">
-    <label class="form-label-lpu" for="live-poster">Poster image (optional)</label>
-    <input class="form-control form-control-lpu mb-1" id="live-poster" name="poster" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
-    <div class="form-text mb-3">JPG, PNG, or WEBP; max 8 MB. The poster will be visible to everyone viewing live news.</div>
-    <button class="btn btn-lpu" type="submit" id="live-start-button">Go live or schedule</button>
+    <div class="col-12 col-md-6">
+      <label class="form-label-lpu" for="live-title">Headline</label>
+      <input class="form-control form-control-lpu" id="live-title" name="title" maxlength="140" required>
+    </div>
+    <div class="col-12 col-md-6">
+      <label class="form-label-lpu" for="live-scheduled-at">Schedule time (optional, India time)</label>
+      <input class="form-control form-control-lpu" id="live-scheduled-at" name="scheduled_at" type="datetime-local">
+    </div>
+    <div class="col-12 col-md-7">
+      <label class="form-label-lpu" for="live-description">Details (optional)</label>
+      <textarea class="form-control form-control-lpu" id="live-description" name="description" rows="2" maxlength="2000"></textarea>
+    </div>
+    <div class="col-12 col-md-5">
+      <label class="form-label-lpu" for="live-poster">Poster image (optional)</label>
+      <input class="form-control form-control-lpu" id="live-poster" name="poster" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+      <div class="form-text">JPG, PNG, or WEBP; max 8 MB.</div>
+      <img id="live-poster-preview" class="live-poster-preview d-none mt-2" alt="Selected broadcast poster preview">
+    </div>
+    <div class="col-12">
+      <button class="btn btn-lpu" type="submit" id="live-start-button">Go live or schedule</button>
+    </div>
   </form>
 </section>
 {% endif %}
 
 <div id="live-status" class="alert d-none" role="status" aria-live="polite"></div>
 <section>
-  <div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h5 class="mb-0">Live and scheduled broadcasts</h5>
     <button class="btn btn-sm btn-outline-secondary" type="button" id="refresh-streams">Refresh</button>
   </div>
@@ -136,6 +190,25 @@
   let commentsEnabled = true;
   let lastHeartbeat = 0;
   let currentStream = null;
+
+  const posterInput = document.getElementById('live-poster');
+  const posterPreview = document.getElementById('live-poster-preview');
+  let posterPreviewUrl = null;
+  if (posterInput && posterPreview) {
+    posterInput.addEventListener('change', () => {
+      if (posterPreviewUrl) URL.revokeObjectURL(posterPreviewUrl);
+      const file = posterInput.files?.[0];
+      if (!file) {
+        posterPreview.classList.add('d-none');
+        posterPreview.removeAttribute('src');
+        posterPreviewUrl = null;
+        return;
+      }
+      posterPreviewUrl = URL.createObjectURL(file);
+      posterPreview.src = posterPreviewUrl;
+      posterPreview.classList.remove('d-none');
+    });
+  }
 
   function showStatus(message, isError = false) {
     statusBox.textContent = message;
@@ -325,28 +398,30 @@
       }
       data.streams.forEach(stream => {
         const column = document.createElement('div');
-        column.className = 'col-lg-6';
+        column.className = 'col-12 col-md-6';
         const card = document.createElement('article');
-        card.className = 'card-lpu h-100';
+        card.className = 'card-lpu live-stream-card h-100';
         const badge = document.createElement('span');
         badge.className = `badge ${stream.status === 'scheduled' ? 'bg-primary' : stream.status === 'ending' ? 'bg-secondary' : 'bg-danger'} mb-2`;
         badge.textContent = stream.status === 'scheduled'
           ? `SCHEDULED · ${new Date(`${stream.scheduled_at}Z`).toLocaleString()}`
           : stream.status === 'ending' ? 'ENDING' : 'LIVE';
         const title = document.createElement('h6');
+        title.className = 'live-stream-title';
         title.textContent = stream.title;
         if (stream.poster_url) {
+          const posterFrame = document.createElement('div');
+          posterFrame.className = 'live-stream-poster-frame mb-3';
           const poster = document.createElement('img');
-          poster.className = 'img-fluid rounded mb-3 w-100';
+          poster.className = 'live-stream-poster';
           poster.src = stream.poster_url;
           poster.alt = `${stream.title} poster`;
           poster.loading = 'lazy';
-          poster.style.maxHeight = '320px';
-          poster.style.objectFit = 'contain';
-          card.appendChild(poster);
+          posterFrame.appendChild(poster);
+          card.appendChild(posterFrame);
         }
         const description = document.createElement('p');
-        description.className = 'small text-muted';
+        description.className = 'small text-muted live-stream-description';
         description.textContent = stream.description || 'Live campus update from LPU staff.';
         const byline = document.createElement('p');
         byline.className = 'small text-muted mb-3';
@@ -357,10 +432,13 @@
         join.textContent = currentStreamId === stream.id ? 'Reconnect' : 'Watch live';
         join.disabled = stream.status !== 'live';
         join.addEventListener('click', () => joinStream(stream));
-        card.append(badge, title, description, byline, join);
+        const actions = document.createElement('div');
+        actions.className = 'd-flex flex-wrap gap-2';
+        card.append(badge, title, description, byline);
+        actions.appendChild(join);
         if (stream.status === 'scheduled' && stream.can_start) {
           const goLive = document.createElement('button');
-          goLive.className = 'btn btn-sm btn-lpu ms-2';
+          goLive.className = 'btn btn-sm btn-lpu';
           goLive.type = 'button';
           goLive.textContent = 'Start scheduled broadcast';
           goLive.addEventListener('click', async () => {
@@ -372,11 +450,11 @@
               showStatus(error.message, true);
             }
           });
-          card.appendChild(goLive);
+          actions.appendChild(goLive);
         }
         if (stream.can_end) {
           const end = document.createElement('button');
-          end.className = 'btn btn-sm btn-outline-danger ms-2';
+          end.className = 'btn btn-sm btn-outline-danger';
           end.type = 'button';
           end.textContent = 'End broadcast';
           end.addEventListener('click', async () => {
@@ -389,11 +467,11 @@
               showStatus(error.message, true);
             }
           });
-          card.appendChild(end);
+          actions.appendChild(end);
         }
         if (stream.can_moderate && stream.status !== 'ending') {
           const moderate = document.createElement('button');
-          moderate.className = 'btn btn-sm btn-outline-secondary ms-2';
+          moderate.className = 'btn btn-sm btn-outline-secondary';
           moderate.type = 'button';
           moderate.textContent = stream.comments_enabled
             ? 'Turn comments off' : 'Turn comments on';
@@ -412,8 +490,9 @@
               showStatus(error.message, true);
             }
           });
-          card.appendChild(moderate);
+          actions.appendChild(moderate);
         }
+        card.appendChild(actions);
         column.appendChild(card);
         list.appendChild(column);
       });
@@ -444,6 +523,12 @@
           showStatus(`Broadcast scheduled for ${new Date(`${data.stream.scheduled_at}Z`).toLocaleString()}.`);
         }
         startForm.reset();
+        if (posterPreview) {
+          posterPreview.classList.add('d-none');
+          posterPreview.removeAttribute('src');
+          if (posterPreviewUrl) URL.revokeObjectURL(posterPreviewUrl);
+          posterPreviewUrl = null;
+        }
       } catch (error) {
         showStatus(error.message, true);
       } finally {
