@@ -1,6 +1,11 @@
 import re
 import unicodedata
 
+from PIL import ImageOps
+
+
+MAX_OCR_IMAGE_DIMENSION = 2600
+
 
 class OcrUnavailableError(Exception):
     pass
@@ -48,22 +53,42 @@ def registration_number_matches(recognized_text, registration_number):
 
 
 def _prepare_image(image):
-    from PIL import ImageOps
-
     image = ImageOps.exif_transpose(image).convert('L')
     image = ImageOps.autocontrast(image)
-    return image.resize((image.width * 2, image.height * 2))
+    scale = min(2, MAX_OCR_IMAGE_DIMENSION / max(image.size))
+    return image.resize((
+        max(1, round(image.width * scale)),
+        max(1, round(image.height * scale)),
+    ))
+
+
+def _text_has_expected_fields(text, full_name, registration_number):
+    normalized_text = normalize_id_text(text)
+    if full_name and normalize_id_text(full_name) not in normalized_text:
+        return False
+    if registration_number and not registration_number_matches(
+        text, registration_number,
+    ):
+        return False
+    return bool(text.strip())
 
 
 def _extract_image_text(image, pytesseract, registration_number):
     from PIL import ImageOps
 
     image = ImageOps.autocontrast(image.convert('L'))
-    recognized_text = [
-        pytesseract.image_to_string(image, lang='eng', config='--oem 3 --psm 6', timeout=12),
-        pytesseract.image_to_string(image, lang='eng', config='--oem 3 --psm 11', timeout=12),
-    ]
+    recognized_text = []
     normalized_registration_number = normalize_id_text(registration_number)
+    for page_segmentation_mode in (6, 11):
+        text = pytesseract.image_to_string(
+            image, lang='eng',
+            config=f'--oem 3 --psm {page_segmentation_mode}', timeout=12,
+        )
+        recognized_text.append(text)
+        if normalized_registration_number and registration_number_matches(
+            text, registration_number,
+        ):
+            return '\n'.join(recognized_text)
     if not normalized_registration_number:
         return '\n'.join(recognized_text)
 
@@ -92,7 +117,7 @@ def _extract_image_text(image, pytesseract, registration_number):
     return '\n'.join(recognized_text)
 
 
-def _extract_card_text(uploaded_file, registration_number=''):
+def _extract_card_text(uploaded_file, registration_number='', full_name=''):
     try:
         import pytesseract
         from PIL import Image, UnidentifiedImageError
@@ -110,29 +135,29 @@ def _extract_card_text(uploaded_file, registration_number=''):
                 raise OcrUnavailableError from error
 
             document = pymupdf.open(stream=uploaded_file.read(), filetype='pdf')
-            if document.page_count > 3:
-                raise IdCardReadError
-            for page in document:
-                page_text = page.get_text()
-                if page_text:
-                    images.append(page_text)
-                image_rects = []
-                for image_info in page.get_images(full=True):
-                    image_rects.extend(page.get_image_rects(image_info))
-                unique_rects = list(dict.fromkeys(image_rects))
-                for rect in unique_rects[:12]:
-                    pixmap = page.get_pixmap(
-                        matrix=pymupdf.Matrix(2, 2), clip=rect, alpha=False
-                    )
-                    images.append(Image.frombytes(
-                        'RGB', [pixmap.width, pixmap.height], pixmap.samples
-                    ))
-                if not unique_rects:
-                    pixmap = page.get_pixmap(matrix=pymupdf.Matrix(2, 2), alpha=False)
-                    images.append(Image.frombytes(
-                        'RGB', [pixmap.width, pixmap.height], pixmap.samples
-                    ))
-            document.close()
+            try:
+                if not document.page_count or document.page_count > 3:
+                    raise IdCardReadError
+                for page in document:
+                    page_text = page.get_text()
+                    if page_text:
+                        images.append(page_text)
+                    if not page_text or not _text_has_expected_fields(
+                        page_text, full_name, registration_number,
+                    ):
+                        max_page_dimension = max(page.rect.width, page.rect.height)
+                        if max_page_dimension <= 0:
+                            raise IdCardReadError
+                        scale = min(2, 3000 / max_page_dimension)
+                        pixmap = page.get_pixmap(
+                            matrix=pymupdf.Matrix(scale, scale), alpha=False
+                        )
+                        image = Image.frombytes(
+                            'RGB', (pixmap.width, pixmap.height), pixmap.samples
+                        )
+                        images.append(_prepare_image(image))
+            finally:
+                document.close()
         else:
             with Image.open(uploaded_file) as image:
                 images.append(_prepare_image(image.copy()))
@@ -145,14 +170,19 @@ def _extract_card_text(uploaded_file, registration_number=''):
         )
     except pytesseract.TesseractNotFoundError as error:
         raise OcrUnavailableError from error
-    except (UnidentifiedImageError, OSError, RuntimeError, ValueError) as error:
+    except (
+        Image.DecompressionBombError, UnidentifiedImageError, OSError,
+        RuntimeError, ValueError,
+    ) as error:
         raise IdCardReadError from error
     finally:
         uploaded_file.seek(position)
 
 
 def verify_student_id_card(uploaded_file, full_name, registration_number):
-    extracted_text = _extract_card_text(uploaded_file, registration_number)
+    extracted_text = _extract_card_text(
+        uploaded_file, registration_number, full_name,
+    )
     recognized_text = normalize_id_text(extracted_text)
     normalized_name = normalize_id_text(full_name)
     return {

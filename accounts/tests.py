@@ -1,11 +1,16 @@
+from io import BytesIO
 from unittest.mock import patch
 
 from bson import ObjectId
 from django.contrib.auth.hashers import make_password
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
+from PIL import Image
+import pymupdf
 
 from .id_card_verification import (
+	MAX_OCR_IMAGE_DIMENSION,
+	_prepare_image,
 	registration_number_matches,
 	verify_student_id_card,
 )
@@ -414,6 +419,38 @@ class RegistrationIdVerificationTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, 'name on the ID card does not match')
 		create_student.assert_not_called()
+
+
+class IdCardDocumentReadTests(SimpleTestCase):
+	def test_ocr_preparation_caps_large_images(self):
+		image = Image.new('RGB', (4000, 2000), 'white')
+
+		prepared = _prepare_image(image)
+
+		self.assertEqual(max(prepared.size), MAX_OCR_IMAGE_DIMENSION)
+
+	@patch('accounts.id_card_verification._extract_image_text')
+	def test_pdf_ocr_scans_the_full_page_with_embedded_images(self, extract_text):
+		image_data = BytesIO()
+		Image.new('RGB', (16, 16), 'white').save(image_data, format='PNG')
+		document = pymupdf.open()
+		page = document.new_page(width=600, height=338)
+		page.insert_image(
+			pymupdf.Rect(10, 10, 26, 26), stream=image_data.getvalue(),
+		)
+		uploaded_file = SimpleUploadedFile('student-card.pdf', document.tobytes())
+		document.close()
+		extract_text.side_effect = lambda image, *_args: (
+			'Asha Rao UID 12345678' if image.width > 100 else ''
+		)
+
+		result = verify_student_id_card(
+			uploaded_file, 'Asha Rao', '12345678',
+		)
+
+		self.assertTrue(result['name_matches'])
+		self.assertTrue(result['registration_number_matches'])
+		self.assertGreater(extract_text.call_args.args[0].width, 100)
 
 
 class NotificationServiceTests(SimpleTestCase):
