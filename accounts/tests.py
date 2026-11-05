@@ -1,5 +1,5 @@
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from bson import ObjectId
 from django.contrib.auth.hashers import make_password
@@ -11,6 +11,7 @@ import pymupdf
 from .id_card_verification import (
 	MAX_OCR_IMAGE_DIMENSION,
 	_prepare_image,
+	_run_image_ocr,
 	registration_number_matches,
 	verify_student_id_card,
 )
@@ -428,6 +429,20 @@ class IdCardDocumentReadTests(SimpleTestCase):
 		prepared = _prepare_image(image)
 
 		self.assertEqual(max(prepared.size), MAX_OCR_IMAGE_DIMENSION)
+
+	def test_ocr_retries_timed_out_images_at_a_smaller_size(self):
+		image = Image.new('RGB', (1800, 900), 'white')
+		pytesseract = Mock()
+		pytesseract.image_to_string.side_effect = [
+			RuntimeError('Tesseract process timeout'),
+			'UID 12345678',
+		]
+
+		text, timed_out = _run_image_ocr(image, pytesseract, '--oem 3 --psm 6')
+
+		self.assertEqual(text, 'UID 12345678')
+		self.assertTrue(timed_out)
+		self.assertEqual(pytesseract.image_to_string.call_args.args[0].size, (1200, 600))
 
 	@patch('accounts.id_card_verification._extract_image_text')
 	def test_pdf_ocr_scans_the_full_page_with_embedded_images(self, extract_text):

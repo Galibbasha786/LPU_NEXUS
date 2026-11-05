@@ -4,7 +4,9 @@ import unicodedata
 from PIL import ImageOps
 
 
-MAX_OCR_IMAGE_DIMENSION = 2600
+MAX_OCR_IMAGE_DIMENSION = 1800
+OCR_RETRY_IMAGE_DIMENSION = 1200
+OCR_TIMEOUT_SECONDS = 12
 
 
 class OcrUnavailableError(Exception):
@@ -73,6 +75,30 @@ def _text_has_expected_fields(text, full_name, registration_number):
     return bool(text.strip())
 
 
+def _run_image_ocr(image, pytesseract, config):
+    try:
+        return pytesseract.image_to_string(
+            image, lang='eng', config=config, timeout=OCR_TIMEOUT_SECONDS,
+        ), False
+    except RuntimeError as error:
+        if str(error) != 'Tesseract process timeout':
+            raise
+
+    retry_image = image.copy()
+    retry_image.thumbnail((OCR_RETRY_IMAGE_DIMENSION, OCR_RETRY_IMAGE_DIMENSION))
+    if retry_image.size == image.size:
+        return '', True
+    try:
+        text = pytesseract.image_to_string(
+            retry_image, lang='eng', config=config, timeout=OCR_TIMEOUT_SECONDS,
+        )
+    except RuntimeError as error:
+        if str(error) != 'Tesseract process timeout':
+            raise
+        return '', True
+    return text, True
+
+
 def _extract_image_text(image, pytesseract, registration_number):
     from PIL import ImageOps
 
@@ -80,22 +106,28 @@ def _extract_image_text(image, pytesseract, registration_number):
     recognized_text = []
     normalized_registration_number = normalize_id_text(registration_number)
     for page_segmentation_mode in (6, 11):
-        text = pytesseract.image_to_string(
-            image, lang='eng',
-            config=f'--oem 3 --psm {page_segmentation_mode}', timeout=12,
+        text, timed_out = _run_image_ocr(
+            image, pytesseract, f'--oem 3 --psm {page_segmentation_mode}',
         )
         recognized_text.append(text)
         if normalized_registration_number and registration_number_matches(
             text, registration_number,
         ):
             return '\n'.join(recognized_text)
+        if timed_out:
+            return '\n'.join(recognized_text)
     if not normalized_registration_number:
         return '\n'.join(recognized_text)
 
-    data = pytesseract.image_to_data(
-        image, lang='eng', config='--oem 3 --psm 6',
-        output_type=pytesseract.Output.DICT, timeout=12,
-    )
+    try:
+        data = pytesseract.image_to_data(
+            image, lang='eng', config='--oem 3 --psm 6',
+            output_type=pytesseract.Output.DICT, timeout=OCR_TIMEOUT_SECONDS,
+        )
+    except RuntimeError as error:
+        if str(error) == 'Tesseract process timeout':
+            return '\n'.join(recognized_text)
+        raise
     for index, word in enumerate(data['text']):
         if normalized_registration_number not in normalize_id_text(word):
             continue
@@ -109,9 +141,8 @@ def _extract_image_text(image, pytesseract, registration_number):
             min(image.width, left + width + int(image.width * 0.19)),
             min(image.height, top + max(4, int(height * 0.3)) + int(image.height * 0.19)),
         ))
-        recognized_text.append(pytesseract.image_to_string(
-            crop, lang='eng', config='--oem 3 --psm 7', timeout=12
-        ))
+        crop_text, _ = _run_image_ocr(crop, pytesseract, '--oem 3 --psm 7')
+        recognized_text.append(crop_text)
         break
 
     return '\n'.join(recognized_text)

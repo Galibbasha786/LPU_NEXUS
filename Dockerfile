@@ -6,11 +6,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN tesseract --version && tesseract --list-langs | grep -qx eng
 
 COPY . .
 RUN python manage.py collectstatic --noinput
