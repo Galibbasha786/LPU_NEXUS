@@ -12,6 +12,7 @@ from .id_card_verification import (
 	MAX_OCR_IMAGE_DIMENSION,
 	_prepare_image,
 	_extract_image_text,
+	OCR_TIMEOUT_SECONDS,
 	_run_image_ocr,
 	normalize_id_text,
 	registration_number_matches,
@@ -546,34 +547,33 @@ class IdCardDocumentReadTests(SimpleTestCase):
 
 		self.assertEqual(max(prepared.size), MAX_OCR_IMAGE_DIMENSION)
 
-	def test_ocr_retries_timed_out_images_at_a_smaller_size(self):
-		image = Image.new('RGB', (1800, 900), 'white')
+	def test_ocr_timeout_does_not_run_an_unbounded_retry(self):
+		image = Image.new('RGB', (1400, 700), 'white')
 		pytesseract = Mock()
-		pytesseract.image_to_string.side_effect = [
-			RuntimeError('Tesseract process timeout'),
-			'UID 12345678',
-		]
+		pytesseract.image_to_string.side_effect = RuntimeError(
+			'Tesseract process timeout',
+		)
 
 		text, timed_out = _run_image_ocr(image, pytesseract, '--oem 3 --psm 6')
 
-		self.assertEqual(text, 'UID 12345678')
+		self.assertEqual(text, '')
 		self.assertTrue(timed_out)
-		self.assertEqual(pytesseract.image_to_string.call_args.args[0].size, (1200, 600))
+		pytesseract.image_to_string.assert_called_once()
+		self.assertEqual(
+			pytesseract.image_to_string.call_args.kwargs['timeout'],
+			OCR_TIMEOUT_SECONDS,
+		)
 
-	def test_ocr_checks_name_layout_after_first_layout_finds_uid(self):
+	def test_ocr_uses_one_bounded_layout_for_each_image(self):
 		image = Image.new('RGB', (400, 200), 'white')
 		pytesseract = Mock()
-		pytesseract.image_to_string.side_effect = [
-			'UID: 12345678',
-			'Name: Asha Rao',
-		]
+		pytesseract.image_to_string.return_value = 'Name: Asha Rao\nUID: 12345678'
 
-		text = _extract_image_text(image, pytesseract, '12345678')
+		text = _extract_image_text(image, pytesseract)
 
-		self.assertEqual(pytesseract.image_to_string.call_count, 2)
+		pytesseract.image_to_string.assert_called_once()
 		self.assertIn('asharao', normalize_id_text(text))
 		self.assertTrue(registration_number_matches(text, '12345678'))
-		pytesseract.image_to_data.assert_not_called()
 
 	@patch('accounts.id_card_verification._extract_image_text')
 	def test_pdf_ocr_scans_the_full_page_with_embedded_images(self, extract_text):

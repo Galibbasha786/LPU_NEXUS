@@ -4,9 +4,8 @@ import unicodedata
 from PIL import ImageOps
 
 
-MAX_OCR_IMAGE_DIMENSION = 1800
-OCR_RETRY_IMAGE_DIMENSION = 1200
-OCR_TIMEOUT_SECONDS = 12
+MAX_OCR_IMAGE_DIMENSION = 1400
+OCR_TIMEOUT_SECONDS = 6
 
 
 class OcrUnavailableError(Exception):
@@ -83,69 +82,15 @@ def _run_image_ocr(image, pytesseract, config):
     except RuntimeError as error:
         if str(error) != 'Tesseract process timeout':
             raise
-
-    retry_image = image.copy()
-    retry_image.thumbnail((OCR_RETRY_IMAGE_DIMENSION, OCR_RETRY_IMAGE_DIMENSION))
-    if retry_image.size == image.size:
         return '', True
-    try:
-        text = pytesseract.image_to_string(
-            retry_image, lang='eng', config=config, timeout=OCR_TIMEOUT_SECONDS,
-        )
-    except RuntimeError as error:
-        if str(error) != 'Tesseract process timeout':
-            raise
-        return '', True
-    return text, True
 
 
-def _extract_image_text(image, pytesseract, registration_number):
+def _extract_image_text(image, pytesseract):
     from PIL import ImageOps
 
     image = ImageOps.autocontrast(image.convert('L'))
-    recognized_text = []
-    normalized_registration_number = normalize_id_text(registration_number)
-    for page_segmentation_mode in (6, 11):
-        text, timed_out = _run_image_ocr(
-            image, pytesseract, f'--oem 3 --psm {page_segmentation_mode}',
-        )
-        recognized_text.append(text)
-        if timed_out:
-            return '\n'.join(recognized_text)
-    if not normalized_registration_number:
-        return '\n'.join(recognized_text)
-    if registration_number_matches(
-        '\n'.join(recognized_text), registration_number,
-    ):
-        return '\n'.join(recognized_text)
-
-    try:
-        data = pytesseract.image_to_data(
-            image, lang='eng', config='--oem 3 --psm 6',
-            output_type=pytesseract.Output.DICT, timeout=OCR_TIMEOUT_SECONDS,
-        )
-    except RuntimeError as error:
-        if str(error) == 'Tesseract process timeout':
-            return '\n'.join(recognized_text)
-        raise
-    for index, word in enumerate(data['text']):
-        if normalized_registration_number not in normalize_id_text(word):
-            continue
-        left = data['left'][index]
-        top = data['top'][index]
-        width = data['width'][index]
-        height = data['height'][index]
-        crop = image.crop((
-            max(0, left - int(image.width * 0.045)),
-            max(0, top + max(4, int(height * 0.3))),
-            min(image.width, left + width + int(image.width * 0.19)),
-            min(image.height, top + max(4, int(height * 0.3)) + int(image.height * 0.19)),
-        ))
-        crop_text, _ = _run_image_ocr(crop, pytesseract, '--oem 3 --psm 7')
-        recognized_text.append(crop_text)
-        break
-
-    return '\n'.join(recognized_text)
+    text, _ = _run_image_ocr(image, pytesseract, '--oem 3 --psm 6')
+    return text
 
 
 def _extract_card_text(uploaded_file, registration_number='', full_name=''):
@@ -195,7 +140,7 @@ def _extract_card_text(uploaded_file, registration_number='', full_name=''):
 
         return '\n'.join(
             image if isinstance(image, str) else _extract_image_text(
-                image, pytesseract, registration_number
+                image, pytesseract
             )
             for image in images
         )
