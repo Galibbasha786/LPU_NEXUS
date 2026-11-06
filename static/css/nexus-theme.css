@@ -4511,6 +4511,13 @@ body.sidebar-open .toggle-bar:nth-child(3) { transform: translateY(-7.5px) rotat
 
 .nx-sidebar-user:hover { background: rgba(255,255,255,.1); }
 
+.nx-sidebar-brand-logos {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
 .nx-sidebar-logo {
   display: block;
   width: 68px;
