@@ -4,7 +4,14 @@
 <div class="d-flex justify-content-between align-items-start gap-3 mb-3"><div><span class="hero-badge">{{ idea.category|upper }}</span><h3 class="mt-2">{{ idea.title }}</h3><p class="text-muted">Proposed by {{ idea.author_name }} · {{ idea.created_at|slice:":16" }}</p></div><a class="btn btn-outline-secondary" href="{% url 'ideas:list' %}">All ideas</a></div>
 <div class="row g-3">
   <div class="col-lg-7">
-    <article class="card-lpu mb-3"><div class="d-flex justify-content-between"><h5>Idea</h5><span class="badge bg-{% if idea.status == 'poll_open' %}success{% elif idea.status == 'pending_review' %}warning text-dark{% else %}secondary{% endif %}">{{ idea.status|title|cut:"_" }}</span></div><p>{{ idea.description|linebreaksbr }}</p><div class="small text-muted">Poll opened {{ idea.created_at|slice:":16" }} · {% if idea.status == 'poll_open' %}Closes {{ idea.poll_ends_at|slice:":16" }}{% else %}Voting and comments are closed{% endif %}</div></article>
+    <article class="card-lpu mb-3"><div class="d-flex justify-content-between"><h5>Idea</h5><span class="badge bg-{% if idea.status == 'poll_open' %}success{% elif idea.status == 'pending_review' %}warning text-dark{% else %}secondary{% endif %}">{{ idea.status|title|cut:"_" }}</span></div><p>{{ idea.description|linebreaksbr }}</p>
+      {% if idea.media_url %}
+        <div class="my-3">
+          {% if idea.media_type == 'audio' %}<audio class="w-100" controls preload="metadata"><source src="{{ idea.media_url }}">Your browser does not support audio playback.</audio>
+          {% else %}<video class="w-100 rounded" controls preload="metadata" playsinline><source src="{{ idea.media_url }}">Your browser does not support video playback.</video>{% endif %}
+        </div>
+      {% endif %}
+      <div class="small text-muted">Poll opened {{ idea.created_at|slice:":16" }} · {% if idea.status == 'poll_open' %}Closes {{ idea.poll_ends_at|slice:":16" }}{% else %}Voting and comments are closed{% endif %}</div></article>
     <section class="card-lpu">
       <div class="d-flex justify-content-between align-items-center"><h5>Student discussion</h5><span class="badge bg-light text-dark">{{ idea.comments|length }} comments</span></div>
       {% for comment in idea.comments %}<div class="border-top py-3"><div class="d-flex justify-content-between"><strong>{{ comment.author_name }}</strong><span class="small text-muted">{{ comment.created_at|slice:":16" }}</span></div><p class="mb-0 mt-1">{{ comment.body|linebreaksbr }}</p></div>{% empty %}<p class="text-muted border-top pt-3">No comments yet. Start the discussion.</p>{% endfor %}

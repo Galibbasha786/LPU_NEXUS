@@ -1,9 +1,18 @@
+import logging
+
 from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
+from pymongo.errors import PyMongoError
 
 from accounts.session import get_current_user, login_required_mongo, role_required
 from core.mongo import student_profiles
+from core.storage import (
+    IdeaMediaStorageError,
+    IdeaMediaValidationError,
+    delete_idea_media,
+    save_idea_media,
+)
 from core.utils import serialize_doc, serialize_list, to_object_id
 
 from . import services
@@ -16,6 +25,8 @@ IDEA_CATEGORIES = [
     ("learning", "Learning"),
     ("other", "Other"),
 ]
+
+logger = logging.getLogger(__name__)
 
 
 @login_required_mongo
@@ -31,12 +42,26 @@ def idea_list(request):
                 or len(title) > 140 or len(description) > 5000):
             messages.error(request, "Enter a valid title, category, and description.")
         else:
-            services.create_idea(user, title, description, category)
-            messages.success(
-                request,
-                "Your idea is live. Students can vote and comment for seven days.",
-            )
-            return redirect("ideas:list")
+            try:
+                media = save_idea_media(request.FILES.get("media"))
+            except IdeaMediaValidationError as error:
+                messages.error(request, str(error))
+            except IdeaMediaStorageError as error:
+                messages.error(request, str(error))
+            else:
+                try:
+                    services.create_idea(user, title, description, category, media=media)
+                except PyMongoError:
+                    if media:
+                        delete_idea_media(media)
+                    logger.exception("Could not save student idea")
+                    messages.error(request, "Your idea could not be saved. Please try again.")
+                else:
+                    messages.success(
+                        request,
+                        "Your idea is live. Students can vote and comment for seven days.",
+                    )
+                    return redirect("ideas:list")
     idea_list = serialize_list(services.list_ideas())
     for idea in idea_list:
         idea["vote_totals"] = services.vote_totals(idea["id"])

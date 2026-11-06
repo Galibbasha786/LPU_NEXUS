@@ -6,7 +6,7 @@ from core.utils import now, to_object_id
 POLL_DURATION = timedelta(days=7)
 
 
-def create_idea(author, title, description, category):
+def create_idea(author, title, description, category, media=None):
     author_id = to_object_id(author["id"])
     if not author_id:
         raise ValueError("The idea author could not be identified.")
@@ -22,6 +22,9 @@ def create_idea(author, title, description, category):
         "created_at": created,
         "poll_ends_at": created + POLL_DURATION,
         "comments": [],
+        "media_url": media.get("url", "") if media else "",
+        "media_public_id": media.get("public_id", "") if media else "",
+        "media_type": media.get("media_type", "") if media else "",
     }
     result = ideas().insert_one(doc)
     doc["_id"] = result.inserted_id

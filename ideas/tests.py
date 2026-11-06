@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from bson import ObjectId
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
 
 from . import services
@@ -29,6 +30,100 @@ class IdeaPollServiceTests(SimpleTestCase):
         self.assertEqual(result["status"], "poll_open")
         self.assertEqual(result["poll_ends_at"], created_at + timedelta(days=7))
         self.assertEqual(result["author_id"], author_id)
+        self.assertEqual(result["media_url"], "")
+
+    @patch("ideas.services.ideas")
+    @patch("ideas.services.now")
+    def test_create_idea_persists_uploaded_media_reference(self, now, idea_collection):
+        idea_id = ObjectId()
+        media = {
+            "url": "https://res.cloudinary.com/test/idea.mp4",
+            "public_id": "lpu_nexus/idea_media/idea-id",
+            "media_type": "video",
+        }
+        now.return_value = datetime(2026, 1, 1)
+        idea_collection.return_value.insert_one.return_value.inserted_id = idea_id
+
+        services.create_idea(
+            {"id": str(ObjectId())}, "Study spaces", "Open more rooms.", "campus",
+            media=media,
+        )
+
+        saved = idea_collection.return_value.insert_one.call_args.args[0]
+        self.assertEqual(saved["media_url"], media["url"])
+        self.assertEqual(saved["media_public_id"], media["public_id"])
+        self.assertEqual(saved["media_type"], "video")
+
+
+class IdeaMediaUploadViewTests(TestCase):
+    @patch("ideas.views.services.create_idea")
+    @patch("ideas.views.save_idea_media", return_value={
+        "url": "https://res.cloudinary.com/test/idea.mp4",
+        "public_id": "lpu_nexus/idea_media/idea-id",
+        "media_type": "video",
+    })
+    @patch("ideas.views.get_current_user")
+    def test_student_can_publish_an_idea_without_media(
+        self, get_user, save_media, create_idea,
+    ):
+        user = {
+            "id": str(ObjectId()),
+            "role": "student",
+            "full_name": "Student Example",
+        }
+        get_user.return_value = user
+        session = self.client.session
+        session["lpu_user_id"] = user["id"]
+        session["lpu_user_role"] = "student"
+        session.save()
+
+        response = self.client.post("/ideas/", {
+            "title": "More study spaces",
+            "description": "Open unused rooms.",
+            "category": "campus",
+        })
+
+        self.assertRedirects(response, "/ideas/", fetch_redirect_response=False)
+        save_media.assert_called_once_with(None)
+        create_idea.assert_called_once_with(
+            user, "More study spaces", "Open unused rooms.", "campus",
+            media=save_media.return_value,
+        )
+
+    @patch("ideas.views.services.create_idea")
+    @patch("ideas.views.save_idea_media", return_value={
+        "url": "https://res.cloudinary.com/test/idea.mp4",
+        "public_id": "lpu_nexus/idea_media/idea-id",
+        "media_type": "video",
+    })
+    @patch("ideas.views.get_current_user")
+    def test_student_can_attach_media_when_publishing(
+        self, get_user, save_media, create_idea,
+    ):
+        user = {
+            "id": str(ObjectId()),
+            "role": "student",
+            "full_name": "Student Example",
+        }
+        get_user.return_value = user
+        session = self.client.session
+        session["lpu_user_id"] = user["id"]
+        session["lpu_user_role"] = "student"
+        session.save()
+
+        response = self.client.post("/ideas/", {
+            "title": "More study spaces",
+            "description": "Open unused rooms.",
+            "category": "campus",
+            "media": SimpleUploadedFile("idea.mp4", b"video-data"),
+        })
+
+        self.assertRedirects(response, "/ideas/", fetch_redirect_response=False)
+        self.assertEqual(save_media.call_args.args[0].name, "idea.mp4")
+        create_idea.assert_called_once_with(
+            user, "More study spaces", "Open unused rooms.", "campus",
+            media=save_media.return_value,
+        )
 
     @patch("ideas.services.idea_votes")
     @patch("ideas.services.get_idea")

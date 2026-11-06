@@ -8,6 +8,8 @@ from django.test import SimpleTestCase, override_settings
 from .storage import (
     IdentityCardStorageError,
     IncidentMediaStorageError,
+    IdeaMediaStorageError,
+    IdeaMediaValidationError,
     LiveNewsPosterStorageError,
     LiveNewsPosterValidationError,
     ProblemImageStorageError,
@@ -20,8 +22,59 @@ from .storage import (
     save_live_news_poster,
     save_problem_image,
     save_identity_card,
+    save_idea_media,
     save_profile_image,
 )
+
+
+class IdeaMediaStorageTests(SimpleTestCase):
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='test-cloud',
+        CLOUDINARY_API_KEY='test-key',
+        CLOUDINARY_API_SECRET='test-secret',
+    )
+    @patch('core.storage.cloudinary.uploader.upload')
+    def test_video_is_uploaded_to_public_cloudinary_media_storage(self, upload):
+        upload.return_value = {
+            'secure_url': 'https://res.cloudinary.com/test/idea.mp4',
+            'public_id': 'lpu_nexus/idea_media/idea-id',
+        }
+        uploaded_file = SimpleUploadedFile('idea.mp4', b'media-data')
+
+        result = save_idea_media(uploaded_file)
+
+        self.assertEqual(result, {
+            'url': upload.return_value['secure_url'],
+            'public_id': upload.return_value['public_id'],
+            'media_type': 'video',
+        })
+        self.assertEqual(upload.call_args.kwargs['resource_type'], 'video')
+        self.assertNotIn('type', upload.call_args.kwargs)
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='test-cloud',
+        CLOUDINARY_API_KEY='test-key',
+        CLOUDINARY_API_SECRET='test-secret',
+    )
+    @patch('core.storage.cloudinary.uploader.upload')
+    def test_audio_is_identified_for_playback(self, upload):
+        upload.return_value = {
+            'secure_url': 'https://res.cloudinary.com/test/idea.mp3',
+            'public_id': 'lpu_nexus/idea_media/audio-id',
+        }
+
+        result = save_idea_media(SimpleUploadedFile('idea.mp3', b'audio-data'))
+
+        self.assertEqual(result['media_type'], 'audio')
+        self.assertEqual(upload.call_args.kwargs['resource_type'], 'video')
+
+    def test_idea_media_rejects_unsupported_extensions_and_oversized_files(self):
+        with self.assertRaises(IdeaMediaValidationError):
+            save_idea_media(SimpleUploadedFile('malware.exe', b'content'))
+        with self.assertRaises(IdeaMediaValidationError):
+            save_idea_media(SimpleUploadedFile(
+                'idea.mp4', b'x' * (40 * 1024 * 1024 + 1),
+            ))
 
 
 class ProfileImageStorageTests(SimpleTestCase):

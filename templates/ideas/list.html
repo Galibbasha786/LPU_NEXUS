@@ -4,11 +4,13 @@
 <div class="hero-header"><span class="hero-badge">STUDENT INNOVATION</span><h3>Ideas that move campus forward</h3><p>Every idea becomes a seven-day poll. Vote, discuss, and help the admin team prioritize.</p></div>
 <div class="row g-3">
   <div class="col-lg-4">
-    <form method="post" class="card-lpu card-accent-gold">
+    <form method="post" enctype="multipart/form-data" class="card-lpu card-accent-gold">
       {% csrf_token %}<h5>Share an idea</h5>
       <label class="form-label-lpu" for="idea-title">Idea title</label><input id="idea-title" name="title" maxlength="140" class="form-control form-control-lpu mb-3" required value="{{ request.POST.title }}">
       <label class="form-label-lpu" for="idea-category">Category</label><select id="idea-category" name="category" class="form-control form-control-lpu mb-3" required><option value="">Choose a category</option>{% for value,label in categories %}<option value="{{ value }}" {% if request.POST.category == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
       <label class="form-label-lpu" for="idea-description">Describe your idea</label><textarea id="idea-description" name="description" maxlength="5000" rows="5" class="form-control form-control-lpu" required>{{ request.POST.description }}</textarea>
+      <label class="form-label-lpu mt-3" for="idea-media">Add audio or video (optional)</label><input id="idea-media" name="media" type="file" class="form-control form-control-lpu" accept=".mp4,.webm,.mov,.m4v,.mp3,.wav,.m4a,.ogg,.aac,video/mp4,video/webm,audio/mpeg,audio/wav,audio/ogg,audio/aac">
+      <p class="form-text mb-3">MP4, WEBM, MOV, M4V, MP3, WAV, M4A, OGG, or AAC; max 40 MB. Shared publicly with students.</p>
       <p class="small text-muted mt-2 mb-3">Your name and email are available to admins so they can follow up.</p>
       <button class="btn btn-lpu w-100">Publish seven-day poll</button>
     </form>
@@ -21,6 +23,7 @@
           <article class="card-lpu">
             <div class="d-flex justify-content-between gap-2"><div><span class="badge bg-light text-dark">{{ idea.category|title }}</span><h5 class="mt-2"><a class="text-decoration-none text-reset" href="{% url 'ideas:detail' idea.id %}">{{ idea.title }}</a></h5></div><span class="badge bg-{% if idea.status == 'poll_open' %}success{% elif idea.status == 'pending_review' %}warning text-dark{% else %}secondary{% endif %} align-self-start">{{ idea.status|title|cut:"_" }}</span></div>
             <p>{{ idea.description|truncatechars:220 }}</p>
+            {% if idea.media_url %}<p class="small text-muted mb-2"><i class="bi bi-play-circle me-1" aria-hidden="true"></i>Audio/video attached</p>{% endif %}
             <div class="d-flex flex-wrap justify-content-between gap-2 small text-muted"><span>Proposed by {{ idea.author_name }}</span><span>{{ idea.vote_totals.support }} support · {{ idea.vote_totals.against }} against · {{ idea.comments|length }} comments</span><span>{% if idea.status == 'poll_open' %}Poll closes {{ idea.poll_ends_at|slice:":16" }}{% else %}Poll closed{% endif %}</span></div>
             <a href="{% url 'ideas:detail' idea.id %}" class="btn btn-outline-primary btn-sm mt-3">Open poll and discussion</a>
           </article>

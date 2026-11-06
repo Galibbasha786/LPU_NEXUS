@@ -31,6 +31,8 @@ LIVE_NEWS_POSTER_FORMATS = {
 }
 MAX_LIVE_NEWS_POSTER_SIZE = 8 * 1024 * 1024
 MAX_PROBLEM_IMAGE_SIZE = 8 * 1024 * 1024
+IDEA_VIDEO_EXTENSIONS = {'.mp4', '.webm', '.mov', '.m4v'}
+IDEA_AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.ogg', '.aac'}
 PROBLEM_IMAGE_FORMATS = {
     'JPEG': {'.jpg', '.jpeg'},
     'PNG': {'.png'},
@@ -68,6 +70,14 @@ class ProblemImageStorageError(Exception):
     """An expected remote storage error for a problem-report image."""
 
 
+class IdeaMediaValidationError(Exception):
+    """An expected validation error for idea audio or video."""
+
+
+class IdeaMediaStorageError(Exception):
+    """An expected remote storage error for idea audio or video."""
+
+
 def _cloudinary_credentials():
     credentials = {
         'cloud_name': settings.CLOUDINARY_CLOUD_NAME,
@@ -79,6 +89,86 @@ def _cloudinary_credentials():
             'Photo uploads are unavailable until Cloudinary is configured.'
         )
     return credentials
+
+
+def save_idea_media(uploaded_file):
+    if not uploaded_file:
+        return None
+
+    extension = os.path.splitext(uploaded_file.name or '')[1].lower()
+    if extension not in IDEA_VIDEO_EXTENSIONS | IDEA_AUDIO_EXTENSIONS:
+        raise IdeaMediaValidationError(
+            'Use MP4, WEBM, MOV, M4V, MP3, WAV, M4A, OGG, or AAC media.'
+        )
+    if getattr(uploaded_file, 'size', 0) > MAX_VIDEO_SIZE:
+        raise IdeaMediaValidationError('Audio and video files must be 40 MB or smaller.')
+
+    try:
+        credentials = _cloudinary_credentials()
+    except ProfileImageUploadError as error:
+        raise IdeaMediaStorageError(
+            'Idea media uploads are unavailable. Contact the administrator.'
+        ) from error
+
+    public_id = uuid.uuid4().hex
+    try:
+        uploaded_file.seek(0)
+        result = cloudinary.uploader.upload(
+            uploaded_file,
+            folder='lpu_nexus/idea_media',
+            public_id=public_id,
+            overwrite=False,
+            unique_filename=False,
+            resource_type='video',
+            **credentials,
+        )
+    except Exception as error:
+        logger.exception('Idea media upload to Cloudinary failed')
+        raise IdeaMediaStorageError(
+            'The media could not be uploaded. Please try again.'
+        ) from error
+    finally:
+        uploaded_file.seek(0)
+
+    media_url = result.get('secure_url')
+    cloud_public_id = result.get('public_id')
+    if not media_url or not cloud_public_id:
+        if cloud_public_id:
+            delete_idea_media({'public_id': cloud_public_id})
+        raise IdeaMediaStorageError('Cloudinary did not confirm the media upload.')
+    return {
+        'url': media_url,
+        'public_id': cloud_public_id,
+        'media_type': 'audio' if extension in IDEA_AUDIO_EXTENSIONS else 'video',
+    }
+
+
+def delete_idea_media(media):
+    if not media or not media.get('public_id'):
+        return
+    if not all((
+        settings.CLOUDINARY_CLOUD_NAME,
+        settings.CLOUDINARY_API_KEY,
+        settings.CLOUDINARY_API_SECRET,
+    )):
+        logger.error('Cannot clean up idea media without Cloudinary credentials')
+        return
+    try:
+        result = cloudinary.uploader.destroy(
+            media['public_id'],
+            resource_type='video',
+            invalidate=True,
+            cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+            api_key=settings.CLOUDINARY_API_KEY,
+            api_secret=settings.CLOUDINARY_API_SECRET,
+        )
+        if result.get('result') not in {'ok', 'not found'}:
+            logger.error(
+                'Cloudinary did not confirm deletion of idea media %s',
+                media['public_id'],
+            )
+    except Exception:
+        logger.exception('Could not delete Cloudinary idea media %s', media['public_id'])
 
 
 def save_live_news_poster(uploaded_file):

@@ -4498,6 +4498,7 @@ body.sidebar-open .toggle-bar:nth-child(3) { transform: translateY(-7.5px) rotat
 
 .nx-sidebar-user {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
@@ -4509,6 +4510,26 @@ body.sidebar-open .toggle-bar:nth-child(3) { transform: translateY(-7.5px) rotat
 }
 
 .nx-sidebar-user:hover { background: rgba(255,255,255,.1); }
+
+.nx-sidebar-logo {
+  display: block;
+  width: 68px;
+  height: 68px;
+  padding: 3px;
+  border: 2px solid var(--lpu-gold, #e8b73a);
+  border-radius: 50%;
+  background: #fff;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.nx-sidebar-profile-row {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  gap: 12px;
+  min-width: 0;
+}
 
 .nx-sidebar-avatar {
   position: relative;
