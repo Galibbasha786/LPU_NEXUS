@@ -1,0 +1,616 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ chat.name|default:"Chat" }} • Social Hub{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/social.css' %}">{% endblock %}
+
+{% block content %}
+<main class="social-shell">
+  <header class="social-header">
+    <div>
+      <span class="social-eyebrow">{% if chat.kind == 'group' %}GROUP CHAT{% else %}PRIVATE CHAT{% endif %}</span>
+      <h1>{{ chat.name|default:chat.display_name|default:"Conversation" }}</h1>
+      <p>Only conversation members can read these messages.</p>
+    </div>
+    <nav class="social-nav" aria-label="Chat controls">
+      {% if chat.kind == 'group' and chat.is_owner %}
+        <form method="post" action="{{ delete_url }}" onsubmit="return confirm('Delete this group and all its messages?')">
+          {% csrf_token %}
+          <button class="btn btn-outline-danger" type="submit"><i class="bi bi-trash"></i> Delete group</button>
+        </form>
+      {% endif %}
+      <a class="btn btn-outline-secondary" href="{% url 'social:chats' %}"><i class="bi bi-arrow-left"></i> All chats</a>
+    </nav>
+  </header>
+
+  <section class="social-card social-conversation">
+    <div class="social-call-bar">
+      <div>
+        <strong>Video call</strong>
+        <p id="call-status" class="mb-0 small text-muted">
+          {% if not livekit_configured %}Video calls need LiveKit configured by the administrator.{% elif chat.active_call %}{{ chat.active_call.initiator_name }} started a call.{% else %}Start a private video call with this conversation.{% endif %}
+        </p>
+      </div>
+      {% if livekit_configured %}
+        <button id="start-call" class="btn btn-lpu" type="button" {% if chat.active_call %}hidden{% endif %}><i class="bi bi-camera-video-fill"></i> Start call</button>
+        <button id="join-call" class="btn btn-success" type="button" data-call-id="{{ chat.active_call.id }}" {% if not chat.active_call %}hidden{% endif %}><i class="bi bi-camera-video"></i> Join call</button>
+      {% else %}
+        <button class="btn btn-outline-secondary" type="button" disabled><i class="bi bi-camera-video"></i> Video unavailable</button>
+      {% endif %}
+    </div>
+    <section id="social-video-call" class="social-video-call" hidden aria-label="Video call">
+      <div id="social-video-participants" class="social-video-participants"></div>
+      <div class="social-video-controls">
+        <button id="toggle-microphone" class="btn btn-outline-light" type="button"><i class="bi bi-mic-fill"></i> Mute mic</button>
+        <button id="toggle-camera" class="btn btn-outline-light" type="button"><i class="bi bi-camera-video-fill"></i> Turn camera off</button>
+        <button id="leave-call" class="btn btn-danger" type="button"><i class="bi bi-telephone-x-fill"></i> Leave call</button>
+      </div>
+    </section>
+    <div id="chat-messages" class="social-message-list" data-messages-url="{{ messages_url }}" data-after="{{ chat.last_message_id }}" data-current-user="{{ user.id }}" data-post-url-template="{% url 'social:post' 'POST_ID' %}">
+      {% for message in chat.messages %}
+        <article class="social-message {% if message.sender_id == user.id %}is-mine{% endif %}" data-message-id="{{ message.id }}">
+          <strong>{{ message.sender_name }}</strong>
+          {% if message.gif_url %}<img src="{{ message.gif_url }}" alt="GIF sent by {{ message.sender_name }}" loading="lazy">{% endif %}
+          {% if message.media_url %}
+            {% if message.media_type == 'video' %}<video src="{{ message.media_url }}" controls preload="metadata"></video>
+            {% else %}<img src="{{ message.media_url }}" alt="Image shared by {{ message.sender_name }}" loading="lazy">{% endif %}
+          {% endif %}
+          {% if message.shared_post %}
+            <a class="social-shared-post" href="{% url 'social:post' message.shared_post.id %}">
+              <span>Shared a post by {{ message.shared_post.author_name }}</span>
+              {% if message.shared_post.caption %}<p>{{ message.shared_post.caption }}</p>{% endif %}
+              {% if message.shared_post.media_url %}
+                {% if message.shared_post.media_type == 'video' %}
+                  <span class="social-shared-post-media"><i class="bi bi-play-circle"></i> Video post</span>
+                {% else %}
+                  <img src="{{ message.shared_post.media_url }}" alt="Shared post by {{ message.shared_post.author_name }}" loading="lazy">
+                {% endif %}
+              {% endif %}
+              <strong>View post <i class="bi bi-arrow-up-right"></i></strong>
+            </a>
+          {% endif %}
+          {% if message.body %}<p>{{ message.body }}</p>{% endif %}
+          <time>{{ message.created_at|date:"M j, H:i" }}</time>
+        </article>
+      {% empty %}
+        <p class="social-empty" id="chat-empty">Say hello to start the conversation.</p>
+      {% endfor %}
+    </div>
+    <p id="chat-status" class="small text-danger px-3 mb-0" aria-live="polite"></p>
+
+    <form method="post" enctype="multipart/form-data" action="{{ send_url }}" class="social-message-form" data-direct-chat-url="{{ direct_chat_url }}">
+      {% csrf_token %}
+      <input type="hidden" name="gif_url" id="selected-gif-url">
+      <label class="visually-hidden" for="message-body">Message</label>
+      <textarea id="message-body" class="form-control" name="body" maxlength="2000" rows="2" placeholder="Write a message... Use /dm 12345678 to open a direct chat."></textarea>
+      <div class="social-message-attachments">
+        <label class="social-upload">
+          <i class="bi bi-image"></i><span>Attach image/video</span>
+          <input id="chat-media-file" type="file" name="media" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov">
+        </label>
+        <label class="visually-hidden" for="chat-media-url">Direct HTTPS image/video link</label>
+        <input id="chat-media-url" class="form-control form-control-sm" type="url" name="media_url" placeholder="Or paste a direct HTTPS image/video link">
+      </div>
+      <details class="social-gif-picker">
+        <summary><i class="bi bi-filetype-gif"></i> Add GIF</summary>
+        <div class="social-gif-search">
+          <label class="visually-hidden" for="gif-query">Search GIFs</label>
+          <input id="gif-query" class="form-control form-control-sm" type="search" maxlength="100" placeholder="Search GIPHY">
+          <button id="gif-search-button" class="btn btn-sm btn-outline-secondary" type="button">Search</button>
+        </div>
+        <p id="gif-status" class="small text-muted mb-1" aria-live="polite"></p>
+        <div id="gif-results" class="social-gif-results"></div>
+        <div id="gif-selected-preview"></div>
+      </details>
+      <button class="btn btn-lpu" type="submit"><i class="bi bi-send-fill"></i> Send</button>
+    </form>
+  </section>
+</main>
+
+<script>
+(() => {
+  const list = document.getElementById('chat-messages');
+  const messagesUrl = list.dataset.messagesUrl;
+  const currentUser = list.dataset.currentUser;
+  const messageBody = document.getElementById('message-body');
+  const chatStatus = document.getElementById('chat-status');
+  const messageForm = document.querySelector('.social-message-form');
+  const csrfToken = messageForm.querySelector('[name="csrfmiddlewaretoken"]').value;
+  const startCallButton = document.getElementById('start-call');
+  const joinCallButton = document.getElementById('join-call');
+  const callStatus = document.getElementById('call-status');
+  const callPanel = document.getElementById('social-video-call');
+  const participantGrid = document.getElementById('social-video-participants');
+  const videoCallConfig = {
+    startUrl: '{{ start_call_url }}',
+    joinUrl: '{{ join_call_url }}',
+    endUrl: '{{ end_call_url }}',
+    statusUrl: '{{ call_status_url }}',
+    initialCall: {% if chat.active_call %}{
+      id: '{{ chat.active_call.id|escapejs }}',
+      initiatorName: '{{ chat.active_call.initiator_name|escapejs }}',
+    }{% else %}null{% endif %},
+    canEndCall: {{ chat.can_end_call|yesno:"true,false" }},
+  };
+  let after = list.dataset.after;
+  let refreshing = false;
+  let socket = null;
+  let socketRetryTimer = null;
+  let livekitRoom = null;
+  let livekitTrack = null;
+  let callId = videoCallConfig.initialCall?.id || '';
+  let localMicEnabled = true;
+  let localCameraEnabled = true;
+  let mediaSdk = null;
+  let canEndCall = videoCallConfig.canEndCall;
+
+  function showCall(call, isCurrentUserInitiator = false) {
+    callId = call.call_id || call.id || callId;
+    if (joinCallButton) {
+      joinCallButton.dataset.callId = callId;
+      joinCallButton.hidden = isCurrentUserInitiator;
+    }
+    if (startCallButton) startCallButton.hidden = true;
+    callStatus.textContent = isCurrentUserInitiator
+      ? 'Connecting your call...'
+      : `${call.initiator_name || call.initiatorName || 'A student'} started a call.`;
+  }
+
+  function showCallEnded(message) {
+    closeVideoCall(false);
+    callId = '';
+    canEndCall = false;
+    if (startCallButton) startCallButton.hidden = false;
+    if (joinCallButton) joinCallButton.hidden = true;
+    callStatus.textContent = message;
+  }
+
+  function appendMessage(message) {
+    if (document.querySelector(`[data-message-id="${CSS.escape(message.id)}"]`)) return;
+    const empty = document.getElementById('chat-empty');
+    if (empty) empty.remove();
+    const article = document.createElement('article');
+    article.className = message.sender_id === currentUser
+      ? 'social-message is-mine'
+      : 'social-message';
+    article.dataset.messageId = message.id;
+    const author = document.createElement('strong');
+    author.textContent = message.sender_name;
+    article.appendChild(author);
+    if (message.gif_url) {
+      const image = document.createElement('img');
+      image.src = message.gif_url;
+      image.alt = `GIF sent by ${message.sender_name}`;
+      image.loading = 'lazy';
+      article.appendChild(image);
+    }
+    if (message.media_url) {
+      if (message.media_type === 'video') {
+        const video = document.createElement('video');
+        video.src = message.media_url;
+        video.controls = true;
+        video.preload = 'metadata';
+        article.appendChild(video);
+      } else {
+        const image = document.createElement('img');
+        image.src = message.media_url;
+        image.alt = `Image shared by ${message.sender_name}`;
+        image.loading = 'lazy';
+        article.appendChild(image);
+      }
+    }
+    if (message.shared_post) {
+      const card = document.createElement('a');
+      card.className = 'social-shared-post';
+      card.href = list.dataset.postUrlTemplate.replace(
+        'POST_ID',
+        encodeURIComponent(message.shared_post.id),
+      );
+      const title = document.createElement('span');
+      title.textContent = `Shared a post by ${message.shared_post.author_name}`;
+      card.appendChild(title);
+      if (message.shared_post.caption) {
+        const caption = document.createElement('p');
+        caption.textContent = message.shared_post.caption;
+        card.appendChild(caption);
+      }
+      if (message.shared_post.media_url) {
+        if (message.shared_post.media_type === 'video') {
+          const videoLabel = document.createElement('span');
+          videoLabel.className = 'social-shared-post-media';
+          videoLabel.textContent = '▶ Video post';
+          card.appendChild(videoLabel);
+        } else {
+          const image = document.createElement('img');
+          image.src = message.shared_post.media_url;
+          image.alt = `Shared post by ${message.shared_post.author_name}`;
+          image.loading = 'lazy';
+          card.appendChild(image);
+        }
+      }
+      const viewLink = document.createElement('strong');
+      viewLink.textContent = 'View post ↗';
+      card.appendChild(viewLink);
+      article.appendChild(card);
+    }
+    if (message.body) {
+      const body = document.createElement('p');
+      body.textContent = message.body;
+      article.appendChild(body);
+    }
+    const time = document.createElement('time');
+    time.textContent = message.created_at
+      ? new Date(message.created_at).toLocaleString()
+      : '';
+    article.appendChild(time);
+    list.appendChild(article);
+    after = message.id;
+    list.dataset.after = after;
+  }
+
+  async function refreshMessages() {
+    if (refreshing || document.hidden) return;
+    refreshing = true;
+    try {
+      const url = new URL(messagesUrl, window.location.origin);
+      if (after) url.searchParams.set('after', after);
+      const response = await fetch(url, {headers: {'Accept': 'application/json'}});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Messages could not be refreshed.');
+      data.messages.forEach(appendMessage);
+      chatStatus.textContent = '';
+    } catch (error) {
+      console.error('Chat refresh failed:', error);
+      chatStatus.textContent = error.message;
+    } finally {
+      refreshing = false;
+    }
+  }
+  function connectChatSocket() {
+    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    socket = new WebSocket(`${protocol}//${window.location.host}{{ chat_ws_path }}`);
+    socket.addEventListener('open', () => {
+      chatStatus.textContent = 'Connected';
+      window.clearTimeout(socketRetryTimer);
+    });
+    socket.addEventListener('message', event => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'message') appendMessage(data);
+        if (data.type === 'error') chatStatus.textContent = data.error;
+        if (data.type === 'call.started') {
+          showCall(data, data.initiator_id === currentUser);
+        }
+        if (data.type === 'call.ended' && data.call_id === callId) {
+          showCallEnded('The video call has ended.');
+        }
+      } catch (error) {
+        console.error('Could not read a chat event:', error);
+      }
+    });
+    socket.addEventListener('close', () => {
+      chatStatus.textContent = 'Live updates disconnected. Reconnecting...';
+      socketRetryTimer = window.setTimeout(connectChatSocket, 2500);
+    });
+    socket.addEventListener('error', () => {
+      chatStatus.textContent = 'Could not connect live chat; checking for new messages periodically.';
+      socket.close();
+    });
+  }
+
+  async function postData(url, fields = {}) {
+    const body = new URLSearchParams({
+      csrfmiddlewaretoken: csrfToken,
+      ...fields,
+    });
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken,
+        'Accept': 'application/json',
+      },
+      body,
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'The request could not be completed.');
+    return data;
+  }
+
+  connectChatSocket();
+  window.setInterval(() => {
+    if (!socket || socket.readyState !== WebSocket.OPEN) refreshMessages();
+  }, 5000);
+  list.scrollTop = list.scrollHeight;
+
+  messageForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const body = messageBody.value.trim();
+    const gifUrl = selectedUrl.value;
+    const mediaFile = document.getElementById('chat-media-file');
+    const mediaLink = document.getElementById('chat-media-url');
+    const hasMedia = Boolean(mediaFile.files.length || mediaLink.value.trim());
+    const directCommand = body.match(/^\/dm\s+(\S+)$/i);
+    if (directCommand) {
+      try {
+        const data = await postData(messageForm.dataset.directChatUrl, {
+          registration_number: directCommand[1],
+        });
+        window.location.assign(data.url);
+      } catch (error) {
+        chatStatus.textContent = error.message;
+      }
+      return;
+    }
+    if (!body && !gifUrl && !hasMedia) {
+      chatStatus.textContent = 'Write a message, choose a GIF, or attach image/video.';
+      messageBody.focus();
+      return;
+    }
+    if (gifUrl && hasMedia) {
+      chatStatus.textContent = 'Send either a GIF or an image/video attachment, not both.';
+      return;
+    }
+    const sendButton = messageForm.querySelector('button[type="submit"]');
+    sendButton.disabled = true;
+    try {
+      if (!hasMedia && socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({type: 'message', body, gif_url: gifUrl}));
+      } else {
+        const response = await fetch(messageForm.action, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrfToken,
+            'Accept': 'application/json',
+          },
+          body: new FormData(messageForm),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Your message could not be sent.');
+        if (!data.realtime) chatStatus.textContent = 'Sent. Live updates are reconnecting.';
+        if (data.message) appendMessage({
+          ...data.message,
+          id: data.message.id,
+          sender_id: data.message.sender_id,
+        });
+      }
+      messageForm.reset();
+      selectedPreview.replaceChildren();
+      selectedUrl.value = '';
+      status.textContent = '';
+    } catch (error) {
+      chatStatus.textContent = error.message;
+    } finally {
+      sendButton.disabled = false;
+    }
+  });
+
+  const searchButton = document.getElementById('gif-search-button');
+  const queryInput = document.getElementById('gif-query');
+  const status = document.getElementById('gif-status');
+  const results = document.getElementById('gif-results');
+  const selectedUrl = document.getElementById('selected-gif-url');
+  const selectedPreview = document.getElementById('gif-selected-preview');
+  searchButton.addEventListener('click', async () => {
+    const query = queryInput.value.trim();
+    if (!query) {
+      status.textContent = 'Enter a search term.';
+      return;
+    }
+    status.textContent = 'Searching...';
+    results.replaceChildren();
+    try {
+      const url = new URL('{{ gif_search_url }}', window.location.origin);
+      url.searchParams.set('q', query);
+      const response = await fetch(url, {headers: {'Accept': 'application/json'}});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'GIF search is unavailable.');
+      if (!data.results.length) status.textContent = 'No GIFs found.';
+      else status.textContent = 'Choose a GIF to attach.';
+      data.results.forEach(gif => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'social-gif-result';
+        button.title = gif.title;
+        const image = document.createElement('img');
+        image.src = gif.preview_url;
+        image.alt = gif.title;
+        image.loading = 'lazy';
+        button.appendChild(image);
+        button.addEventListener('click', () => {
+          selectedUrl.value = gif.url;
+          selectedPreview.replaceChildren();
+          const chosen = document.createElement('img');
+          chosen.src = gif.preview_url;
+          chosen.alt = 'Selected GIF';
+          selectedPreview.appendChild(chosen);
+          status.textContent = 'GIF selected. Press Send to share it.';
+        });
+        results.appendChild(button);
+      });
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+
+  const callButtons = {
+    start: startCallButton,
+    join: joinCallButton,
+  };
+
+  function renderParticipant(participant, local = false) {
+    if (!participant) return;
+    const identity = participant.identity || 'participant';
+    if (document.querySelector(`[data-participant="${CSS.escape(identity)}"]`)) return;
+    const card = document.createElement('article');
+    card.className = 'social-video-tile';
+    card.dataset.participant = identity;
+    const video = document.createElement('video');
+    video.autoplay = true;
+    video.playsInline = true;
+    video.muted = local;
+    const label = document.createElement('strong');
+    label.textContent = local ? 'You' : participant.name || 'LPU student';
+    card.append(video, label);
+    participantGrid.appendChild(card);
+    const camera = participant.getTrackPublication(mediaSdk.Track.Source.Camera);
+    if (camera?.track) {
+      camera.track.attach(video);
+      if (local) livekitTrack = camera.track;
+    }
+    if (!local) {
+      participant.trackPublications.forEach(publication => {
+        if (publication.track?.kind === mediaSdk.Track.Kind.Video) publication.track.attach(video);
+      });
+    }
+  }
+
+  async function connectVideoCall(connection) {
+    if (!mediaSdk) {
+      mediaSdk = await import('https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.esm.mjs');
+    }
+    livekitRoom = new mediaSdk.Room();
+    livekitRoom.on(mediaSdk.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      if (track.kind === mediaSdk.Track.Kind.Audio) {
+        const audio = track.attach();
+        audio.autoplay = true;
+        audio.dataset.participantAudio = participant.identity;
+        callPanel.appendChild(audio);
+        return;
+      }
+      if (track.kind !== mediaSdk.Track.Kind.Video) return;
+      let tile = document.querySelector(`[data-participant="${CSS.escape(participant.identity)}"]`);
+      if (!tile) {
+        renderParticipant(participant);
+        tile = document.querySelector(`[data-participant="${CSS.escape(participant.identity)}"]`);
+      }
+      const video = tile?.querySelector('video');
+      if (video) track.attach(video);
+    });
+    livekitRoom.on(mediaSdk.RoomEvent.TrackUnsubscribed, track => {
+      track.detach().forEach(element => {
+        element.srcObject = null;
+        element.remove();
+      });
+    });
+    livekitRoom.on(mediaSdk.RoomEvent.ParticipantDisconnected, participant => {
+      document.querySelector(`[data-participant="${CSS.escape(participant.identity)}"]`)?.remove();
+    });
+    livekitRoom.on(mediaSdk.RoomEvent.Disconnected, () => {
+      livekitRoom = null;
+    });
+    await livekitRoom.connect(connection.url, connection.token);
+    callPanel.hidden = false;
+    callStatus.textContent = 'Connected to video call.';
+    for (const participant of livekitRoom.remoteParticipants.values()) renderParticipant(participant);
+    await livekitRoom.localParticipant.setCameraEnabled(true);
+    await livekitRoom.localParticipant.setMicrophoneEnabled(true);
+    renderParticipant(livekitRoom.localParticipant, true);
+    localMicEnabled = true;
+    localCameraEnabled = true;
+    document.getElementById('leave-call').textContent = canEndCall
+      ? 'End call'
+      : 'Leave call';
+  }
+
+  async function startVideoCall() {
+    startCallButton.disabled = true;
+    try {
+      const connection = await postData(videoCallConfig.startUrl);
+      callId = connection.call_id;
+      canEndCall = true;
+      await connectVideoCall(connection);
+      document.getElementById('leave-call').textContent = 'End call';
+    } catch (error) {
+      callStatus.textContent = error.message;
+    } finally {
+      startCallButton.disabled = false;
+    }
+  }
+
+  async function joinVideoCall() {
+    joinCallButton.disabled = true;
+    try {
+      const connection = await postData(videoCallConfig.joinUrl, {
+        call_id: joinCallButton.dataset.callId || callId,
+      });
+      callId = connection.call_id;
+      await connectVideoCall(connection);
+    } catch (error) {
+      callStatus.textContent = error.message;
+    } finally {
+      joinCallButton.disabled = false;
+    }
+  }
+
+  async function closeVideoCall(endCall) {
+    if (livekitRoom) {
+      await livekitRoom.disconnect();
+      livekitRoom = null;
+    }
+    participantGrid.replaceChildren();
+    callPanel.hidden = true;
+    if (endCall && callId) {
+      try {
+        await postData(videoCallConfig.endUrl, {call_id: callId});
+      } catch (error) {
+        callStatus.textContent = error.message;
+        return;
+      }
+    }
+  }
+
+  if (callButtons.start) callButtons.start.addEventListener('click', startVideoCall);
+  if (callButtons.join) callButtons.join.addEventListener('click', joinVideoCall);
+  document.getElementById('leave-call').addEventListener('click', () => {
+    closeVideoCall(canEndCall);
+    if (canEndCall) {
+      callId = '';
+      canEndCall = false;
+      if (startCallButton) startCallButton.hidden = false;
+      if (joinCallButton) joinCallButton.hidden = true;
+      callStatus.textContent = 'Call ended.';
+    }
+  });
+  document.getElementById('toggle-microphone').addEventListener('click', async event => {
+    if (!livekitRoom) return;
+    localMicEnabled = !localMicEnabled;
+    await livekitRoom.localParticipant.setMicrophoneEnabled(localMicEnabled);
+    event.currentTarget.textContent = localMicEnabled ? 'Mute mic' : 'Unmute mic';
+  });
+  document.getElementById('toggle-camera').addEventListener('click', async event => {
+    if (!livekitRoom) return;
+    localCameraEnabled = !localCameraEnabled;
+    await livekitRoom.localParticipant.setCameraEnabled(localCameraEnabled);
+    event.currentTarget.textContent = localCameraEnabled ? 'Turn camera off' : 'Turn camera on';
+  });
+
+  async function refreshCallStatus() {
+    try {
+      const response = await fetch(videoCallConfig.statusUrl, {
+        headers: {'Accept': 'application/json'},
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Call status could not be checked.');
+      if (!data.active) {
+        if (callId) showCallEnded('The video call has ended.');
+        return;
+      }
+      if (data.call_id !== callId) {
+        showCall({
+          call_id: data.call_id,
+          initiator_name: data.initiator_name,
+        });
+      }
+    } catch (error) {
+      console.warn('Call status refresh failed:', error);
+    }
+  }
+  if (videoCallConfig.initialCall) showCall(videoCallConfig.initialCall);
+  window.setInterval(refreshCallStatus, 8000);
+  window.addEventListener('pagehide', () => {
+    if (socket) socket.close();
+    if (livekitRoom) livekitRoom.disconnect();
+  });
+})();
+</script>
+{% endblock %}

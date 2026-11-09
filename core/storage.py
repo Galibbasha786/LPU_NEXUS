@@ -78,6 +78,14 @@ class IdeaMediaStorageError(Exception):
     """An expected remote storage error for idea audio or video."""
 
 
+class SocialMediaValidationError(Exception):
+    """An expected validation error while uploading social media."""
+
+
+class SocialMediaStorageError(Exception):
+    """An expected remote storage error while uploading social media."""
+
+
 def _cloudinary_credentials():
     credentials = {
         'cloud_name': settings.CLOUDINARY_CLOUD_NAME,
@@ -169,6 +177,122 @@ def delete_idea_media(media):
             )
     except Exception:
         logger.exception('Could not delete Cloudinary idea media %s', media['public_id'])
+
+
+def save_social_media(uploaded_file):
+    if not uploaded_file:
+        return None
+
+    extension = os.path.splitext(uploaded_file.name or '')[1].lower()
+    image_extensions = {'.jpg', '.jpeg', '.png', '.webp'}
+    video_extensions = {'.mp4', '.webm', '.mov'}
+    if extension not in image_extensions | video_extensions:
+        raise SocialMediaValidationError('Use a JPG, PNG, WEBP, MP4, WEBM, or MOV file.')
+
+    is_image = extension in image_extensions
+    max_size = MAX_IMAGE_SIZE if is_image else MAX_VIDEO_SIZE
+    if getattr(uploaded_file, 'size', 0) > max_size:
+        raise SocialMediaValidationError(
+            'Images must be 8 MB or smaller and videos must be 40 MB or smaller.'
+        )
+
+    if is_image:
+        try:
+            uploaded_file.seek(0)
+            with Image.open(uploaded_file) as image:
+                image_format = image.format
+                image.verify()
+        except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+            raise SocialMediaValidationError('The selected image is not valid.') from None
+        finally:
+            uploaded_file.seek(0)
+
+        supported_formats = {
+            'JPEG': {'.jpg', '.jpeg'},
+            'PNG': {'.png'},
+            'WEBP': {'.webp'},
+        }
+        if extension not in supported_formats.get(image_format, set()):
+            raise SocialMediaValidationError(
+                'The image content does not match its file type.'
+            )
+
+    try:
+        credentials = _cloudinary_credentials()
+    except ProfileImageUploadError as error:
+        raise SocialMediaStorageError(
+            'Social media uploads are unavailable. Contact the administrator.'
+        ) from error
+
+    resource_type = 'image' if is_image else 'video'
+    public_id = uuid.uuid4().hex
+    try:
+        uploaded_file.seek(0)
+        result = cloudinary.uploader.upload(
+            uploaded_file,
+            folder='lpu_nexus/social',
+            public_id=public_id,
+            overwrite=False,
+            unique_filename=False,
+            resource_type=resource_type,
+            **credentials,
+        )
+    except Exception as error:
+        logger.exception('Social media upload to Cloudinary failed')
+        raise SocialMediaStorageError(
+            'The media could not be uploaded. Please try again.'
+        ) from error
+    finally:
+        uploaded_file.seek(0)
+
+    media_url = result.get('secure_url')
+    cloud_public_id = result.get('public_id')
+    if not media_url or not cloud_public_id:
+        if cloud_public_id:
+            delete_social_media({
+                'public_id': cloud_public_id,
+                'media_type': resource_type,
+            })
+        raise SocialMediaStorageError('Cloudinary did not confirm the media upload.')
+    return {
+        'url': media_url,
+        'public_id': cloud_public_id,
+        'media_type': resource_type,
+    }
+
+
+def delete_social_media(media):
+    if not media or not media.get('public_id'):
+        return
+    if not all((
+        settings.CLOUDINARY_CLOUD_NAME,
+        settings.CLOUDINARY_API_KEY,
+        settings.CLOUDINARY_API_SECRET,
+    )):
+        logger.error('Cannot clean up social media without Cloudinary credentials')
+        return
+    resource_type = media.get('media_type')
+    if resource_type not in {'image', 'video'}:
+        logger.error('Cannot clean up social media with an invalid media type')
+        return
+    try:
+        result = cloudinary.uploader.destroy(
+            media['public_id'],
+            resource_type=resource_type,
+            invalidate=True,
+            cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+            api_key=settings.CLOUDINARY_API_KEY,
+            api_secret=settings.CLOUDINARY_API_SECRET,
+        )
+        if result.get('result') not in {'ok', 'not found'}:
+            logger.error(
+                'Cloudinary did not confirm deletion of social media %s',
+                media['public_id'],
+            )
+    except Exception:
+        logger.exception(
+            'Could not delete Cloudinary social media %s', media['public_id'],
+        )
 
 
 def save_live_news_poster(uploaded_file):

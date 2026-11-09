@@ -14,6 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN tesseract --version && tesseract --list-langs | grep -qx eng
 
 COPY . .
-RUN python manage.py collectstatic --noinput
+RUN DEBUG=True SECRET_KEY=static-build-placeholder-not-a-secret python manage.py collectstatic --noinput
 
-CMD ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn lpu_nexus.wsgi:application --bind 0.0.0.0:${PORT:-10000} --timeout 60"]
+CMD ["sh", "-c", "python manage.py check --deploy --fail-level ERROR && python manage.py migrate --noinput && exec daphne -b 0.0.0.0 -p ${PORT:-10000} lpu_nexus.asgi:application"]

@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ post.author_name }}'s post • Social Hub{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/social.css' %}">{% endblock %}
+
+{% block content %}
+<main class="social-shell">
+  <header class="social-header">
+    <div><span class="social-eyebrow">SHARED POST</span><h1>Post</h1></div>
+    <a class="btn btn-outline-secondary" href="{% url 'social:feed' %}"><i class="bi bi-arrow-left"></i> Back to feed</a>
+  </header>
+  <article class="social-card social-post">
+    <header class="social-post-header">
+      <div class="social-avatar">
+        {% if post.author_image %}<img src="{{ post.author_image }}" alt="">{% else %}<i class="bi bi-person-fill"></i>{% endif %}
+      </div>
+      <div class="social-post-byline">
+        <strong>{{ post.author_name }}</strong>
+        {% if post.kind == 'reshare' %}<span>reshared a post</span>{% endif %}
+        <time>{{ post.created_at|date:"M j, Y · H:i" }}</time>
+      </div>
+      <button class="social-share-link" type="button" data-post-share data-post-id="{{ post.id }}" data-share-url-template="{% url 'social:share_post' 'POST_ID' %}" aria-label="Share post to a student's DM" title="Share to DM"><i class="bi bi-send"></i></button>
+    </header>
+    {% if post.caption %}<p class="social-post-caption">{{ post.caption }}</p>{% endif %}
+    {% if post.kind == 'reshare' %}
+      <div class="social-original">
+        <strong>{{ post.original.author_name }}</strong>
+        {% if post.original.caption %}<p>{{ post.original.caption }}</p>{% endif %}
+        {% if post.original.media_url %}
+          {% if post.original.media_type == 'video' %}<video src="{{ post.original.media_url }}" controls preload="metadata"></video>
+          {% else %}<img src="{{ post.original.media_url }}" alt="Project shared by {{ post.original.author_name }}" loading="lazy">{% endif %}
+        {% endif %}
+      </div>
+    {% elif post.media_url %}
+      <div class="social-post-media">
+        {% if post.media_type == 'video' %}<video src="{{ post.media_url }}" controls preload="metadata"></video>
+        {% else %}<img src="{{ post.media_url }}" alt="Project or idea by {{ post.author_name }}" loading="lazy">{% endif %}
+      </div>
+    {% endif %}
+    {% if post.tagged_names %}<p class="social-tag-note"><i class="bi bi-person-check"></i> Tagged: {{ post.tagged_names|join:", " }}</p>{% endif %}
+    <div class="social-post-actions">
+      <form method="post" action="{% url 'social:like' post.id %}">{% csrf_token %}<button type="submit" class="{% if post.liked_by_me %}is-liked{% endif %}"><i class="bi {% if post.liked_by_me %}bi-heart-fill{% else %}bi-heart{% endif %}"></i> {{ post.likes_count }} Like{{ post.likes_count|pluralize }}</button></form>
+      <span><i class="bi bi-chat"></i> {{ post.comments_count }} Comment{{ post.comments_count|pluralize }}</span>
+      <form method="post" action="{% url 'social:reshare' post.id %}">{% csrf_token %}<button type="submit"><i class="bi bi-arrow-repeat"></i> Reshare</button></form>
+    </div>
+    <div class="social-comments">
+      {% for comment in post.comments %}<p><strong>{{ comment.author_name }}</strong> {{ comment.body }}</p>{% endfor %}
+      <form method="post" action="{% url 'social:comment' post.id %}">{% csrf_token %}<label class="visually-hidden" for="post-comment">Add a comment</label><input id="post-comment" class="form-control" type="text" name="body" maxlength="2000" placeholder="Add a comment..." required><button class="btn btn-sm btn-lpu" type="submit">Comment</button></form>
+    </div>
+  </article>
+</main>
+{% include 'social/_share_dialog.html' %}
+<script src="{% static 'js/social-share.js' %}" defer></script>
+{% endblock %}

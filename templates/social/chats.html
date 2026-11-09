@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Chats • Social Hub{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/social.css' %}">{% endblock %}
+
+{% block content %}
+<main class="social-shell">
+  <header class="social-header">
+    <div>
+      <span class="social-eyebrow">STUDENT MESSAGES</span>
+      <h1>Chats</h1>
+      <p>Private conversations and project groups for verified students.</p>
+    </div>
+    <nav class="social-nav" aria-label="Social Hub">
+      <a class="btn btn-outline-secondary" href="{% url 'social:feed' %}"><i class="bi bi-house"></i> Feed</a>
+      <a class="btn btn-lpu" href="{% url 'social:people' %}"><i class="bi bi-people"></i> Find students</a>
+    </nav>
+  </header>
+
+  <div class="social-layout social-chat-layout">
+    <section class="social-card">
+      <div class="social-section-heading"><div><h2>Your conversations</h2><p>Messages refresh automatically while a chat is open.</p></div></div>
+      {% for chat in chats %}
+        <a class="social-chat-row" href="{% url 'social:chat' chat.id %}">
+          <span class="social-chat-icon"><i class="bi {% if chat.kind == 'group' %}bi-people-fill{% else %}bi-person-fill{% endif %}"></i></span>
+          <span><strong>{{ chat.display_name }}</strong><small>{% if chat.kind == 'group' %}Group chat{% else %}Private chat{% endif %}</small></span>
+          <i class="bi bi-chevron-right"></i>
+        </a>
+      {% empty %}
+        <p class="social-empty">No conversations yet. Find a student to start a chat.</p>
+      {% endfor %}
+    </section>
+
+    <section class="social-card">
+      <div class="social-section-heading"><div><h2>Create a group</h2><p>Choose at least two other verified students.</p></div></div>
+      <form method="post" class="social-group-form">
+        {% csrf_token %}
+        <label for="group-name">Group name</label>
+        <input id="group-name" class="form-control" type="text" name="name" maxlength="80" required placeholder="e.g. Design project team">
+        <label for="group-members">Members</label>
+        <select id="group-members" class="form-select" name="members" multiple size="8" required>
+          {% for student in students %}
+            {% if not student.blocked_me and not student.blocked_by_me %}
+              <option value="{{ student.id }}">{{ student.full_name }}{% if student.registration_number %} · {{ student.registration_number }}{% endif %}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+        <small class="form-text">You are added automatically. Up to 29 other students can join.</small>
+        <button class="btn btn-lpu w-100" type="submit"><i class="bi bi-people-fill"></i> Create group chat</button>
+      </form>
+    </section>
+  </div>
+</main>
+{% endblock %}

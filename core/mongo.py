@@ -47,6 +47,13 @@ def placement_predictions(): return get_db()['placement_predictions']
 def live_streams():         return get_db()['live_streams']
 def live_comments():        return get_db()['live_comments']
 def live_participants():    return get_db()['live_participants']
+def social_posts():         return get_db()['social_posts']
+def social_likes():         return get_db()['social_likes']
+def social_comments():      return get_db()['social_comments']
+def social_stories():       return get_db()['social_stories']
+def social_chats():         return get_db()['social_chats']
+def social_messages():      return get_db()['social_messages']
+def social_blocks():        return get_db()['social_blocks']
 
 def init_indexes():
     """Create MongoDB indexes. Safe to call repeatedly."""
@@ -130,6 +137,27 @@ def init_indexes():
             [("last_seen", ASCENDING)], expireAfterSeconds=86400,
         )
 
+        # Social Hub
+        social_posts().create_index([("created_at", DESCENDING)])
+        social_posts().create_index([("author_id", ASCENDING), ("created_at", DESCENDING)])
+        social_likes().create_index(
+            [("post_id", ASCENDING), ("user_id", ASCENDING)],
+            unique=True,
+        )
+        social_comments().create_index([("post_id", ASCENDING), ("created_at", DESCENDING)])
+        social_stories().create_index(
+            [("expires_at", ASCENDING)], expireAfterSeconds=0,
+        )
+        social_stories().create_index([("author_id", ASCENDING), ("expires_at", ASCENDING)])
+        social_chats().create_index([("member_ids", ASCENDING), ("updated_at", DESCENDING)])
+        social_chats().create_index([("direct_pair", ASCENDING)], unique=True, sparse=True)
+        social_messages().create_index([("chat_id", ASCENDING), ("created_at", ASCENDING)])
+        social_blocks().create_index(
+            [("blocker_id", ASCENDING), ("blocked_id", ASCENDING)],
+            unique=True,
+        )
+
         logger.info("✅ MongoDB indexes ensured")
-    except Exception as e:
-        logger.error(f"MongoDB index creation failed: {e}")
+    except Exception:
+        logger.exception("MongoDB index creation failed")
+        raise

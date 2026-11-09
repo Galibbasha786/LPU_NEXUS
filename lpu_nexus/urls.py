@@ -12,6 +12,7 @@ urlpatterns = [
     path('campus-ai/', include('campus_ai.urls')),
     path('placement-predictor/', include('placement_predictor.urls')),
     path('live-news/', include('live_news.urls')),
+    path('social/', include('social.urls')),
     path('', include('accounts.urls')),
         path("crisis/", include("crisis.urls")),
 ]

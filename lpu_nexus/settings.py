@@ -1,20 +1,65 @@
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def _env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
 # --- Security ---
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-only-change-me')
-DEBUG = (
-    os.getenv('DEBUG', 'False') == 'True'
-    and os.getenv('RENDER', '').lower() != 'true'
-)
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+IS_RENDER = os.getenv('RENDER', '').strip().lower() == 'true'
+DEBUG = _env_bool('DEBUG', False) and not IS_RENDER
+SECRET_KEY = os.getenv('SECRET_KEY', '').strip()
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured('Set SECRET_KEY to a unique, random value before deployment.')
+    SECRET_KEY = 'django-insecure-local-development-only'
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    if host.strip()
+]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+SECURE_SSL_REDIRECT = _env_bool('SECURE_SSL_REDIRECT', not DEBUG)
+SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', not DEBUG)
+CSRF_COOKIE_SECURE = _env_bool('CSRF_COOKIE_SECURE', not DEBUG)
+SECURE_HSTS_SECONDS = int(os.getenv(
+    'SECURE_HSTS_SECONDS',
+    '0' if DEBUG else '31536000',
+))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', False)
+SECURE_HSTS_PRELOAD = _env_bool('SECURE_HSTS_PRELOAD', False)
+if _env_bool('TRUST_X_FORWARDED_PROTO', IS_RENDER):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+if not DEBUG:
+    if len(SECRET_KEY) < 50 or len(set(SECRET_KEY)) < 5 or SECRET_KEY.startswith('django-insecure-'):
+        raise ImproperlyConfigured('Set SECRET_KEY to a strong, unique value of at least 50 characters.')
+    if not os.getenv('ALLOWED_HOSTS', '').strip() or '*' in ALLOWED_HOSTS:
+        raise ImproperlyConfigured('Set ALLOWED_HOSTS to the exact public hostnames before deployment.')
+    if not CSRF_TRUSTED_ORIGINS:
+        raise ImproperlyConfigured('Set CSRF_TRUSTED_ORIGINS to the HTTPS origin of the public site.')
+    if not SECURE_SSL_REDIRECT or not SESSION_COOKIE_SECURE or not CSRF_COOKIE_SECURE:
+        raise ImproperlyConfigured('HTTPS redirect and secure session/CSRF cookies must be enabled in production.')
+    if SECURE_HSTS_SECONDS < 1:
+        raise ImproperlyConfigured('Set SECURE_HSTS_SECONDS to a positive value in production.')
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -22,6 +67,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'channels',
     'core',
     'accounts',
     'problems',
@@ -31,6 +77,7 @@ INSTALLED_APPS = [
     'campus_ai',
     'placement_predictor',
     'live_news',
+    'social.apps.SocialConfig',
 ]
 
 MIDDLEWARE = [
@@ -65,12 +112,21 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'lpu_nexus.wsgi.application'
+ASGI_APPLICATION = 'lpu_nexus.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')],
+        },
+    },
+}
 
 # --- Django's internal DB (kept for admin/sessions) ---
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.getenv('SQLITE_PATH', str(BASE_DIR / 'db.sqlite3')),
     }
 }
 
@@ -109,6 +165,7 @@ MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'lpu_nexus')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3.5-flash-lite')
 GEMINI_FALLBACK_MODEL = os.getenv('GEMINI_FALLBACK_MODEL', 'gemini-3.6-flash')
+GIPHY_API_KEY = os.getenv('GIPHY_API_KEY', '').strip()
 RECAPTCHA_SITE_KEY = os.getenv('RECAPTCHA_SITE_KEY', '').strip()
 RECAPTCHA_SECRET_KEY = os.getenv('RECAPTCHA_SECRET_KEY', '').strip()
 

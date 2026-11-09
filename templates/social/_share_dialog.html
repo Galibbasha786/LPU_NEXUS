@@ -1,0 +1,19 @@
+<dialog id="social-share-dialog" class="social-share-dialog" aria-labelledby="social-share-title">
+  <form method="dialog" class="social-share-dialog-header">
+    <div>
+      <h2 id="social-share-title">Share to a student's DM</h2>
+      <p>Find a verified student by registration number.</p>
+    </div>
+    <button class="btn-close" type="submit" aria-label="Close"></button>
+  </form>
+  <label class="visually-hidden" for="social-share-student-search">Student registration number</label>
+  <input id="social-share-student-search" class="form-control" type="search" maxlength="30" autocomplete="off" data-search-url="{% url 'social:search_students' %}" placeholder="Enter registration number">
+  <div id="social-share-student-results" class="social-student-suggestions" role="listbox"></div>
+  <p id="social-share-selection" class="small mb-2" aria-live="polite"></p>
+  <p id="social-share-status" class="small text-danger mb-2" aria-live="polite"></p>
+  <div class="social-share-dialog-actions">
+    <button id="social-share-send" class="btn btn-lpu" type="button" disabled>Send to DM</button>
+    <button class="btn btn-outline-secondary" type="button" data-share-dialog-close>Cancel</button>
+  </div>
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+</dialog>

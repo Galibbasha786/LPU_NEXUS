@@ -3,7 +3,10 @@ from unittest.mock import patch
 
 from PIL import Image
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.test import SimpleTestCase, override_settings
+from django.urls import reverse
+from pymongo.errors import PyMongoError
 
 from .storage import (
     IdentityCardStorageError,
@@ -15,6 +18,8 @@ from .storage import (
     ProblemImageStorageError,
     ProblemImageValidationError,
     ProfileImageUploadError,
+    SocialMediaStorageError,
+    SocialMediaValidationError,
     delete_identity_card,
     identity_card_download_url,
     incident_media_download_url,
@@ -24,6 +29,7 @@ from .storage import (
     save_identity_card,
     save_idea_media,
     save_profile_image,
+    save_social_media,
 )
 
 
@@ -75,6 +81,64 @@ class IdeaMediaStorageTests(SimpleTestCase):
             save_idea_media(SimpleUploadedFile(
                 'idea.mp4', b'x' * (40 * 1024 * 1024 + 1),
             ))
+
+
+class SocialMediaStorageTests(SimpleTestCase):
+    def setUp(self):
+        image_buffer = BytesIO()
+        Image.new('RGB', (2, 2), color='maroon').save(image_buffer, format='PNG')
+        self.image_bytes = image_buffer.getvalue()
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='test-cloud',
+        CLOUDINARY_API_KEY='test-key',
+        CLOUDINARY_API_SECRET='test-secret',
+    )
+    @patch('core.storage.cloudinary.uploader.upload')
+    def test_project_image_is_validated_and_uploaded(self, upload):
+        upload.return_value = {
+            'secure_url': 'https://res.cloudinary.com/test/project.png',
+            'public_id': 'lpu_nexus/social/project',
+        }
+        uploaded_file = SimpleUploadedFile('project.png', self.image_bytes)
+
+        result = save_social_media(uploaded_file)
+
+        self.assertEqual(result['media_type'], 'image')
+        self.assertEqual(result['url'], upload.return_value['secure_url'])
+        self.assertEqual(upload.call_args.kwargs['resource_type'], 'image')
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='test-cloud',
+        CLOUDINARY_API_KEY='test-key',
+        CLOUDINARY_API_SECRET='test-secret',
+    )
+    @patch('core.storage.cloudinary.uploader.upload')
+    def test_project_video_upload_uses_video_resource_type(self, upload):
+        upload.return_value = {
+            'secure_url': 'https://res.cloudinary.com/test/project.mp4',
+            'public_id': 'lpu_nexus/social/project-video',
+        }
+
+        result = save_social_media(SimpleUploadedFile('project.mp4', b'video-data'))
+
+        self.assertEqual(result['media_type'], 'video')
+        self.assertEqual(upload.call_args.kwargs['resource_type'], 'video')
+
+    def test_social_media_rejects_unsupported_and_mismatched_images(self):
+        with self.assertRaises(SocialMediaValidationError):
+            save_social_media(SimpleUploadedFile('project.svg', b'<svg></svg>'))
+        with self.assertRaisesMessage(SocialMediaValidationError, 'does not match'):
+            save_social_media(SimpleUploadedFile('project.jpg', self.image_bytes))
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME='',
+        CLOUDINARY_API_KEY='',
+        CLOUDINARY_API_SECRET='',
+    )
+    def test_social_media_requires_cloudinary_configuration(self):
+        with self.assertRaises(SocialMediaStorageError):
+            save_social_media(SimpleUploadedFile('project.mp4', b'video-data'))
 
 
 class ProfileImageStorageTests(SimpleTestCase):
@@ -264,6 +328,29 @@ class IncidentMediaStorageTests(SimpleTestCase):
     def test_incident_media_download_requires_asset_metadata(self):
         with self.assertRaises(IncidentMediaStorageError):
             incident_media_download_url(None)
+
+
+class MongoDeploymentTests(SimpleTestCase):
+    @patch('core.views.get_db')
+    def test_health_check_does_not_expose_database_error_details(self, get_db):
+        get_db.return_value.command.side_effect = PyMongoError('private connection detail')
+
+        response = self.client.get(reverse('core:health'))
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json(), {'status': 'error', 'db': 'unavailable'})
+        self.assertNotContains(response, 'private connection detail', status_code=503)
+
+    @patch('core.management.commands.init_mongo_indexes.init_indexes')
+    def test_mongo_indexes_have_an_explicit_management_command(self, init_indexes):
+        call_command('init_mongo_indexes')
+
+        init_indexes.assert_called_once_with()
+
+    def test_index_bootstrap_is_not_exposed_as_a_public_endpoint(self):
+        response = self.client.get('/core/bootstrap/')
+
+        self.assertEqual(response.status_code, 404)
 
 
 class ProblemImageStorageTests(SimpleTestCase):

@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Students • Social Hub{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/social.css' %}">{% endblock %}
+
+{% block content %}
+<main class="social-shell">
+  <header class="social-header">
+    <div>
+      <span class="social-eyebrow">LPU COMMUNITY</span>
+      <h1>Find students</h1>
+      <p>Start a private chat or manage who can contact you.</p>
+    </div>
+    <nav class="social-nav" aria-label="Social Hub">
+      <a class="btn btn-outline-secondary" href="{% url 'social:feed' %}"><i class="bi bi-house"></i> Feed</a>
+      <a class="btn btn-lpu" href="{% url 'social:chats' %}"><i class="bi bi-chat-dots"></i> Chats</a>
+    </nav>
+  </header>
+
+  <section class="social-card">
+    {% for student in students %}
+      <article class="social-person">
+        <div class="social-avatar">
+          {% if student.profile_image_url %}<img src="{{ student.profile_image_url }}" alt="">{% else %}<i class="bi bi-person-fill"></i>{% endif %}
+        </div>
+        <div class="social-person-info">
+          <strong>{{ student.full_name }}</strong>
+          {% if student.registration_number %}<span>Student · {{ student.registration_number }}</span>{% else %}<span>Verified LPU student</span>{% endif %}
+          {% if student.blocked_me %}<small>This student has blocked you.</small>{% endif %}
+        </div>
+        {% if not student.blocked_me and not student.blocked_by_me %}
+          <form method="post" action="{% url 'social:start_direct' %}">
+            {% csrf_token %}
+            <input type="hidden" name="peer_id" value="{{ student.id }}">
+            <button class="btn btn-sm btn-lpu" type="submit"><i class="bi bi-chat-dots"></i> Message</button>
+          </form>
+        {% endif %}
+        <form method="post" action="{% url 'social:block' student.id %}">
+          {% csrf_token %}
+          {% if student.blocked_by_me %}
+            <input type="hidden" name="blocked" value="false">
+            <button class="btn btn-sm btn-outline-secondary" type="submit">Unblock</button>
+          {% else %}
+            <input type="hidden" name="blocked" value="true">
+            <button class="btn btn-sm btn-outline-danger" type="submit">Block</button>
+          {% endif %}
+        </form>
+      </article>
+    {% empty %}
+      <div class="social-empty"><i class="bi bi-people"></i><p>No other verified students are available yet.</p></div>
+    {% endfor %}
+  </section>
+</main>
+{% endblock %}

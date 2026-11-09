@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Social Hub • LPU Nexus{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/social.css' %}">{% endblock %}
+
+{% block content %}
+<main class="social-shell">
+  <header class="social-header">
+    <div>
+      <span class="social-eyebrow">LPU STUDENTS</span>
+      <h1>Social Hub</h1>
+      <p>Share what you are building, learning, and imagining.</p>
+    </div>
+    <nav class="social-nav" aria-label="Social Hub">
+      <a class="btn btn-lpu" href="{% url 'social:people' %}"><i class="bi bi-people-fill"></i> Students</a>
+      <a class="btn btn-outline-secondary" href="{% url 'social:chats' %}"><i class="bi bi-chat-dots-fill"></i> Chats</a>
+    </nav>
+  </header>
+
+  <section class="social-card social-stories" aria-labelledby="stories-title">
+    <div class="social-section-heading">
+      <div>
+        <h2 id="stories-title">Stories</h2>
+        <p>Images and videos disappear after 24 hours.</p>
+      </div>
+      <span class="social-live-pill"><span></span> 24 hours</span>
+    </div>
+    <form class="social-story-form" method="post" enctype="multipart/form-data" action="{% url 'social:create_story' %}">
+      {% csrf_token %}
+      <label class="social-upload">
+        <i class="bi bi-plus-circle"></i>
+        <span>Add a story</span>
+        <input type="file" name="media" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov" required>
+      </label>
+      <input class="form-control" type="text" name="caption" maxlength="500" placeholder="Add a short story caption">
+      <button class="btn btn-lpu" type="submit">Share story</button>
+    </form>
+    {% if stories %}
+      <div class="social-story-list">
+        {% for story in stories %}
+          <article class="social-story">
+            <div class="social-story-media">
+              {% if story.media_type == 'video' %}
+                <video src="{{ story.media_url }}" controls preload="metadata"></video>
+              {% else %}
+                <img src="{{ story.media_url }}" alt="Story by {{ story.author_name }}" loading="lazy">
+              {% endif %}
+            </div>
+            <div class="social-story-caption">
+              <strong>{{ story.author_name }}</strong>
+              {% if story.caption %}<span>{{ story.caption }}</span>{% endif %}
+              <time>{{ story.expires_at|timeuntil }} left</time>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="social-empty mb-0">No active stories yet. Be the first to share one.</p>
+    {% endif %}
+  </section>
+
+  <div class="social-layout">
+    <section class="social-feed" aria-label="Student posts">
+      <div class="social-card social-compose">
+        <div class="social-section-heading">
+          <div>
+            <h2>Share a project or idea</h2>
+            <p>Post a photo, video, or a thought for the LPU community.</p>
+          </div>
+          <i class="bi bi-lightbulb social-compose-icon" aria-hidden="true"></i>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="social-post-form">
+          {% csrf_token %}
+          <label class="visually-hidden" for="social-caption">Post caption</label>
+          <textarea id="social-caption" class="form-control" name="caption" rows="3" maxlength="2200" placeholder="What are you working on? Share the idea behind it..." ></textarea>
+          <div class="social-form-row">
+            <label class="social-upload">
+              <i class="bi bi-image"></i><span>Add image/video</span>
+              <input type="file" name="media" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov">
+            </label>
+            <div class="social-tag-input" data-search-url="{% url 'social:search_students' %}">
+              <i class="bi bi-person-plus"></i>
+              <div class="social-tag-control">
+                <input class="form-control" type="search" id="tag-student-search" maxlength="30" autocomplete="off" placeholder="Tag a student by registration number">
+                <div id="tag-student-suggestions" class="social-student-suggestions" role="listbox"></div>
+                <div id="tagged-students-list" class="social-tagged-list"></div>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-lpu"><i class="bi bi-send-fill"></i> Publish</button>
+          </div>
+          <small class="form-text">Images up to 8 MB; videos up to 40 MB. Tag up to 20 verified students by registration number.</small>
+        </form>
+      </div>
+
+      {% for post in posts %}
+        <article class="social-card social-post" id="post-{{ post.id }}">
+          <header class="social-post-header">
+            <div class="social-avatar">
+              {% if post.author_image %}<img src="{{ post.author_image }}" alt="">{% else %}<i class="bi bi-person-fill"></i>{% endif %}
+            </div>
+            <div class="social-post-byline">
+              <strong>{{ post.author_name }}</strong>
+              {% if post.kind == 'reshare' %}<span>reshared a post</span>{% endif %}
+              <time>{{ post.created_at|date:"M j, Y · H:i" }}</time>
+            </div>
+            <button class="social-share-link" type="button" data-post-share data-post-id="{{ post.id }}" data-share-url-template="{% url 'social:share_post' 'POST_ID' %}" aria-label="Share post to a student's DM" title="Share to DM"><i class="bi bi-send"></i></button>
+          </header>
+
+          {% if post.caption %}<p class="social-post-caption">{{ post.caption }}</p>{% endif %}
+
+          {% if post.kind == 'reshare' %}
+            <div class="social-original">
+              <strong>{{ post.original.author_name }}</strong>
+              {% if post.original.caption %}<p>{{ post.original.caption }}</p>{% endif %}
+              {% if post.original.media_url %}
+                {% if post.original.media_type == 'video' %}
+                  <video src="{{ post.original.media_url }}" controls preload="metadata"></video>
+                {% else %}
+                  <img src="{{ post.original.media_url }}" alt="Project shared by {{ post.original.author_name }}" loading="lazy">
+                {% endif %}
+              {% endif %}
+            </div>
+          {% elif post.media_url %}
+            <div class="social-post-media">
+              {% if post.media_type == 'video' %}
+                <video src="{{ post.media_url }}" controls preload="metadata"></video>
+              {% else %}
+                <img src="{{ post.media_url }}" alt="Project or idea by {{ post.author_name }}" loading="lazy">
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if post.tagged_names %}
+            <p class="social-tag-note"><i class="bi bi-person-check"></i> Tagged: {{ post.tagged_names|join:", " }}</p>
+          {% endif %}
+
+          <div class="social-post-actions">
+            <form method="post" action="{% url 'social:like' post.id %}">
+              {% csrf_token %}
+              <button type="submit" class="{% if post.liked_by_me %}is-liked{% endif %}">
+                <i class="bi {% if post.liked_by_me %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
+                {{ post.likes_count }} Like{{ post.likes_count|pluralize }}
+              </button>
+            </form>
+            <span><i class="bi bi-chat"></i> {{ post.comments_count }} Comment{{ post.comments_count|pluralize }}</span>
+            <details class="social-reshare">
+              <summary><i class="bi bi-arrow-repeat"></i> Reshare</summary>
+              <form method="post" action="{% url 'social:reshare' post.id %}">
+                {% csrf_token %}
+                <input class="form-control form-control-sm" type="text" name="caption" maxlength="500" placeholder="Add a note (optional)">
+                <button class="btn btn-sm btn-outline-secondary" type="submit">Reshare to feed</button>
+              </form>
+            </details>
+          </div>
+
+          <div class="social-comments">
+            {% for comment in post.comments %}
+              <p><strong>{{ comment.author_name }}</strong> {{ comment.body }}</p>
+            {% endfor %}
+            <form method="post" action="{% url 'social:comment' post.id %}">
+              {% csrf_token %}
+              <label class="visually-hidden" for="comment-{{ post.id }}">Add a comment</label>
+              <input id="comment-{{ post.id }}" class="form-control" type="text" name="body" maxlength="2000" placeholder="Add a comment..." required>
+              <button class="btn btn-sm btn-lpu" type="submit">Comment</button>
+            </form>
+          </div>
+        </article>
+      {% empty %}
+        <div class="social-card social-empty">
+          <i class="bi bi-chat-square-heart"></i>
+          <h2>Your campus feed starts here</h2>
+          <p>Share a project, post an idea, or connect with another LPU student.</p>
+        </div>
+      {% endfor %}
+    </section>
+  </div>
+</main>
+{% include 'social/_share_dialog.html' %}
+<script src="{% static 'js/social-share.js' %}" defer></script>
+<script>
+(() => {
+  const control = document.querySelector('.social-tag-input');
+  const input = document.getElementById('tag-student-search');
+  const suggestions = document.getElementById('tag-student-suggestions');
+  const selectedList = document.getElementById('tagged-students-list');
+  if (!control) return;
+  const selected = new Map();
+  let debounceTimer;
+  let currentQuery = '';
+
+  function addStudent(student) {
+    if (selected.has(student.id)) return;
+    selected.set(student.id, student);
+    const chip = document.createElement('span');
+    chip.className = 'social-tag-chip';
+    chip.textContent = `${student.full_name} · ${student.registration_number}`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.setAttribute('aria-label', `Remove ${student.full_name}`);
+    remove.textContent = '×';
+    remove.addEventListener('click', () => {
+      selected.delete(student.id);
+      chip.remove();
+      control.closest('form').querySelectorAll('input[name="tagged_students"]').forEach(hidden => {
+        if (hidden.value === student.registration_number) hidden.remove();
+      });
+    });
+    chip.appendChild(remove);
+    selectedList.appendChild(chip);
+    const hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.name = 'tagged_students';
+    hidden.value = student.registration_number;
+    control.closest('form').appendChild(hidden);
+    input.value = '';
+    suggestions.replaceChildren();
+  }
+
+  input.addEventListener('input', () => {
+    window.clearTimeout(debounceTimer);
+    const query = input.value.trim();
+    currentQuery = query;
+    suggestions.replaceChildren();
+    if (query.length < 2) return;
+    debounceTimer = window.setTimeout(async () => {
+      try {
+        const url = new URL(control.dataset.searchUrl, window.location.origin);
+        url.searchParams.set('q', query);
+        const response = await fetch(url, {headers: {'Accept': 'application/json'}});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Student search failed.');
+        if (query !== currentQuery) return;
+        if (!data.results.length) {
+          const empty = document.createElement('p');
+          empty.className = 'social-suggestion-empty';
+          empty.textContent = 'No verified student found.';
+          suggestions.appendChild(empty);
+        }
+        data.results.forEach(student => {
+          const option = document.createElement('button');
+          option.type = 'button';
+          option.className = 'social-student-suggestion';
+          option.setAttribute('role', 'option');
+          const avatar = document.createElement('span');
+          avatar.className = 'social-suggestion-avatar';
+          if (student.profile_image_url) {
+            const image = document.createElement('img');
+            image.src = student.profile_image_url;
+            image.alt = '';
+            avatar.appendChild(image);
+          } else {
+            avatar.textContent = student.full_name.slice(0, 1);
+          }
+          const details = document.createElement('span');
+          details.className = 'social-suggestion-details';
+          const name = document.createElement('strong');
+          name.textContent = student.full_name;
+          const profile = document.createElement('small');
+          profile.textContent = [
+            student.registration_number,
+            student.department,
+            student.year ? `Year ${student.year}` : '',
+          ].filter(Boolean).join(' · ');
+          details.append(name, profile);
+          option.append(avatar, details);
+          option.addEventListener('click', () => addStudent(student));
+          suggestions.appendChild(option);
+        });
+      } catch (error) {
+        suggestions.replaceChildren();
+        const failure = document.createElement('p');
+        failure.className = 'social-suggestion-empty';
+        failure.textContent = error.message;
+        suggestions.appendChild(failure);
+      }
+    }, 250);
+  });
+})();
+</script>
+{% endblock %}
