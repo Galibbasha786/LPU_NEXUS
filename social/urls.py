@@ -13,6 +13,7 @@ urlpatterns = [
     path('posts/<str:post_id>/reshare/', views.reshare_post, name='reshare'),
     path('posts/<str:post_id>/share/', views.share_post, name='share_post'),
     path('people/', views.people, name='people'),
+    path('people/<str:peer_id>/', views.student_profile, name='student_profile'),
     path('students/search/', views.search_students, name='search_students'),
     path('people/<str:peer_id>/block/', views.set_student_block, name='block'),
     path('people/<str:peer_id>/follow/', views.set_student_follow, name='follow'),

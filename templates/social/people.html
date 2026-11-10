@@ -18,13 +18,19 @@
   </header>
 
   <section class="social-card">
+    <form method="get" action="{% url 'social:people' %}" class="social-people-search" role="search">
+      <label class="visually-hidden" for="student-search">Search students by name or registration number</label>
+      <input id="student-search" class="form-control" type="search" name="q" value="{{ search_query }}" placeholder="Search by student name or registration number" autocomplete="off">
+      <button class="btn btn-lpu" type="submit"><i class="bi bi-search" aria-hidden="true"></i> Search</button>
+      {% if search_query %}<a class="btn btn-outline-secondary" href="{% url 'social:people' %}">Clear</a>{% endif %}
+    </form>
     {% for student in students %}
       <article class="social-person social-profile-card">
-        <div class="social-avatar">
+        <a class="social-profile-link" href="{% url 'social:student_profile' student.id %}" aria-label="View {{ student.full_name }}'s profile"><div class="social-avatar">
           {% if student.profile_image_url %}<img src="{{ student.profile_image_url }}" alt="">{% else %}<i class="bi bi-person-fill"></i>{% endif %}
-        </div>
+        </div></a>
         <div class="social-person-info">
-          <strong>{{ student.full_name }}</strong>
+          <a class="social-profile-name" href="{% url 'social:student_profile' student.id %}"><strong>{{ student.full_name }}</strong></a>
           {% if student.registration_number %}<span>Student · {{ student.registration_number }}</span>{% else %}<span>Verified LPU student</span>{% endif %}
           {% if student.blocked_me %}<small>This student has blocked you.</small>{% endif %}
         </div>
@@ -52,7 +58,7 @@
         </form>
       </article>
     {% empty %}
-      <div class="social-empty"><i class="bi bi-people"></i><p>No other verified students are available yet.</p></div>
+      <div class="social-empty"><i class="bi bi-people"></i><p>{% if search_query %}No students found for “{{ search_query }}”. Try a name or registration number.{% else %}No other verified students are available yet.{% endif %}</p></div>
     {% endfor %}
   </section>
 </main>

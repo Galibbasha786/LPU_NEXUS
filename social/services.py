@@ -183,32 +183,34 @@ def search_students_for_tag(user_id, query):
     query = query.strip()[:30]
     if not query:
         return []
+    pattern = re.escape(query)
     profiles = list(student_profiles().find({
-        'registration_number': {
-            '$regex': f'^{re.escape(query)}',
-            '$options': 'i',
-        },
+        'registration_number': {'$regex': pattern, '$options': 'i'},
     }).limit(10))
     profile_by_user = {profile['user_id']: profile for profile in profiles}
-    students = users().find({
-        '_id': {
-            '$in': list(profile_by_user),
-            '$ne': to_object_id(user_id),
-        },
+    user_query = {
+        '$and': [{'$or': [
+            {'_id': {'$in': list(profile_by_user)}},
+            {'full_name': {'$regex': pattern, '$options': 'i'}},
+        ]}],
         'role': 'student',
         'active': {'$ne': False},
         '$or': [
             {'id_verification_status': 'verified'},
             {'id_verification_status': {'$exists': False}},
         ],
-    }).sort('full_name', ASCENDING)
+    }
+    user_query['$and'].append({'_id': {'$ne': to_object_id(user_id)}})
+    students = list(users().find(user_query).sort('full_name', ASCENDING).limit(30))
+    student_ids = [student['_id'] for student in students]
+    profiles_by_user = {profile['user_id']: profile for profile in student_profiles().find({'user_id': {'$in': student_ids}})} if student_ids else {}
     return [{
         'id': str(student['_id']),
         'full_name': student.get('full_name', 'LPU student'),
-        'registration_number': profile_by_user[student['_id']].get('registration_number', ''),
+        'registration_number': profiles_by_user.get(student['_id'], {}).get('registration_number', ''),
         'profile_image_url': student.get('profile_image_url', ''),
-        'department': profile_by_user[student['_id']].get('department', ''),
-        'year': profile_by_user[student['_id']].get('year', ''),
+        'department': profiles_by_user.get(student['_id'], {}).get('department', ''),
+        'year': profiles_by_user.get(student['_id'], {}).get('year', ''),
     } for student in students]
 
 
@@ -462,6 +464,29 @@ def list_feed(user_id, post_id=None):
             ]
         result.append(post)
     return result
+
+
+def student_profile(user_id, peer_id):
+    current = _require_student(user_id)
+    peer = _require_student(peer_id)
+    _require_unblocked(current['_id'], peer['_id'])
+    profile = student_profiles().find_one({'user_id': peer['_id']}) or {}
+    posts = list_feed(user_id)
+    posts = [post for post in posts if post.get('author_id') == str(peer['_id']) and post.get('kind') != 'reshare']
+    for post in posts:
+        post['author_name'] = peer.get('full_name', 'LPU student')
+    blocked = _is_blocked(current['_id'], peer['_id'])
+    return {
+        'id': str(peer['_id']),
+        'full_name': peer.get('full_name', 'LPU student'),
+        'profile_image_url': peer.get('profile_image_url', ''),
+        'registration_number': profile.get('registration_number', ''),
+        'department': profile.get('department', ''),
+        'year': profile.get('year', ''),
+        'following': social_follows().find_one({'follower_id': current['_id'], 'followed_id': peer['_id']}) is not None,
+        'blocked': blocked,
+        'posts': posts,
+    }
 
 
 def toggle_like(user_id, post_id):

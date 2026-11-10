@@ -95,11 +95,11 @@
       {% for post in posts %}
         <article class="social-card social-post" id="post-{{ post.id }}">
           <header class="social-post-header">
-            <div class="social-avatar">
+            <a class="social-profile-link" href="{% url 'social:student_profile' post.author_id %}" aria-label="View {{ post.author_name }}'s profile"><div class="social-avatar">
               {% if post.author_image %}<img src="{{ post.author_image }}" alt="">{% else %}<i class="bi bi-person-fill"></i>{% endif %}
-            </div>
+            </div></a>
             <div class="social-post-byline">
-              <strong>{{ post.author_name }}</strong>
+              <a class="social-profile-name" href="{% url 'social:student_profile' post.author_id %}"><strong>{{ post.author_name }}</strong></a>
               {% if post.kind == 'reshare' %}<span>reshared a post</span>{% endif %}
               <time>{{ post.created_at|date:"M j, Y · H:i" }}</time>
             </div>

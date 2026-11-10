@@ -65,6 +65,17 @@
   padding: 1.15rem;
 }
 
+.social-people-search {
+  display: flex;
+  gap: .6rem;
+  margin-bottom: .5rem;
+}
+.social-people-search .form-control { min-width: 0; }
+@media (max-width: 575.98px) {
+  .social-people-search { flex-wrap: wrap; }
+  .social-people-search .form-control { flex: 1 1 100%; }
+}
+
 .social-section-heading {
   margin-bottom: 1rem;
 }
@@ -520,6 +531,28 @@
   height: 100%;
   object-fit: cover;
   width: 100%;
+}
+
+.social-profile-name { color: inherit; text-decoration: none; }
+.social-profile-name:hover { color: var(--lpu-maroon, #7a0019); text-decoration: underline; }
+.social-profile-link { color: inherit; text-decoration: none; }
+.social-public-profile { display: flex; align-items: center; gap: 1.5rem; }
+.social-profile-avatar-large {
+  display: grid; place-items: center; flex: 0 0 128px; width: 128px; height: 128px;
+  overflow: hidden; border-radius: 50%; border: 4px solid #c52b59;
+  background: #f7edf1; color: var(--lpu-maroon, #7a0019); font-size: 4rem;
+}
+.social-profile-avatar-large img { width: 100%; height: 100%; object-fit: cover; }
+.social-public-profile-info { flex: 1; min-width: 0; }
+.social-public-profile-info h2 { margin: 0; font-size: 1.4rem; }
+.social-public-profile-info p { margin: .35rem 0; color: var(--text-muted, #687080); }
+.social-profile-posts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.social-profile-posts .social-card { margin: 0; }
+.social-profile-post-meta { display: flex; justify-content: space-between; color: var(--text-muted, #687080); font-size: .82rem; }
+@media (max-width: 700px) {
+  .social-public-profile { align-items: flex-start; flex-wrap: wrap; }
+  .social-profile-avatar-large { flex-basis: 88px; width: 88px; height: 88px; font-size: 2.8rem; }
+  .social-profile-posts { grid-template-columns: minmax(0, 1fr); }
 }
 
 .social-person:last-child {

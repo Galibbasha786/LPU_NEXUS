@@ -319,8 +319,16 @@ def share_post(request, post_id):
 @verified_student_required
 @require_http_methods(['GET'])
 def people(request):
+    query = (request.GET.get('q') or '').strip()[:30]
     try:
-        students = services.students_for_people(request.social_user['id'])
+        students = (
+            services.search_students_for_tag(request.social_user['id'], query)
+            if query else services.students_for_people(request.social_user['id'])
+        )
+        if query:
+            states = {student['id']: student for student in services.students_for_people(request.social_user['id'], limit=200)}
+            for student in students:
+                student.update({key: states.get(student['id'], {}).get(key) for key in ('blocked_by_me', 'blocked_me', 'following')})
     except services.SocialAccessError as error:
         messages.error(request, str(error))
         students = []
@@ -331,6 +339,26 @@ def people(request):
     return render(request, 'social/people.html', {
         'user': request.social_user,
         'students': students,
+        'search_query': query,
+    })
+
+
+@login_required_mongo
+@verified_student_required
+@require_http_methods(['GET'])
+def student_profile(request, peer_id):
+    try:
+        profile = services.student_profile(request.social_user['id'], peer_id)
+    except (ValueError, services.SocialAccessError):
+        messages.error(request, 'That student profile is unavailable.')
+        return redirect('social:people')
+    except PyMongoError:
+        logger.exception('Could not load a Social Hub student profile')
+        messages.error(request, 'The student profile could not be loaded. Please try again.')
+        return redirect('social:people')
+    return render(request, 'social/student_profile.html', {
+        'user': request.social_user,
+        'profile': profile,
     })
 
 

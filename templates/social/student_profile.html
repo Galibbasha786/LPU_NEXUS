@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ profile.full_name }} • Social Hub{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/social.css' %}">{% endblock %}
+
+{% block content %}
+<main class="social-shell">
+  <header class="social-header">
+    <div><span class="social-eyebrow">STUDENT PROFILE</span><h1>{{ profile.full_name }}</h1><p>Posts and campus details</p></div>
+    <nav class="social-nav" aria-label="Social Hub"><a class="btn btn-outline-secondary" href="{% url 'social:people' %}"><i class="bi bi-arrow-left"></i> Students</a><a class="btn btn-outline-secondary" href="{% url 'social:feed' %}"><i class="bi bi-house"></i> Feed</a></nav>
+  </header>
+
+  <section class="social-card social-public-profile">
+    <div class="social-profile-avatar-large">{% if profile.profile_image_url %}<img src="{{ profile.profile_image_url }}" alt="{{ profile.full_name }}">{% else %}<i class="bi bi-person-fill" aria-hidden="true"></i>{% endif %}</div>
+    <div class="social-public-profile-info"><h2>{{ profile.full_name }}</h2><p>{% if profile.registration_number %}{{ profile.registration_number }}{% else %}Verified LPU student{% endif %}{% if profile.department %} · {{ profile.department }}{% endif %}{% if profile.year %} · Year {{ profile.year }}{% endif %}</p><strong>{{ profile.posts|length }} post{{ profile.posts|length|pluralize }}</strong></div>
+    {% if not profile.blocked %}<form method="post" action="{% url 'social:follow' profile.id %}">{% csrf_token %}<input type="hidden" name="following" value="{% if profile.following %}false{% else %}true{% endif %}"><button class="btn {% if profile.following %}btn-outline-secondary{% else %}btn-lpu{% endif %}" type="submit">{% if profile.following %}Following · Unfollow{% else %}<i class="bi bi-person-plus"></i> Follow{% endif %}</button></form>{% endif %}
+  </section>
+
+  <section aria-label="Student posts" class="social-profile-posts">
+    {% for post in profile.posts %}
+      <article class="social-card social-post">
+        {% if post.caption %}<p class="social-post-caption">{{ post.caption }}</p>{% endif %}
+        {% if post.media_url %}<div class="social-post-media">{% if post.media_type == 'video' %}<video src="{{ post.media_url }}" controls preload="metadata"></video>{% else %}<img src="{{ post.media_url }}" alt="Post by {{ profile.full_name }}" loading="lazy">{% endif %}</div>{% endif %}
+        <div class="social-profile-post-meta"><time>{{ post.created_at|date:"M j, Y · H:i" }}</time><span><i class="bi bi-heart-fill" aria-hidden="true"></i> {{ post.likes_count }}</span><span><i class="bi bi-chat-fill" aria-hidden="true"></i> {{ post.comments_count }}</span></div>
+      </article>
+    {% empty %}<div class="social-card social-empty"><i class="bi bi-camera"></i><p>This student has not shared any posts yet.</p></div>{% endfor %}
+  </section>
+</main>
+{% endblock %}
