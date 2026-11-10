@@ -55,6 +55,7 @@ def social_chats():         return get_db()['social_chats']
 def social_messages():      return get_db()['social_messages']
 def social_blocks():        return get_db()['social_blocks']
 def social_follows():       return get_db()['social_follows']
+def campus_bulletins():     return get_db()['campus_bulletins']
 
 def init_indexes():
     """Create MongoDB indexes. Safe to call repeatedly."""
@@ -106,6 +107,8 @@ def init_indexes():
         notifications().create_index(
             [("user_id", ASCENDING), ("read", ASCENDING)]
         )
+
+        campus_bulletins().create_index([("published", ASCENDING), ("created_at", DESCENDING)])
                 # Crisis
         incidents().create_index([("status", ASCENDING)])
         incidents().create_index([("category", ASCENDING)])

@@ -42,6 +42,21 @@
     {% endfor %}
   </div>
 </div>
+<div class="campus-headline-marquee" aria-label="Campus news headlines">
+  <span class="campus-headline-label"><i class="bi bi-megaphone-fill" aria-hidden="true"></i> CAMPUS HEADLINES</span>
+  <div class="campus-headline-window">
+    <div class="campus-headline-track" {% if not campus_bulletins %}data-empty="true"{% endif %}>
+      {% for bulletin in campus_bulletins %}
+        <span class="campus-headline-item"><b class="campus-headline-kind campus-headline-{{ bulletin.category }}">{{ bulletin.category|upper }}</b><strong>{{ bulletin.title }}</strong><span>{{ bulletin.body|truncatechars:130 }}</span></span>
+      {% empty %}
+        <span class="campus-headline-item"><b class="campus-headline-kind campus-headline-news">CAMPUS NEWS</b><strong>Campus headlines will appear here</strong><span>Staff can publish university news and special events from the Staff Dashboard.</span></span>
+      {% endfor %}
+      {% for bulletin in campus_bulletins %}
+        <span class="campus-headline-item" aria-hidden="true"><b class="campus-headline-kind campus-headline-{{ bulletin.category }}">{{ bulletin.category|upper }}</b><strong>{{ bulletin.title }}</strong><span>{{ bulletin.body|truncatechars:130 }}</span></span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════ CRISIS OVERLAY ═══════════════════════════════ -->
 <div id="crisis-overlay" style="display:none;position:fixed;inset:0;background:rgba(120,20,20,0.95);color:#fff;z-index:9999;padding:60px 20px;text-align:center;">
