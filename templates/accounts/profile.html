@@ -11,6 +11,14 @@
       <p>{{ user.email }}</p>
     </div>
     <span class="profile-role">{{ user.role }}</span>
+    <div class="profile-photo-panel">
+      {% if user.profile_image_url %}<img class="profile-photo" src="{{ user.profile_image_url }}" alt="Profile photo">{% else %}<span class="profile-photo profile-photo-placeholder"><i class="bi bi-person-fill" aria-hidden="true"></i></span>{% endif %}
+      <form method="post" enctype="multipart/form-data" class="profile-photo-form">
+        {% csrf_token %}<input type="hidden" name="action" value="update_photo"><label class="form-label-lpu" for="profile-image">Profile photo</label>
+        <input class="form-control form-control-lpu" id="profile-image" type="file" name="profile_image" accept=".jpg,.jpeg,.png,.webp" required>
+        <button class="btn btn-sm btn-lpu mt-2" type="submit">Upload photo</button>
+      </form>
+    </div>
   </header>
 
   <div class="profile-grid">

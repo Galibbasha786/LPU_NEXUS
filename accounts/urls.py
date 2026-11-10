@@ -32,6 +32,7 @@ urlpatterns = [
     path('nexus-admin/staff/create/', views.admin_create_staff, name='admin_create_staff'),
     path('nexus-admin/staff/', views.admin_list_staff, name='admin_list_staff'),
     path('nexus-admin/students/', views.admin_list_students, name='admin_list_students'),
+    path('nexus-admin/accounts/<str:user_id>/suspension/', views.set_account_suspension, name='account_suspension'),
     path(
         'staff/student-verifications/',
         views.staff_student_verification_queue,

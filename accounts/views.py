@@ -396,6 +396,25 @@ def profile_view(request):
                     messages.success(request, "Your profile details have been updated.")
                     return redirect('accounts:profile')
 
+    elif request.method == 'POST' and action == 'update_photo':
+        try:
+            image = save_profile_image(request.FILES.get('profile_image'))
+        except ProfileImageUploadError as error:
+            messages.error(request, str(error))
+        else:
+            old_image = {
+                'profile_image_path': user.get('profile_image_path'),
+                'profile_image_public_id': user.get('profile_image_public_id'),
+            }
+            if not update_profile_image(user_id, image):
+                delete_profile_image(image)
+                messages.error(request, "Your profile photo could not be saved.")
+            else:
+                request.session['lpu_user_image'] = image['url']
+                delete_profile_image(old_image)
+                messages.success(request, "Your profile photo has been updated.")
+                return redirect('accounts:profile')
+
     elif request.method == 'POST' and action == 'change_password':
         current_password = request.POST.get('current_password', '')
         new_password = request.POST.get('new_password', '')
@@ -736,17 +755,22 @@ def admin_create_staff(request):
 @role_required('admin')
 def admin_list_staff(request):
     from core.utils import serialize_list
+    query = (request.GET.get('q') or '').strip().casefold()
+    staff_list = list_staff()
+    if query:
+        staff_list = [item for item in staff_list if query in item.get('full_name', '').casefold() or query in item.get('email', '').casefold() or query in item.get('department', '').casefold()]
     return render(request, 'accounts/admin_list_staff.html', {
         'user': get_current_user(request),
-        'staff_list': serialize_list(list_staff()),
+        'staff_list': serialize_list(staff_list), 'search_query': request.GET.get('q', ''),
     })
 
 
 @login_required_mongo
-@role_required('admin')
+@role_required('admin', 'staff')
 def admin_list_students(request):
     from core.utils import serialize_list
     students = list_students()
+    query = (request.GET.get('q') or '').strip().casefold()
     for student in students:
         profile = get_student_profile(str(student['_id'])) or {}
         student.update({
@@ -758,10 +782,30 @@ def admin_list_students(request):
                 'id_verification_status', 'verified',
             ),
         })
+    if query:
+        students = [item for item in students if any(query in str(item.get(key, '')).casefold() for key in ('full_name', 'email', 'registration_number', 'department'))]
     return render(request, 'accounts/admin_list_students.html', {
         'user': get_current_user(request),
         'students': serialize_list(students),
+        'search_query': request.GET.get('q', ''),
     })
+
+
+@login_required_mongo
+@role_required('admin', 'staff')
+@require_http_methods(['POST'])
+def set_account_suspension(request, user_id):
+    target = get_user_by_id(user_id)
+    actor_role = request.session.get('lpu_user_role')
+    if not target or target.get('role') not in (('student', 'staff') if actor_role == 'admin' else ('student',)):
+        messages.error(request, "You don't have permission to suspend that account.")
+        return redirect('accounts:admin_list_students' if actor_role == 'staff' or (target and target.get('role') == 'student') else 'accounts:admin_list_staff')
+    active = request.POST.get('active') == 'true'
+    users().update_one({'_id': target['_id']}, {'$set': {'active': active}})
+    messages.success(request, 'Account reactivated.' if active else 'Account suspended.')
+    if target.get('role') == 'student':
+        return redirect('accounts:admin_list_students')
+    return redirect('accounts:admin_list_staff')
 
 
 @login_required_mongo

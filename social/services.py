@@ -11,6 +11,7 @@ from pymongo.errors import DuplicateKeyError
 
 from core.mongo import (
     social_blocks,
+    social_follows,
     social_chats,
     social_comments,
     social_likes,
@@ -126,6 +127,7 @@ def students_for_people(user_id, limit=200):
     })) if student_ids else []
     blocked_by_me = {block['blocked_id'] for block in blocks if block['blocker_id'] == current_oid}
     blocked_me = {block['blocker_id'] for block in blocks if block['blocked_id'] == current_oid}
+    follows = {edge['followed_id'] for edge in social_follows().find({'follower_id': current_oid, 'followed_id': {'$in': student_ids}})} if student_ids else set()
 
     return [{
         'id': str(student['_id']),
@@ -134,6 +136,7 @@ def students_for_people(user_id, limit=200):
         'registration_number': profiles.get(student['_id'], {}).get('registration_number', ''),
         'blocked_by_me': student['_id'] in blocked_by_me,
         'blocked_me': student['_id'] in blocked_me,
+        'following': student['_id'] in follows,
     } for student in students]
 
 
@@ -863,6 +866,23 @@ def set_block(user_id, peer_id, blocked):
             pass
         return True
     social_blocks().delete_one(query)
+    return False
+
+
+def set_follow(user_id, peer_id, following):
+    current = _require_student(user_id)
+    peer = _require_student(peer_id)
+    if current['_id'] == peer['_id']:
+        raise ValueError('You cannot follow yourself.')
+    _require_unblocked(current['_id'], peer['_id'])
+    query = {'follower_id': current['_id'], 'followed_id': peer['_id']}
+    if following:
+        try:
+            social_follows().insert_one({**query, 'created_at': now()})
+        except DuplicateKeyError:
+            pass
+        return True
+    social_follows().delete_one(query)
     return False
 
 

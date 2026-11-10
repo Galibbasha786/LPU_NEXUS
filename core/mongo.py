@@ -54,6 +54,7 @@ def social_stories():       return get_db()['social_stories']
 def social_chats():         return get_db()['social_chats']
 def social_messages():      return get_db()['social_messages']
 def social_blocks():        return get_db()['social_blocks']
+def social_follows():       return get_db()['social_follows']
 
 def init_indexes():
     """Create MongoDB indexes. Safe to call repeatedly."""
@@ -145,6 +146,7 @@ def init_indexes():
             unique=True,
         )
         social_comments().create_index([("post_id", ASCENDING), ("created_at", DESCENDING)])
+        social_follows().create_index([("follower_id", ASCENDING), ("followed_id", ASCENDING)], unique=True)
         social_stories().create_index(
             [("expires_at", ASCENDING)], expireAfterSeconds=0,
         )

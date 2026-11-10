@@ -15,6 +15,7 @@
     <p class="mb-0">Navigate, report, and help shape a better LPU.</p>
   </div>
 </div>
+<div class="d-flex justify-content-end mb-3"><a class="btn btn-outline-primary position-relative" href="{% url 'accounts:notifications' %}" aria-label="Notifications"><i class="bi bi-bell-fill" aria-hidden="true"></i> Notifications{% if unread_notifications %}<span class="badge rounded-pill text-bg-danger ms-1">{{ unread_notifications }}</span>{% endif %}</a></div>
 <!-- LIVE ALERTS (from staff announcements) -->
 <div id="student-alerts" aria-live="polite"></div>
 

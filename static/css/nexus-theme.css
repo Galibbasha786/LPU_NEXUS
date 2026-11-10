@@ -2345,6 +2345,11 @@ input[type="file"].form-control {
   text-transform: uppercase;
 }
 
+.profile-photo-panel { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
+.profile-photo { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 3px solid var(--lpu-gold); background: rgba(255,255,255,.15); }
+.profile-photo-placeholder { display: grid; place-items: center; color: #fff; font-size: 2.5rem; }
+.profile-photo-form { max-width: 300px; }
+
 .profile-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

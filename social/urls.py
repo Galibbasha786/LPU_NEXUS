@@ -15,6 +15,7 @@ urlpatterns = [
     path('people/', views.people, name='people'),
     path('students/search/', views.search_students, name='search_students'),
     path('people/<str:peer_id>/block/', views.set_student_block, name='block'),
+    path('people/<str:peer_id>/follow/', views.set_student_follow, name='follow'),
     path('chats/', views.chats, name='chats'),
     path('chats/direct/', views.start_direct_chat, name='start_direct'),
     path('chats/<str:chat_id>/', views.chat_detail, name='chat'),

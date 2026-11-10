@@ -9,7 +9,7 @@
     <div>
       <span class="social-eyebrow">LPU COMMUNITY</span>
       <h1>Find students</h1>
-      <p>Start a private chat or manage who can contact you.</p>
+      <p>Follow classmates, share updates, and start conversations.</p>
     </div>
     <nav class="social-nav" aria-label="Social Hub">
       <a class="btn btn-outline-secondary" href="{% url 'social:feed' %}"><i class="bi bi-house"></i> Feed</a>
@@ -19,7 +19,7 @@
 
   <section class="social-card">
     {% for student in students %}
-      <article class="social-person">
+      <article class="social-person social-profile-card">
         <div class="social-avatar">
           {% if student.profile_image_url %}<img src="{{ student.profile_image_url }}" alt="">{% else %}<i class="bi bi-person-fill"></i>{% endif %}
         </div>
@@ -29,6 +29,11 @@
           {% if student.blocked_me %}<small>This student has blocked you.</small>{% endif %}
         </div>
         {% if not student.blocked_me and not student.blocked_by_me %}
+          <form method="post" action="{% url 'social:follow' student.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="following" value="{% if student.following %}false{% else %}true{% endif %}">
+            <button class="btn btn-sm {% if student.following %}btn-outline-secondary{% else %}btn-lpu{% endif %}" type="submit">{% if student.following %}Following · Unfollow{% else %}<i class="bi bi-person-plus"></i> Follow{% endif %}</button>
+          </form>
           <form method="post" action="{% url 'social:start_direct' %}">
             {% csrf_token %}
             <input type="hidden" name="peer_id" value="{{ student.id }}">

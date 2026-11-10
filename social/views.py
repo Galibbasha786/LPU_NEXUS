@@ -375,6 +375,23 @@ def set_student_block(request, peer_id):
 
 @login_required_mongo
 @verified_student_required
+@require_POST
+def set_student_follow(request, peer_id):
+    following = request.POST.get('following') == 'true'
+    try:
+        services.set_follow(request.social_user['id'], peer_id, following)
+    except (ValueError, services.SocialAccessError) as error:
+        messages.error(request, str(error))
+    except PyMongoError:
+        logger.exception('Could not update a Social Hub follow')
+        messages.error(request, 'The follow setting could not be updated. Please try again.')
+    else:
+        messages.success(request, 'Student followed.' if following else 'Student unfollowed.')
+    return redirect('social:people')
+
+
+@login_required_mongo
+@verified_student_required
 @require_http_methods(['GET', 'POST'])
 def chats(request):
     user = request.social_user

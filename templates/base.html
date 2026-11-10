@@ -329,6 +329,15 @@
         </a>
       {% endif %}
 
+      {% if request.session.lpu_user_role == 'staff' %}
+        <div class="nx-sidebar-divider nx-sidebar-divider-sm"></div>
+        <a href="{% url 'accounts:admin_list_students' %}" class="nx-sidebar-link" data-tooltip="Students">
+          <span class="nx-slink-icon nx-icon-blue"><i class="bi bi-mortarboard-fill"></i></span>
+          <span class="nx-slink-text">Students</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+      {% endif %}
+
       {% if request.session.lpu_user_role == 'admin' %}
         <div class="nx-sidebar-divider nx-sidebar-divider-sm"></div>
         <p class="nx-sidebar-label nx-sidebar-label-sm"><i class="bi bi-shield-lock-fill"></i> Admin</p>
