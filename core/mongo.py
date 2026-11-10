@@ -108,7 +108,8 @@ def init_indexes():
             [("user_id", ASCENDING), ("read", ASCENDING)]
         )
 
-        campus_bulletins().create_index([("published", ASCENDING), ("created_at", DESCENDING)])
+        campus_bulletins().create_index([("published", ASCENDING), ("starts_at", ASCENDING), ("expires_at", ASCENDING)])
+        campus_bulletins().create_index([("expires_at", ASCENDING)], expireAfterSeconds=0)
                 # Crisis
         incidents().create_index([("status", ASCENDING)])
         incidents().create_index([("category", ASCENDING)])

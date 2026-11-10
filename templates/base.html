@@ -21,7 +21,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+Devanagari:wght@400;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'css/nexus-theme.css' %}?v=20261106-v2">
+<link rel="stylesheet" href="{% static 'css/nexus-theme.css' %}?v=20261110-v1">
+<link rel="stylesheet" href="{% static 'css/campus-bulletins.css' %}?v=20261110-v1">
 {% block extra_head %}{% endblock %}
 </head>
 
@@ -45,18 +46,32 @@
 <div class="campus-headline-marquee" aria-label="Campus news headlines">
   <span class="campus-headline-label"><i class="bi bi-megaphone-fill" aria-hidden="true"></i> CAMPUS HEADLINES</span>
   <div class="campus-headline-window">
-    <div class="campus-headline-track" {% if not campus_bulletins %}data-empty="true"{% endif %}>
+    <div id="campus-headline-track" class="campus-headline-track" data-ticker-url="{% url 'campus_bulletins:ticker' %}" {% if not campus_bulletins %}data-empty="true"{% endif %}>
       {% for bulletin in campus_bulletins %}
-        <span class="campus-headline-item"><b class="campus-headline-kind campus-headline-{{ bulletin.category }}">{{ bulletin.category|upper }}</b><strong>{{ bulletin.title }}</strong><span>{{ bulletin.body|truncatechars:130 }}</span></span>
+        <span class="campus-headline-item"><b class="campus-headline-kind campus-headline-{{ bulletin.category }}">{{ bulletin.category|upper }}</b><strong>{{ bulletin.title }}</strong><span>{{ bulletin.body }}</span></span>
       {% empty %}
         <span class="campus-headline-item"><b class="campus-headline-kind campus-headline-news">CAMPUS NEWS</b><strong>Campus headlines will appear here</strong><span>Staff can publish university news and special events from the Staff Dashboard.</span></span>
       {% endfor %}
       {% for bulletin in campus_bulletins %}
-        <span class="campus-headline-item" aria-hidden="true"><b class="campus-headline-kind campus-headline-{{ bulletin.category }}">{{ bulletin.category|upper }}</b><strong>{{ bulletin.title }}</strong><span>{{ bulletin.body|truncatechars:130 }}</span></span>
+        <span class="campus-headline-item" aria-hidden="true"><b class="campus-headline-kind campus-headline-{{ bulletin.category }}">{{ bulletin.category|upper }}</b><strong>{{ bulletin.title }}</strong><span>{{ bulletin.body }}</span></span>
       {% endfor %}
     </div>
   </div>
 </div>
+<script>
+(function () {
+  const track = document.getElementById('campus-headline-track');
+  if (!track || !track.dataset.tickerUrl) return;
+  const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  const render = (items) => {
+    const visible = items.length ? items : [{category:'news',title:'Campus headlines will appear here',body:'Staff can publish university news and special events from the Staff Dashboard.'}];
+    const itemHtml = (item, duplicate) => `<span class="campus-headline-item"${duplicate ? ' aria-hidden="true"' : ''}><b class="campus-headline-kind campus-headline-${escapeHtml(item.category)}">${escapeHtml(item.category).toUpperCase()}</b><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.body)}</span></span>`;
+    track.innerHTML = visible.map((item) => itemHtml(item, false)).join('') + (items.length ? visible.map((item) => itemHtml(item, true)).join('') : '');
+    track.toggleAttribute('data-empty', !items.length);
+  };
+  window.setInterval(() => fetch(track.dataset.tickerUrl, {headers:{'X-Requested-With':'XMLHttpRequest'}}).then((response) => response.ok ? response.json() : null).then((data) => { if (data && data.bulletins) render(data.bulletins); }).catch(() => {}), 60000);
+})();
+</script>
 
 <!-- ═══════════════════════════════ CRISIS OVERLAY ═══════════════════════════════ -->
 <div id="crisis-overlay" style="display:none;position:fixed;inset:0;background:rgba(120,20,20,0.95);color:#fff;z-index:9999;padding:60px 20px;text-align:center;">

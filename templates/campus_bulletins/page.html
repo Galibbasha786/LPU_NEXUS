@@ -1,21 +1,22 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Campus Headlines • LPU Nexus{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/campus-bulletins.css' %}">{% endblock %}
 {% block content %}
 <main class="bulletin-page">
   <header class="hero-header"><span class="hero-badge"><i class="bi bi-megaphone-fill me-1"></i>STAFF PUBLISHING</span><h1>Campus Headlines</h1><p>Share university news, daily updates, breaking news, and special events.</p></header>
   <div class="bulletin-layout">
     <form method="post" class="card-lpu card-accent-gold bulletin-compose">
-      {% csrf_token %}<h2>Post an update</h2>
+      {% csrf_token %}<h2>Schedule an update</h2><p class="small text-muted">Times use LPU local time (IST). Expired updates are automatically removed.</p>
       <label class="form-label-lpu" for="bulletin-category">Category</label>
       <select class="form-control form-control-lpu mb-3" id="bulletin-category" name="category"><option value="news">Campus news</option><option value="event">Special event</option><option value="breaking">Breaking news</option><option value="special">Special announcement</option></select>
       <label class="form-label-lpu" for="bulletin-title">Headline</label><input class="form-control form-control-lpu mb-3" id="bulletin-title" name="title" maxlength="160" required placeholder="Write a short, clear headline">
       <label class="form-label-lpu" for="bulletin-body">Details</label><textarea class="form-control form-control-lpu mb-3" id="bulletin-body" name="body" rows="5" maxlength="1200" required placeholder="Add details students should know"></textarea>
+      <label class="form-label-lpu" for="bulletin-start">Start floating at (IST)</label><input class="form-control form-control-lpu mb-3" id="bulletin-start" type="datetime-local" name="starts_at" min="{{ now_local }}" required>
+      <label class="form-label-lpu" for="bulletin-end">Stop and delete at (IST)</label><input class="form-control form-control-lpu mb-3" id="bulletin-end" type="datetime-local" name="expires_at" min="{{ now_local }}" required>
       <button class="btn btn-lpu w-100" type="submit"><i class="bi bi-broadcast me-1"></i>Publish to headline ticker</button>
     </form>
     <section class="bulletin-list"><h2>Recent campus updates</h2>
-      {% for bulletin in bulletins %}<article class="card-lpu bulletin-item"><div class="d-flex align-items-center gap-2 mb-2"><span class="bulletin-badge bulletin-badge-{{ bulletin.category }}">{{ bulletin.category|upper }}</span><time class="small text-muted">{{ bulletin.created_at|slice:":16" }}</time></div><h3>{{ bulletin.title }}</h3><p>{{ bulletin.body|linebreaksbr }}</p><small class="text-muted">Posted by {{ bulletin.author_name }}</small></article>
+      {% for bulletin in bulletins %}<article class="card-lpu bulletin-item"><div class="d-flex align-items-center gap-2 mb-2"><span class="bulletin-badge bulletin-badge-{{ bulletin.category }}">{{ bulletin.category|upper }}</span>{% if bulletin.starts_at %}<span class="small text-muted">{% if bulletin.expires_at <= now_utc %}Expired · {% elif bulletin.starts_at > now_utc %}Scheduled {% else %}Floating {% endif %}{{ bulletin.starts_at|slice:":16" }} to {{ bulletin.expires_at|slice:":16" }} UTC (IST +5:30)</span>{% endif %}<time class="small text-muted">Posted {{ bulletin.created_at|slice:":16" }}</time></div><h3>{{ bulletin.title }}</h3><p>{{ bulletin.body|linebreaksbr }}</p><small class="text-muted">Posted by {{ bulletin.author_name }}</small></article>
       {% empty %}<div class="card-lpu text-center py-5"><i class="bi bi-megaphone fs-2"></i><p class="mb-0 mt-2">No updates yet. Publish the first campus headline.</p></div>{% endfor %}
     </section>
   </div>

@@ -24,9 +24,9 @@
   letter-spacing: .08em;
 }
 .campus-headline-window { min-width: 0; flex: 1; overflow: hidden; }
-.campus-headline-track { display: flex; width: max-content; animation: campus-headline-scroll 54s linear infinite; }
+.campus-headline-track { display: flex; width: max-content; animation: campus-headline-scroll 24s linear infinite; }
 .campus-headline-marquee:hover .campus-headline-track { animation-play-state: paused; }
-.campus-headline-track[data-empty="true"] { animation-duration: 36s; }
+.campus-headline-track[data-empty="true"] { animation-duration: 24s; }
 .campus-headline-item { display: inline-flex; align-items: center; gap: .55rem; padding: 0 2.5rem; min-height: 38px; white-space: nowrap; font-size: .78rem; }
 .campus-headline-item strong { font-weight: 900; }
 .campus-headline-item > span:last-child { color: #63565a; }
