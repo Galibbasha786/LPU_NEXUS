@@ -139,25 +139,25 @@
   <div class="col-6 col-md-3">
     <div class="stat-card-lpu">
       <div class="stat-num">{{ stats.my_reports }}</div>
-      <div class="stat-label">My Reports</div>
+      <div class="stat-label" data-i18n="dashboard.stat.reports">My Reports</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="stat-card-lpu">
       <div class="stat-num" style="color:var(--lpu-gold);">{{ stats.affected_confirmations }}</div>
-      <div class="stat-label">"I'm Affected Too"</div>
+      <div class="stat-label" data-i18n="dashboard.stat.affected">"I'm Affected Too"</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="stat-card-lpu">
       <div class="stat-num" style="color:var(--nx-blue);">{{ stats.my_ideas }}</div>
-      <div class="stat-label">My Ideas</div>
+      <div class="stat-label" data-i18n="dashboard.stat.ideas">My Ideas</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="stat-card-lpu">
       <div class="stat-num" style="color:var(--nx-coral);">{{ stats.open_emergencies }}</div>
-      <div class="stat-label">Open Emergencies</div>
+      <div class="stat-label" data-i18n="dashboard.stat.emergencies">Open Emergencies</div>
     </div>
   </div>
 </div>
@@ -165,33 +165,33 @@
 <section class="card-lpu mb-4 card-accent-orange">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
     <div>
-      <h5 class="mb-1"><i class="bi bi-calculator-fill me-1" aria-hidden="true"></i>Attendance &amp; GPA calculators</h5>
-      <p class="small text-muted mb-0">Plan around the 75% attendance requirement and calculate credit-weighted TGPA or CGPA.</p>
+      <h5 class="mb-1"><i class="bi bi-calculator-fill me-1" aria-hidden="true"></i><span data-i18n="dashboard.calculators">Attendance &amp; GPA calculators</span></h5>
+      <p class="small text-muted mb-0" data-i18n="dashboard.calculatorHelp">Plan around the 75% attendance requirement and calculate credit-weighted TGPA or CGPA.</p>
     </div>
-    <a href="{% url 'accounts:student_calculators' %}" class="btn btn-lpu">Open student calculators</a>
+    <a href="{% url 'accounts:student_calculators' %}" class="btn btn-lpu" data-i18n="dashboard.openCalculators">Open student calculators</a>
   </div>
 </section>
 
 <!-- QUICK NAVIGATION WIDGET -->
 <div class="card-lpu mb-4 card-accent-orange">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h6 class="mb-0 fw-bold"><i class="bi bi-map me-1" aria-hidden="true"></i>Quick Navigation</h6>
-    <a href="{% url 'navigation:map' %}" class="btn btn-sm btn-outline-secondary">Full Map</a>
+    <h6 class="mb-0 fw-bold"><i class="bi bi-map me-1" aria-hidden="true"></i><span data-i18n="dashboard.quickNavigation">Quick Navigation</span></h6>
+    <a href="{% url 'navigation:map' %}" class="btn btn-sm btn-outline-secondary" data-i18n="dashboard.fullMap">Full Map</a>
   </div>
 
   <div class="row g-2 align-items-end">
     <div class="col-md-4">
-      <label class="form-label-lpu mb-1">From</label>
+      <label class="form-label-lpu mb-1" data-i18n="dashboard.from">From</label>
       <input list="quick-loc-list" id="q-from" class="form-control form-control-lpu"
              placeholder="e.g. Block 34 (CSE)">
     </div>
     <div class="col-md-4">
-      <label class="form-label-lpu mb-1">To</label>
+      <label class="form-label-lpu mb-1" data-i18n="dashboard.to">To</label>
       <input list="quick-loc-list" id="q-to" class="form-control form-control-lpu"
              placeholder="e.g. Central Library (Block 37)">
     </div>
     <div class="col-md-2">
-      <button id="q-find" class="btn btn-lpu w-100 py-2">Find</button>
+      <button id="q-find" class="btn btn-lpu w-100 py-2" data-i18n="dashboard.find">Find</button>
     </div>
     <div class="col-md-2">
       <button id="q-my-loc" class="btn btn-outline-primary w-100 py-2" title="Use my current location"><i class="bi bi-crosshair" aria-hidden="true"></i></button>
@@ -216,8 +216,8 @@
 </div>
 <section class="card-lpu mb-4">
   <div class="d-flex justify-content-between align-items-center mb-2">
-    <h5 class="mb-0">Your notifications</h5>
-    <a href="{% url 'accounts:notifications' %}" class="btn btn-sm btn-outline-primary">Inbox{% if unread_notifications %} · {{ unread_notifications }} new{% endif %}</a>
+    <h5 class="mb-0" data-i18n="dashboard.notifications">Your notifications</h5>
+    <a href="{% url 'accounts:notifications' %}" class="btn btn-sm btn-outline-primary"><span data-i18n="dashboard.inbox">Inbox</span>{% if unread_notifications %} · {{ unread_notifications }} new{% endif %}</a>
   </div>
   {% for item in latest_notifications|slice:":2" %}
     <article class="notification-preview">
@@ -242,12 +242,12 @@
 </section>
 
 <!-- ACTION GRID -->
-<h5 class="mb-3 fw-bold">What do you want to do?</h5>
+<h5 class="mb-3 fw-bold" data-i18n="dashboard.actionsTitle">What do you want to do?</h5>
 <div class="row g-3 student-dashboard-actions">
   <div class="col-md-4">
     <a href="{% url 'problems:report' %}" class="text-decoration-none">
       <div class="feature-card feature-report h-100">
-        <h6><i class="bi bi-tools me-1" aria-hidden="true"></i>Report a Problem</h6>
+        <h6><i class="bi bi-tools me-1" aria-hidden="true"></i><span data-i18n="dashboard.action.report">Report a Problem</span></h6>
         <p class="small mb-0">Send maintenance and campus issues to the shared staff queue and track progress.</p>
         <span class="feature-chip">Create report →</span>
       </div>
@@ -256,7 +256,7 @@
   <div class="col-md-4">
     <a href="{% url 'crisis:student_report' %}" class="text-decoration-none">
       <div class="feature-card feature-emergency h-100">
-        <h6><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Report Emergency</h6>
+        <h6><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i><span data-i18n="dashboard.action.emergency">Report Emergency</span></h6>
         <p class="small mb-0">Medical, fire, security, or accident reports go directly to responders.</p>
         <span class="feature-chip danger">Report now →</span>
       </div>
@@ -265,7 +265,7 @@
   <div class="col-md-4">
     <a href="{% url 'ideas:list' %}" class="text-decoration-none">
       <div class="feature-card feature-idea h-100">
-        <h6><i class="bi bi-lightbulb me-1" aria-hidden="true"></i>Share an Idea</h6>
+        <h6><i class="bi bi-lightbulb me-1" aria-hidden="true"></i><span data-i18n="dashboard.action.idea">Share an Idea</span></h6>
         <p class="small mb-0">Launch a campus poll and hear student votes and comments for one week.</p>
         <span class="feature-chip">Explore ideas →</span>
       </div>
@@ -274,7 +274,7 @@
   <div class="col-md-4">
     <a href="{% url 'navigation:map' %}" class="text-decoration-none">
       <div class="feature-card feature-navigation h-100">
-        <h6><i class="bi bi-map me-1" aria-hidden="true"></i>Smart Navigation</h6>
+        <h6><i class="bi bi-map me-1" aria-hidden="true"></i><span data-i18n="dashboard.action.navigation">Smart Navigation</span></h6>
         <p class="small mb-0">Peak-time aware routes, live GPS tracking, turn-by-turn.</p>
         <span class="feature-chip">Open Now →</span>
       </div>
@@ -284,7 +284,7 @@
     <a href="https://skill-swap-iota-ten.vercel.app/" target="_blank"
        rel="noopener noreferrer" class="text-decoration-none">
       <div class="feature-card feature-idea h-100">
-      <h6><i class="bi bi-arrow-left-right me-1" aria-hidden="true"></i>Skill Swap</h6>
+      <h6><i class="bi bi-arrow-left-right me-1" aria-hidden="true"></i><span data-i18n="dashboard.action.skillSwap">Skill Swap</span></h6>
       <p class="small mb-0">Meet LPU peers, share what you know, and learn a skill from someone new.</p>
       <span class="feature-chip">Open Skill Swap in a new tab <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></span>
       </div>
@@ -293,7 +293,7 @@
   <div class="col-md-4">
     <a href="{% url 'placement_predictor:predict' %}" class="text-decoration-none">
       <div class="feature-card feature-navigation h-100">
-        <h6><i class="bi bi-graph-up-arrow me-1" aria-hidden="true"></i><span data-i18n="nav.placement">Placement Predictor</span></h6>
+        <h6><i class="bi bi-graph-up-arrow me-1" aria-hidden="true"></i><span data-i18n="dashboard.action.placement">Placement Predictor</span></h6>
         <p class="small mb-0">Estimate placement status using your academic and career preparation profile.</p>
         <span class="feature-chip">Check readiness →</span>
       </div>

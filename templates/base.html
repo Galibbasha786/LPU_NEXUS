@@ -162,7 +162,7 @@
       <!-- Utility controls -->
       <div class="nx-nav-controls">
         <!-- Language switcher -->
-        <div class="nx-lang-switch" role="group" aria-label="Language">
+        <div class="nx-lang-switch" role="group" aria-label="Language" data-i18n-aria="lang.label">
           <button type="button" data-lang="en" title="English">EN</button>
           <button type="button" data-lang="hi" title="Hindi">हि</button>
           <button type="button" data-lang="te" title="Telugu">తె</button>
@@ -259,45 +259,45 @@
     <div class="nx-sidebar-divider"></div>
 
     <!-- Nav group: Core -->
-    <p class="nx-sidebar-label" data-i18n="sidebar.menu">
-      <i class="bi bi-grid-3x3-gap"></i> Campus Menu
+    <p class="nx-sidebar-label">
+      <i class="bi bi-grid-3x3-gap"></i> <span data-i18n="sidebar.menu">Campus Menu</span>
     </p>
 
     <nav class="nx-sidebar-nav" aria-label="Sidebar navigation">
-      <a href="{% url 'accounts:dashboard' %}" class="nx-sidebar-link" data-tooltip="Dashboard">
+      <a href="{% url 'accounts:dashboard' %}" class="nx-sidebar-link" data-tooltip="Dashboard" data-i18n-tooltip="nav.dashboard">
         <span class="nx-slink-icon nx-icon-blue"><i class="bi bi-grid-1x2-fill"></i></span>
         <span class="nx-slink-text" data-i18n="nav.dashboard">Dashboard</span>
         <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
       </a>
 
       {% if request.session.lpu_user_role == 'student' or request.session.lpu_user_role == 'staff' %}
-        <a href="{% url 'accounts:profile' %}" class="nx-sidebar-link" data-tooltip="Profile">
+        <a href="{% url 'accounts:profile' %}" class="nx-sidebar-link" data-tooltip="Profile" data-i18n-tooltip="nav.profile">
           <span class="nx-slink-icon nx-icon-purple"><i class="bi bi-person-badge-fill"></i></span>
           <span class="nx-slink-text" data-i18n="nav.profile">Profile</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
       {% endif %}
 
-      <a href="{% url 'navigation:map' %}" class="nx-sidebar-link" data-tooltip="Campus Map">
+      <a href="{% url 'navigation:map' %}" class="nx-sidebar-link" data-tooltip="Campus Map" data-i18n-tooltip="nav.map">
         <span class="nx-slink-icon nx-icon-green"><i class="bi bi-map-fill"></i></span>
         <span class="nx-slink-text" data-i18n="nav.map">Navigation</span>
         <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
       </a>
 
-      <a href="{% url 'placement_predictor:predict' %}" class="nx-sidebar-link" data-tooltip="Placement Predictor">
+      <a href="{% url 'placement_predictor:predict' %}" class="nx-sidebar-link" data-tooltip="Placement Predictor" data-i18n-tooltip="nav.placement">
         <span class="nx-slink-icon nx-icon-teal"><i class="bi bi-graph-up-arrow"></i></span>
         <span class="nx-slink-text" data-i18n="nav.placement">Predictor</span>
         <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
       </a>
 
-      <a href="{% url 'campus_ai:assistant' %}" class="nx-sidebar-link" data-tooltip="Campus AI">
+      <a href="{% url 'campus_ai:assistant' %}" class="nx-sidebar-link" data-tooltip="Campus AI" data-i18n-tooltip="nav.ai">
         <span class="nx-slink-icon nx-icon-indigo"><i class="bi bi-stars"></i></span>
         <span class="nx-slink-text" data-i18n="nav.ai">Campus AI</span>
         <span class="nx-slink-badge">AI</span>
         <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
       </a>
 
-      <a href="{% url 'accounts:notifications' %}" class="nx-sidebar-link" data-tooltip="Notifications">
+      <a href="{% url 'accounts:notifications' %}" class="nx-sidebar-link" data-tooltip="Notifications" data-i18n-tooltip="nav.notifications">
         <span class="nx-slink-icon nx-icon-amber"><i class="bi bi-bell-fill"></i></span>
         <span class="nx-slink-text" data-i18n="nav.notifications">Notifications</span>
         <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
@@ -305,39 +305,39 @@
 
       {% if request.session.lpu_user_role == 'student' %}
         <div class="nx-sidebar-divider nx-sidebar-divider-sm"></div>
-        <p class="nx-sidebar-label nx-sidebar-label-sm"><i class="bi bi-person-workspace"></i> Student</p>
+        <p class="nx-sidebar-label nx-sidebar-label-sm"><i class="bi bi-person-workspace"></i> <span data-i18n="sidebar.student">Student</span></p>
 
-        <a href="{% url 'accounts:student_calculators' %}" class="nx-sidebar-link" data-tooltip="Student Calculators">
+        <a href="{% url 'accounts:student_calculators' %}" class="nx-sidebar-link" data-tooltip="Student Calculators" data-i18n-tooltip="dashboard.quick.attendance">
           <span class="nx-slink-icon nx-icon-teal"><i class="bi bi-calculator-fill"></i></span>
-          <span class="nx-slink-text">Attendance &amp; GPA</span>
+          <span class="nx-slink-text" data-i18n="dashboard.quick.attendance">Attendance &amp; GPA</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
 
-        <a href="{% url 'problems:report' %}" class="nx-sidebar-link" data-tooltip="Report a Problem">
+        <a href="{% url 'problems:report' %}" class="nx-sidebar-link" data-tooltip="Report a Problem" data-i18n-tooltip="nav.reports">
           <span class="nx-slink-icon nx-icon-blue-alt"><i class="bi bi-tools"></i></span>
           <span class="nx-slink-text" data-i18n="nav.reports">Report Problem</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
 
-        <a href="{% url 'problems:my_problems' %}" class="nx-sidebar-link" data-tooltip="My Reports">
+        <a href="{% url 'problems:my_problems' %}" class="nx-sidebar-link" data-tooltip="My Reports" data-i18n-tooltip="nav.myReports">
           <span class="nx-slink-icon nx-icon-cyan"><i class="bi bi-clipboard-check-fill"></i></span>
           <span class="nx-slink-text" data-i18n="nav.myReports">My Reports</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
 
-        <a href="{% url 'ideas:list' %}" class="nx-sidebar-link" data-tooltip="Campus Ideas">
+        <a href="{% url 'ideas:list' %}" class="nx-sidebar-link" data-tooltip="Campus Ideas" data-i18n-tooltip="nav.ideas">
           <span class="nx-slink-icon nx-icon-yellow"><i class="bi bi-lightbulb-fill"></i></span>
           <span class="nx-slink-text" data-i18n="nav.ideas">Campus Ideas</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
 
-        <a href="{% url 'social:feed' %}" class="nx-sidebar-link" data-tooltip="Social Hub">
+        <a href="{% url 'social:feed' %}" class="nx-sidebar-link" data-tooltip="Social Hub" data-i18n-tooltip="nav.social">
           <span class="nx-slink-icon nx-icon-purple"><i class="bi bi-camera-reels-fill"></i></span>
-          <span class="nx-slink-text">Social Hub</span>
+          <span class="nx-slink-text" data-i18n="nav.social">Social Hub</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
 
-        <a href="{% url 'crisis:student_report' %}" class="nx-sidebar-link nx-sidebar-link-danger" data-tooltip="Emergency">
+        <a href="{% url 'crisis:student_report' %}" class="nx-sidebar-link nx-sidebar-link-danger" data-tooltip="Emergency" data-i18n-tooltip="nav.emergency">
           <span class="nx-slink-icon nx-icon-red"><i class="bi bi-exclamation-triangle-fill"></i></span>
           <span class="nx-slink-text" data-i18n="nav.emergency">Emergency</span>
           <span class="nx-slink-badge nx-badge-red">SOS</span>
@@ -347,21 +347,21 @@
 
       {% if request.session.lpu_user_role == 'staff' %}
         <div class="nx-sidebar-divider nx-sidebar-divider-sm"></div>
-        <p class="nx-sidebar-label nx-sidebar-label-sm"><i class="bi bi-people-fill"></i> Staff</p>
+        <p class="nx-sidebar-label nx-sidebar-label-sm"><i class="bi bi-people-fill"></i> <span data-i18n="sidebar.staff">Staff</span></p>
 
-        <a href="{% url 'accounts:staff_dashboard' %}" class="nx-sidebar-link" data-tooltip="Staff Queue">
+        <a href="{% url 'accounts:staff_dashboard' %}" class="nx-sidebar-link" data-tooltip="Staff Queue" data-i18n-tooltip="nav.queue">
           <span class="nx-slink-icon nx-icon-blue"><i class="bi bi-inbox-fill"></i></span>
           <span class="nx-slink-text" data-i18n="nav.queue">Queue</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
 
-        <a href="{% url 'problems:queue' %}" class="nx-sidebar-link" data-tooltip="Problem Queue">
+        <a href="{% url 'problems:queue' %}" class="nx-sidebar-link" data-tooltip="Problem Queue" data-i18n-tooltip="nav.staffQueue">
           <span class="nx-slink-icon nx-icon-teal"><i class="bi bi-list-task"></i></span>
           <span class="nx-slink-text" data-i18n="nav.staffQueue">Staff Queue</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
 
-        <a href="{% url 'crisis:staff_queue' %}" class="nx-sidebar-link nx-sidebar-link-danger" data-tooltip="Emergency Queue">
+        <a href="{% url 'crisis:staff_queue' %}" class="nx-sidebar-link nx-sidebar-link-danger" data-tooltip="Emergency Queue" data-i18n-tooltip="nav.emergency">
           <span class="nx-slink-icon nx-icon-red"><i class="bi bi-shield-exclamation"></i></span>
           <span class="nx-slink-text" data-i18n="nav.emergency">Emergency</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
@@ -370,42 +370,42 @@
 
       {% if request.session.lpu_user_role == 'staff' %}
         <div class="nx-sidebar-divider nx-sidebar-divider-sm"></div>
-        <a href="{% url 'accounts:admin_list_students' %}" class="nx-sidebar-link" data-tooltip="Students">
+        <a href="{% url 'accounts:admin_list_students' %}" class="nx-sidebar-link" data-tooltip="Students" data-i18n-tooltip="nav.students">
           <span class="nx-slink-icon nx-icon-blue"><i class="bi bi-mortarboard-fill"></i></span>
-          <span class="nx-slink-text">Students</span>
+          <span class="nx-slink-text" data-i18n="nav.students">Students</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
       {% endif %}
 
       {% if request.session.lpu_user_role == 'admin' %}
         <div class="nx-sidebar-divider nx-sidebar-divider-sm"></div>
-        <p class="nx-sidebar-label nx-sidebar-label-sm"><i class="bi bi-shield-lock-fill"></i> Admin</p>
+        <p class="nx-sidebar-label nx-sidebar-label-sm"><i class="bi bi-shield-lock-fill"></i> <span data-i18n="nav.admin">Admin</span></p>
 
-        <a href="{% url 'accounts:admin_dashboard' %}" class="nx-sidebar-link" data-tooltip="Admin Dashboard">
+        <a href="{% url 'accounts:admin_dashboard' %}" class="nx-sidebar-link" data-tooltip="Admin Dashboard" data-i18n-tooltip="sidebar.adminPanel">
           <span class="nx-slink-icon nx-icon-indigo"><i class="bi bi-speedometer2"></i></span>
           <span class="nx-slink-text" data-i18n="nav.admin">Admin Panel</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
 
-        <a href="{% url 'accounts:admin_list_students' %}" class="nx-sidebar-link" data-tooltip="Students">
+        <a href="{% url 'accounts:admin_list_students' %}" class="nx-sidebar-link" data-tooltip="Students" data-i18n-tooltip="nav.students">
           <span class="nx-slink-icon nx-icon-blue"><i class="bi bi-mortarboard-fill"></i></span>
           <span class="nx-slink-text" data-i18n="nav.students">Students</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
 
-        <a href="{% url 'accounts:admin_list_staff' %}" class="nx-sidebar-link" data-tooltip="Staff">
+        <a href="{% url 'accounts:admin_list_staff' %}" class="nx-sidebar-link" data-tooltip="Staff" data-i18n-tooltip="nav.staff">
           <span class="nx-slink-icon nx-icon-green"><i class="bi bi-people-fill"></i></span>
           <span class="nx-slink-text" data-i18n="nav.staff">Staff</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
 
-        <a href="{% url 'ideas:review_queue' %}" class="nx-sidebar-link" data-tooltip="Campus Ideas">
+        <a href="{% url 'ideas:review_queue' %}" class="nx-sidebar-link" data-tooltip="Campus Ideas" data-i18n-tooltip="nav.ideas">
           <span class="nx-slink-icon nx-icon-yellow"><i class="bi bi-lightbulb-fill"></i></span>
           <span class="nx-slink-text" data-i18n="nav.ideas">Campus Ideas</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
 
-        <a href="{% url 'crisis:admin_restricted_zones' %}" class="nx-sidebar-link" data-tooltip="Restricted Zones">
+        <a href="{% url 'crisis:admin_restricted_zones' %}" class="nx-sidebar-link" data-tooltip="Restricted Zones" data-i18n-tooltip="nav.zones">
           <span class="nx-slink-icon nx-icon-red"><i class="bi bi-slash-circle-fill"></i></span>
           <span class="nx-slink-text" data-i18n="nav.zones">Restricted Zones</span>
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
@@ -417,7 +417,7 @@
     <div class="nx-sidebar-footer">
       <a href="{% url 'accounts:logout' %}" class="nx-sidebar-logout">
         <i class="bi bi-box-arrow-left"></i>
-        <span>Sign Out</span>
+        <span data-i18n="nav.logout">Sign Out</span>
       </a>
     </div>
 
@@ -458,7 +458,7 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{% static 'js/nexus-i18n.js' %}?v=20261112-dashboard-controls-i18n"></script>
+<script src="{% static 'js/nexus-i18n.js' %}?v=20261112-dashboard-sidebar-i18n2"></script>
 <script src="{% static 'js/nexus-ui.js' %}?v=20261104-v3"></script>
 
 <script>

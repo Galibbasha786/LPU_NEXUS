@@ -368,6 +368,19 @@ def profile_view(request):
         logout_session(request)
         messages.warning(request, "Please sign in again to manage your profile.")
         return redirect('accounts:login')
+    profile_keys = (
+        'address', 'city', 'state', 'postal_code', 'linkedin_url',
+        'github_url', 'instagram_url', 'website_url',
+    )
+    keep_posted_profile_fields = (
+        request.method == 'POST'
+        and request.POST.get('action') == 'update_details'
+    )
+    profile_fields = {
+        key: request.POST.get(key, user.get(key, ''))
+        if keep_posted_profile_fields else user.get(key, '')
+        for key in profile_keys
+    }
     try:
         profile = get_student_profile(user_id) if user.get('role') == 'student' else {}
     except PyMongoError:
@@ -406,7 +419,7 @@ def profile_view(request):
             if not full_name:
                 messages.error(request, "Full name is required.")
             else:
-                profile_fields = (
+                profile_field_values = (
                     address, city, state, postal_code, linkedin_url, github_url,
                     instagram_url, website_url,
                 )
@@ -416,7 +429,7 @@ def profile_view(request):
                 )):
                     updated, error = update_account_details(
                         user_id, full_name, email, department, year, designation,
-                        phone, *profile_fields,
+                        phone, *profile_field_values,
                     )
                 else:
                     updated, error = update_account_details(
@@ -481,6 +494,7 @@ def profile_view(request):
                         'user': user,
                         'profile': profile,
                         'has_verified_id_card': has_verified_id_card,
+                        'profile_fields': profile_fields,
                         'form_data': {},
                     })
                 deleted_user = delete_account(user_id, password)
@@ -495,6 +509,7 @@ def profile_view(request):
         'user': user,
         'profile': profile,
         'has_verified_id_card': has_verified_id_card,
+        'profile_fields': profile_fields,
         'form_data': request.POST if action == 'update_details' else {},
     })
 

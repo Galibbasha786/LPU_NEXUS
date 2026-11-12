@@ -35,21 +35,21 @@
         <input id="profile-email" class="form-control form-control-lpu mb-3" type="email" name="email" value="{{ form_data.email|default:user.email }}" required maxlength="254">
 
         <label class="form-label-lpu" for="profile-address" data-i18n="profile.address">Address</label>
-        <input id="profile-address" class="form-control form-control-lpu mb-3" type="text" name="address" value="{{ form_data.address|default:user.address }}" maxlength="200" autocomplete="street-address">
+        <input id="profile-address" class="form-control form-control-lpu mb-3" type="text" name="address" value="{{ profile_fields.address }}" maxlength="200" autocomplete="street-address">
         <div class="row g-2">
-          <div class="col-sm-4"><label class="form-label-lpu" for="profile-city" data-i18n="profile.city">City</label><input id="profile-city" class="form-control form-control-lpu mb-3" type="text" name="city" value="{{ form_data.city|default:user.city }}" maxlength="80" autocomplete="address-level2"></div>
-          <div class="col-sm-4"><label class="form-label-lpu" for="profile-state" data-i18n="profile.state">State</label><input id="profile-state" class="form-control form-control-lpu mb-3" type="text" name="state" value="{{ form_data.state|default:user.state }}" maxlength="80" autocomplete="address-level1"></div>
-          <div class="col-sm-4"><label class="form-label-lpu" for="profile-postal" data-i18n="profile.postal">Postal code</label><input id="profile-postal" class="form-control form-control-lpu mb-3" type="text" name="postal_code" value="{{ form_data.postal_code|default:user.postal_code }}" maxlength="20" autocomplete="postal-code"></div>
+          <div class="col-sm-4"><label class="form-label-lpu" for="profile-city" data-i18n="profile.city">City</label><input id="profile-city" class="form-control form-control-lpu mb-3" type="text" name="city" value="{{ profile_fields.city }}" maxlength="80" autocomplete="address-level2"></div>
+          <div class="col-sm-4"><label class="form-label-lpu" for="profile-state" data-i18n="profile.state">State</label><input id="profile-state" class="form-control form-control-lpu mb-3" type="text" name="state" value="{{ profile_fields.state }}" maxlength="80" autocomplete="address-level1"></div>
+          <div class="col-sm-4"><label class="form-label-lpu" for="profile-postal" data-i18n="profile.postal">Postal code</label><input id="profile-postal" class="form-control form-control-lpu mb-3" type="text" name="postal_code" value="{{ profile_fields.postal_code }}" maxlength="20" autocomplete="postal-code"></div>
         </div>
         <h3 class="h6 mt-3" data-i18n="profile.socialLinks">Links and social profiles</h3>
         <label class="form-label-lpu" for="profile-linkedin" data-i18n="profile.linkedin">LinkedIn URL</label>
-        <input id="profile-linkedin" class="form-control form-control-lpu mb-3" type="url" name="linkedin_url" value="{{ form_data.linkedin_url|default:user.linkedin_url }}" maxlength="300" placeholder="https://linkedin.com/in/…">
+        <input id="profile-linkedin" class="form-control form-control-lpu mb-3" type="url" name="linkedin_url" value="{{ profile_fields.linkedin_url }}" maxlength="300" placeholder="https://linkedin.com/in/…">
         <label class="form-label-lpu" for="profile-github" data-i18n="profile.github">GitHub URL</label>
-        <input id="profile-github" class="form-control form-control-lpu mb-3" type="url" name="github_url" value="{{ form_data.github_url|default:user.github_url }}" maxlength="300" placeholder="https://github.com/…">
+        <input id="profile-github" class="form-control form-control-lpu mb-3" type="url" name="github_url" value="{{ profile_fields.github_url }}" maxlength="300" placeholder="https://github.com/…">
         <label class="form-label-lpu" for="profile-instagram" data-i18n="profile.instagram">Instagram URL</label>
-        <input id="profile-instagram" class="form-control form-control-lpu mb-3" type="url" name="instagram_url" value="{{ form_data.instagram_url|default:user.instagram_url }}" maxlength="300" placeholder="https://instagram.com/…">
+        <input id="profile-instagram" class="form-control form-control-lpu mb-3" type="url" name="instagram_url" value="{{ profile_fields.instagram_url }}" maxlength="300" placeholder="https://instagram.com/…">
         <label class="form-label-lpu" for="profile-website" data-i18n="profile.website">Website or portfolio</label>
-        <input id="profile-website" class="form-control form-control-lpu mb-3" type="url" name="website_url" value="{{ form_data.website_url|default:user.website_url }}" maxlength="300" placeholder="https://…">
+        <input id="profile-website" class="form-control form-control-lpu mb-3" type="url" name="website_url" value="{{ profile_fields.website_url }}" maxlength="300" placeholder="https://…">
 
         {% if user.role == 'student' %}
           <label class="form-label-lpu">LPU registration number</label>
@@ -72,21 +72,21 @@
     </section>
 
     <section class="profile-section" aria-labelledby="password-heading">
-      <h2 id="password-heading"><i class="bi bi-shield-lock me-2" aria-hidden="true"></i>Change password</h2>
+      <h2 id="password-heading"><i class="bi bi-shield-lock me-2" aria-hidden="true"></i><span data-i18n="profile.passwordTitle">Change password</span></h2>
       <form method="post">
         {% csrf_token %}
         <input type="hidden" name="action" value="change_password">
 
-        <label class="form-label-lpu" for="current-password">Current password</label>
+        <label class="form-label-lpu" for="current-password" data-i18n="profile.currentPassword">Current password</label>
         <input id="current-password" class="form-control form-control-lpu mb-3" type="password" name="current_password" autocomplete="current-password" required>
 
-        <label class="form-label-lpu" for="new-password">New password</label>
+        <label class="form-label-lpu" for="new-password" data-i18n="profile.newPassword">New password</label>
         <input id="new-password" class="form-control form-control-lpu mb-3" type="password" name="new_password" minlength="6" autocomplete="new-password" required>
 
-        <label class="form-label-lpu" for="confirm-password">Confirm new password</label>
+        <label class="form-label-lpu" for="confirm-password" data-i18n="profile.confirmPassword">Confirm new password</label>
         <input id="confirm-password" class="form-control form-control-lpu mb-3" type="password" name="confirm_password" minlength="6" autocomplete="new-password" required>
 
-        <button class="btn btn-lpu mt-2" type="submit"><i class="bi bi-key me-1" aria-hidden="true"></i>Update password</button>
+        <button class="btn btn-lpu mt-2" type="submit"><i class="bi bi-key me-1" aria-hidden="true"></i><span data-i18n="profile.updatePassword">Update password</span></button>
       </form>
     </section>
   </div>
@@ -99,21 +99,21 @@
   {% endif %}
 
   <section class="profile-danger" aria-labelledby="delete-heading">
-    <h2 id="delete-heading">Delete account</h2>
-    <p>Deleting your account removes your sign-in and profile details. This action cannot be undone.</p>
+    <h2 id="delete-heading" data-i18n="profile.deleteAccount">Delete account</h2>
+    <p data-i18n="profile.deleteAccountBody">Deleting your account removes your sign-in and profile details. This action cannot be undone.</p>
     <form method="post" class="row g-3 align-items-end">
       {% csrf_token %}
       <input type="hidden" name="action" value="delete_account">
       <div class="col-md-5">
-        <label class="form-label-lpu" for="delete-password">Confirm your password</label>
+        <label class="form-label-lpu" for="delete-password" data-i18n="profile.confirmDeletePassword">Confirm your password</label>
         <input id="delete-password" class="form-control form-control-lpu" type="password" name="delete_password" autocomplete="current-password" required>
       </div>
       <div class="col-md-4">
-        <label class="form-label-lpu" for="delete-confirmation">Type DELETE to confirm</label>
+        <label class="form-label-lpu" for="delete-confirmation" data-i18n="profile.typeDelete">Type DELETE to confirm</label>
         <input id="delete-confirmation" class="form-control form-control-lpu" type="text" name="confirmation" autocomplete="off" required>
       </div>
       <div class="col-md-3">
-        <button class="btn btn-danger w-100" type="submit"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete account</button>
+        <button class="btn btn-danger w-100" type="submit"><i class="bi bi-trash me-1" aria-hidden="true"></i><span data-i18n="profile.deleteAccount">Delete account</span></button>
       </div>
     </form>
   </section>
