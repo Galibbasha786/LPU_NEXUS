@@ -114,10 +114,22 @@
     <div class="calculator-result mt-4" id="overall-attendance-result" aria-live="polite" hidden>
       <h4>Overall attendance</h4>
       <div class="calculator-stat">
-        <span>Combined attendance across subjects</span>
+        <span>Current attendance across subjects</span>
         <strong id="overall-attendance-percent"></strong>
       </div>
+      <div class="calculator-stat mt-3">
+        <span>Attendance if you attend all remaining classes</span>
+        <strong id="projected-overall-attendance-percent"></strong>
+      </div>
       <p class="text-muted mt-2 mb-0" id="overall-attendance-counts"></p>
+    </div>
+    <div class="table-responsive mt-3" id="subject-attendance-details-wrap" hidden>
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr><th>Subject</th><th>Current</th><th>Attend for 75%</th><th>Can miss</th><th>Outcome</th></tr>
+        </thead>
+        <tbody id="subject-attendance-details"></tbody>
+      </table>
     </div>
     <div class="alert alert-danger mt-3" id="attendance-subject-error" role="alert" hidden></div>
   </section>

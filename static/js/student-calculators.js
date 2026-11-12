@@ -28,6 +28,8 @@
   const calculateOverallAttendance = document.getElementById('calculate-overall-attendance');
   const attendanceError = document.getElementById('attendance-subject-error');
   const attendanceResult = document.getElementById('overall-attendance-result');
+  const subjectDetailsWrap = document.getElementById('subject-attendance-details-wrap');
+  const subjectDetails = document.getElementById('subject-attendance-details');
   let attendanceSubjectNumber = 0;
 
   const addSubjectRow = () => {
@@ -49,6 +51,10 @@
           <label class="form-label-lpu" for="attendance-subject-total-${index}">Total classes</label>
           <input class="form-control form-control-lpu attendance-subject-total" id="attendance-subject-total-${index}" type="number" min="1" step="1" required>
         </div>
+        <div>
+          <label class="form-label-lpu" for="attendance-subject-remaining-${index}">Classes remaining</label>
+          <input class="form-control form-control-lpu attendance-subject-remaining" id="attendance-subject-remaining-${index}" type="number" min="0" step="1" value="0" required>
+        </div>
         <button class="btn btn-outline-danger remove-course" type="button" aria-label="Remove subject">
           <i class="bi bi-trash" aria-hidden="true"></i>
         </button>
@@ -57,6 +63,7 @@
     row.querySelector('.remove-course').addEventListener('click', () => {
       row.remove();
       attendanceResult.hidden = true;
+      subjectDetailsWrap.hidden = true;
       attendanceError.hidden = true;
     });
   };
@@ -68,28 +75,58 @@
     const rows = Array.from(attendanceSubjects.querySelectorAll('.attendance-subject-row'));
     let attendedSum = 0;
     let totalSum = 0;
+    let remainingSum = 0;
     for (const row of rows) {
       const attendedInput = row.querySelector('.attendance-subject-attended');
       const totalInput = row.querySelector('.attendance-subject-total');
+      const remainingInput = row.querySelector('.attendance-subject-remaining');
       const attended = Number(attendedInput.value);
       const total = Number(totalInput.value);
-      if (attendedInput.value === '' || totalInput.value === '' || !Number.isInteger(attended) || !Number.isInteger(total) || attended < 0 || total < 1 || attended > total) {
+      const remaining = Number(remainingInput.value);
+      if (attendedInput.value === '' || totalInput.value === '' || remainingInput.value === '' || !Number.isInteger(attended) || !Number.isInteger(total) || !Number.isInteger(remaining) || attended < 0 || total < 1 || remaining < 0 || attended > total) {
         attendanceError.textContent = 'Enter whole class counts for every subject, with attended classes no greater than total classes.';
         attendanceError.hidden = false;
         attendanceResult.hidden = true;
+        subjectDetailsWrap.hidden = true;
         return;
       }
       attendedSum += attended;
       totalSum += total;
+      remainingSum += remaining;
     }
     if (!totalSum) {
       attendanceError.textContent = 'Add at least one subject with valid class counts.';
       attendanceError.hidden = false;
       attendanceResult.hidden = true;
+      subjectDetailsWrap.hidden = true;
       return;
     }
     document.getElementById('overall-attendance-percent').textContent = `${(attendedSum * 100 / totalSum).toFixed(2)}%`;
-    document.getElementById('overall-attendance-counts').textContent = `${attendedSum} of ${totalSum} classes attended across ${rows.length} subject${rows.length === 1 ? '' : 's'}.`;
+    document.getElementById('projected-overall-attendance-percent').textContent = `${((attendedSum + remainingSum) * 100 / (totalSum + remainingSum)).toFixed(2)}%`;
+    document.getElementById('overall-attendance-counts').textContent = `Current: ${attendedSum} of ${totalSum} classes attended across ${rows.length} subject${rows.length === 1 ? '' : 's'}. If you attend all ${remainingSum} remaining classes: ${attendedSum + remainingSum} of ${totalSum + remainingSum}.`;
+    subjectDetails.replaceChildren();
+    rows.forEach((row, index) => {
+      const name = row.querySelector('input[id^="attendance-subject-name-"]').value.trim() || `Subject ${index + 1}`;
+      const attended = Number(row.querySelector('.attendance-subject-attended').value);
+      const total = Number(row.querySelector('.attendance-subject-total').value);
+      const remaining = Number(row.querySelector('.attendance-subject-remaining').value);
+      const needed = Math.max(0, Math.ceil((0.75 * total - attended) / 0.25));
+      const canReach = needed <= remaining;
+      const canMiss = canReach ? remaining - needed : 0;
+      const projected = ((attended + remaining) * 100 / (total + remaining)).toFixed(2);
+      const tr = document.createElement('tr');
+      [name, `${(attended * 100 / total).toFixed(2)}% (${attended}/${total})`,
+        canReach ? `${needed} of ${remaining} remaining` : `Not reachable (${needed} needed)`,
+        canReach ? `${canMiss} of ${remaining}` : '0',
+        canReach ? `Can reach 75%; attending all gives ${projected}%` : `Even attending all gives ${projected}%`].forEach((value, cellIndex) => {
+        const cell = document.createElement(cellIndex === 0 ? 'th' : 'td');
+        if (cellIndex === 0) cell.scope = 'row';
+        cell.textContent = value;
+        tr.appendChild(cell);
+      });
+      subjectDetails.appendChild(tr);
+    });
+    subjectDetailsWrap.hidden = false;
     attendanceResult.hidden = false;
   });
 
