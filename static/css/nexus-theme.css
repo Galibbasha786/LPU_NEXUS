@@ -1263,6 +1263,57 @@ h1, h2, h3, h4, h5, h6 {
 .student-dashboard-actions > [class*="col-"]:nth-child(6) .feature-card { background: linear-gradient(145deg, #efeaff, #faf9ff); }
 html[data-theme="dark"] .student-dashboard-stats .stat-card-lpu,
 html[data-theme="dark"] .student-dashboard-actions .feature-card { color: #f8f1f2; }
+.dashboard-shortcut {
+  align-items: flex-start;
+  background: var(--shortcut-bg, #fff);
+  border: 1px solid rgba(107, 31, 44, .12);
+  border-radius: 16px;
+  box-shadow: 0 7px 20px rgba(30, 42, 68, .09);
+  color: var(--bs-emphasis-color, #271c20);
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  height: 100%;
+  justify-content: center;
+  min-height: 124px;
+  padding: 1rem 1.1rem;
+  text-align: left;
+  text-decoration: none;
+  transition: transform .18s ease, box-shadow .18s ease;
+  width: 100%;
+}
+.dashboard-shortcut:hover, .dashboard-shortcut:focus-visible {
+  box-shadow: 0 13px 28px rgba(30, 42, 68, .15);
+  color: var(--bs-emphasis-color, #271c20);
+  transform: translateY(-3px);
+}
+.dashboard-shortcut > i { font-size: 1.35rem; }
+.dashboard-shortcut > span { font-weight: 800; }
+.dashboard-shortcut > small { color: var(--text-muted, #5f6470); }
+.shortcut-music { --shortcut-bg: linear-gradient(145deg, #fff2cf, #fffaf0); }
+.shortcut-accessibility { --shortcut-bg: linear-gradient(145deg, #e9f7ef, #f7fcf8); }
+.shortcut-navigation { --shortcut-bg: linear-gradient(145deg, #e8f3ff, #f7fbff); }
+.shortcut-attendance { --shortcut-bg: linear-gradient(145deg, #fae9ef, #fff8fa); }
+body.dashboard-readable-mode main { font-size: 1.1em; line-height: 1.65; }
+body.dashboard-readable-mode main :is(p, li, label, input, select, button, a) { line-height: 1.65; }
+.nx-notification-control { position: relative; text-decoration: none; }
+.nx-notification-count {
+  align-items: center;
+  background: #dc3545;
+  border: 2px solid #3a1018;
+  border-radius: 999px;
+  color: #fff;
+  display: flex;
+  font-size: .58rem;
+  font-weight: 800;
+  height: 17px;
+  justify-content: center;
+  min-width: 17px;
+  padding: 0 3px;
+  position: absolute;
+  right: -5px;
+  top: -5px;
+}
 
 /* =========================================================
    FOOTER BAR

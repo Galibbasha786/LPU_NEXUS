@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+Devanagari:wght@400;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'css/nexus-theme.css' %}?v=20261112-student-dashboard">
+<link rel="stylesheet" href="{% static 'css/nexus-theme.css' %}?v=20261112-dashboard-controls2">
 <link rel="stylesheet" href="{% static 'css/campus-bulletins.css' %}?v=20261110-v1">
 {% block extra_head %}{% endblock %}
 </head>
@@ -167,6 +167,15 @@
           <button type="button" data-lang="hi" title="Hindi">हि</button>
           <button type="button" data-lang="te" title="Telugu">తె</button>
         </div>
+
+        {% if request.session.lpu_user_id %}
+        <a class="nx-ctrl-btn nx-notification-control" href="{% url 'accounts:notifications' %}"
+           aria-label="Notifications" data-i18n-aria="nav.notifications" title="Notifications">
+          <i class="bi bi-bell-fill" aria-hidden="true"></i>
+          <span class="visually-hidden" data-i18n="nav.notifications">Notifications</span>
+          {% if unread_notifications %}<span class="nx-notification-count">{{ unread_notifications }}</span>{% endif %}
+        </a>
+        {% endif %}
 
         <!-- Music -->
         <button class="nx-ctrl-btn music-toggle" id="music-toggle" type="button"
@@ -449,7 +458,7 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{% static 'js/nexus-i18n.js' %}?v=20261112-profile-placement-i18n"></script>
+<script src="{% static 'js/nexus-i18n.js' %}?v=20261112-dashboard-controls-i18n"></script>
 <script src="{% static 'js/nexus-ui.js' %}?v=20261104-v3"></script>
 
 <script>

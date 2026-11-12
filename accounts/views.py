@@ -368,7 +368,19 @@ def profile_view(request):
         logout_session(request)
         messages.warning(request, "Please sign in again to manage your profile.")
         return redirect('accounts:login')
-    profile = get_student_profile(user_id) if user.get('role') == 'student' else {}
+    try:
+        profile = get_student_profile(user_id) if user.get('role') == 'student' else {}
+    except PyMongoError:
+        logger.exception('Could not load profile details for account %s', user_id)
+        profile = {}
+        messages.warning(request, 'Some student profile details are temporarily unavailable.')
+    if not isinstance(profile, dict):
+        profile = {}
+    id_card = profile.get('id_card')
+    profile['id_card'] = id_card if isinstance(id_card, dict) else {}
+    has_verified_id_card = bool(
+        user.get('role') == 'student' and profile['id_card'].get('public_id')
+    )
     action = request.POST.get('action', '')
 
     if request.method == 'POST' and action == 'update_details':
@@ -468,6 +480,7 @@ def profile_view(request):
                     return render(request, 'accounts/profile.html', {
                         'user': user,
                         'profile': profile,
+                        'has_verified_id_card': has_verified_id_card,
                         'form_data': {},
                     })
                 deleted_user = delete_account(user_id, password)
@@ -481,6 +494,7 @@ def profile_view(request):
     return render(request, 'accounts/profile.html', {
         'user': user,
         'profile': profile,
+        'has_verified_id_card': has_verified_id_card,
         'form_data': request.POST if action == 'update_details' else {},
     })
 

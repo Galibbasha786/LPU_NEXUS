@@ -15,7 +15,12 @@
     <p class="mb-0">Navigate, report, and help shape a better LPU.</p>
   </div>
 </div>
-<div class="d-flex justify-content-end mb-3"><a class="btn btn-outline-primary position-relative" href="{% url 'accounts:notifications' %}" aria-label="Notifications"><i class="bi bi-bell-fill" aria-hidden="true"></i> Notifications{% if unread_notifications %}<span class="badge rounded-pill text-bg-danger ms-1">{{ unread_notifications }}</span>{% endif %}</a></div>
+<section class="dashboard-shortcuts row g-3 mb-4" aria-label="Quick access">
+  <div class="col-6 col-lg-3"><button class="dashboard-shortcut shortcut-music" id="dashboard-music-shortcut" type="button"><i class="bi bi-music-note-beamed" aria-hidden="true"></i><span data-i18n="dashboard.quick.music">Music</span><small data-i18n="dashboard.quick.musicHelp">Toggle background music</small></button></div>
+  <div class="col-6 col-lg-3"><button class="dashboard-shortcut shortcut-accessibility" id="dashboard-readable-toggle" type="button" aria-pressed="false"><i class="bi bi-universal-access" aria-hidden="true"></i><span data-i18n="dashboard.quick.accessibility">Accessibility</span><small data-i18n="dashboard.quick.accessibilityHelp">Toggle larger text and spacing</small></button></div>
+  <div class="col-6 col-lg-3"><a class="dashboard-shortcut shortcut-navigation" href="{% url 'navigation:map' %}"><i class="bi bi-map" aria-hidden="true"></i><span data-i18n="dashboard.quick.navigation">Campus navigation</span><small data-i18n="dashboard.quick.navigationHelp">Find a route on campus</small></a></div>
+  <div class="col-6 col-lg-3"><a class="dashboard-shortcut shortcut-attendance" href="{% url 'accounts:student_calculators' %}"><i class="bi bi-calendar-check" aria-hidden="true"></i><span data-i18n="dashboard.quick.attendance">Attendance &amp; GPA</span><small data-i18n="dashboard.quick.attendanceHelp">Open student calculators</small></a></div>
+</section>
 <!-- LIVE ALERTS (from staff announcements) -->
 <div id="student-alerts" aria-live="polite"></div>
 
@@ -306,6 +311,14 @@
 
 {% block extra_js %}
 <script>
+  document.getElementById('dashboard-music-shortcut')?.addEventListener('click', () => {
+    document.getElementById('music-toggle')?.click();
+  });
+  document.getElementById('dashboard-readable-toggle')?.addEventListener('click', (event) => {
+    const enabled = document.body.classList.toggle('dashboard-readable-mode');
+    event.currentTarget.setAttribute('aria-pressed', String(enabled));
+  });
+
   let quickLocations = [];
   let quickUserPos = null;
 
