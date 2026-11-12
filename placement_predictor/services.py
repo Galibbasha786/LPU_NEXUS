@@ -37,6 +37,11 @@ def predict_placement(student_data, student_id=None):
     probabilities = model.predict_proba(row)[0]
     confidence = float(max(probabilities))
     classes = [str(value) for value in model.classes_]
+    placed_probability = next(
+        (float(probability) for label, probability in zip(classes, probabilities)
+         if label.strip().casefold() in {'1', 'placed', 'yes', 'true'}),
+        0.0,
+    )
     # Keep the target label's observed training distribution in the artifact;
     # older artifacts can still be served with no distribution metadata.
     target_distribution = artifact.get("target_distribution", {})
@@ -45,6 +50,7 @@ def predict_placement(student_data, student_id=None):
         "student_id": student_id,
         "prediction": prediction,
         "confidence": round(confidence, 4),
+        "placed_probability": round(placed_probability, 4),
         "model_version": artifact.get("version", "1"),
         "class_count": class_count,
         "created_at": timezone.now(),

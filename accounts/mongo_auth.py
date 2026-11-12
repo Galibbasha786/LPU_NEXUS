@@ -178,7 +178,9 @@ def verify_current_password(user, password):
 
 
 def update_account_details(user_id, full_name, email, department='', year='',
-                           designation='', phone=''):
+                           designation='', phone='', address='', city='', state='',
+                           postal_code='', linkedin_url='', github_url='',
+                           instagram_url='', website_url=''):
     oid = to_object_id(user_id)
     if not oid:
         return False, 'Account could not be found.'
@@ -194,6 +196,14 @@ def update_account_details(user_id, full_name, email, department='', year='',
     updates = {
         'full_name': full_name.strip(),
         'email': email,
+        'address': address.strip(),
+        'city': city.strip(),
+        'state': state.strip(),
+        'postal_code': postal_code.strip(),
+        'linkedin_url': linkedin_url.strip(),
+        'github_url': github_url.strip(),
+        'instagram_url': instagram_url.strip(),
+        'website_url': website_url.strip(),
         'updated_at': now(),
     }
     if user.get('role') == 'staff':

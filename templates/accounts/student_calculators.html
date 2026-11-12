@@ -98,8 +98,6 @@
         {% endif %}
       </div>
     {% endif %}
-  </section>
-
   <section class="calculator-panel card-lpu" id="aggregate-attendance-panel" aria-labelledby="aggregate-attendance-heading">
     <h3 class="h4" id="aggregate-attendance-heading">Overall subject attendance</h3>
     <p class="text-muted">Calculate each subject’s attendance above, add its attended and total classes here, then calculate your combined attendance. This list stays in this page and is not saved.</p>
@@ -132,6 +130,7 @@
       </table>
     </div>
     <div class="alert alert-danger mt-3" id="attendance-subject-error" role="alert" hidden></div>
+  </section>
   </section>
 
   <section class="calculator-panel card-lpu d-none" id="gpa-panel" role="tabpanel"
@@ -280,5 +279,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ STATIC_URL }}js/student-calculators.js"></script>
+<script src="{{ STATIC_URL }}js/student-calculators.js?v=20261112-subject-attendance"></script>
 {% endblock %}

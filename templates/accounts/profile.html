@@ -12,7 +12,7 @@
     </div>
     <span class="profile-role">{{ user.role }}</span>
     <div class="profile-photo-panel">
-      {% if user.profile_image_url %}<img class="profile-photo" src="{{ user.profile_image_url }}" alt="Profile photo">{% else %}<span class="profile-photo profile-photo-placeholder"><i class="bi bi-person-fill" aria-hidden="true"></i></span>{% endif %}
+      {% if user.profile_image_url %}<a class="profile-photo-link" href="{{ user.profile_image_url }}" target="_blank" rel="noopener noreferrer" aria-label="View profile photo full size"><img class="profile-photo" src="{{ user.profile_image_url }}" alt="Profile photo; open full size"></a>{% else %}<span class="profile-photo profile-photo-placeholder"><i class="bi bi-person-fill" aria-hidden="true"></i></span>{% endif %}
       <form method="post" enctype="multipart/form-data" class="profile-photo-form">
         {% csrf_token %}<input type="hidden" name="action" value="update_photo"><label class="form-label-lpu" for="profile-image">Profile photo</label>
         <input class="form-control form-control-lpu" id="profile-image" type="file" name="profile_image" accept=".jpg,.jpeg,.png,.webp" required>
@@ -33,6 +33,23 @@
 
         <label class="form-label-lpu" for="profile-email">Email address</label>
         <input id="profile-email" class="form-control form-control-lpu mb-3" type="email" name="email" value="{{ form_data.email|default:user.email }}" required maxlength="254">
+
+        <label class="form-label-lpu" for="profile-address" data-i18n="profile.address">Address</label>
+        <input id="profile-address" class="form-control form-control-lpu mb-3" type="text" name="address" value="{{ form_data.address|default:user.address }}" maxlength="200" autocomplete="street-address">
+        <div class="row g-2">
+          <div class="col-sm-4"><label class="form-label-lpu" for="profile-city" data-i18n="profile.city">City</label><input id="profile-city" class="form-control form-control-lpu mb-3" type="text" name="city" value="{{ form_data.city|default:user.city }}" maxlength="80" autocomplete="address-level2"></div>
+          <div class="col-sm-4"><label class="form-label-lpu" for="profile-state" data-i18n="profile.state">State</label><input id="profile-state" class="form-control form-control-lpu mb-3" type="text" name="state" value="{{ form_data.state|default:user.state }}" maxlength="80" autocomplete="address-level1"></div>
+          <div class="col-sm-4"><label class="form-label-lpu" for="profile-postal" data-i18n="profile.postal">Postal code</label><input id="profile-postal" class="form-control form-control-lpu mb-3" type="text" name="postal_code" value="{{ form_data.postal_code|default:user.postal_code }}" maxlength="20" autocomplete="postal-code"></div>
+        </div>
+        <h3 class="h6 mt-3" data-i18n="profile.socialLinks">Links and social profiles</h3>
+        <label class="form-label-lpu" for="profile-linkedin" data-i18n="profile.linkedin">LinkedIn URL</label>
+        <input id="profile-linkedin" class="form-control form-control-lpu mb-3" type="url" name="linkedin_url" value="{{ form_data.linkedin_url|default:user.linkedin_url }}" maxlength="300" placeholder="https://linkedin.com/in/…">
+        <label class="form-label-lpu" for="profile-github" data-i18n="profile.github">GitHub URL</label>
+        <input id="profile-github" class="form-control form-control-lpu mb-3" type="url" name="github_url" value="{{ form_data.github_url|default:user.github_url }}" maxlength="300" placeholder="https://github.com/…">
+        <label class="form-label-lpu" for="profile-instagram" data-i18n="profile.instagram">Instagram URL</label>
+        <input id="profile-instagram" class="form-control form-control-lpu mb-3" type="url" name="instagram_url" value="{{ form_data.instagram_url|default:user.instagram_url }}" maxlength="300" placeholder="https://instagram.com/…">
+        <label class="form-label-lpu" for="profile-website" data-i18n="profile.website">Website or portfolio</label>
+        <input id="profile-website" class="form-control form-control-lpu mb-3" type="url" name="website_url" value="{{ form_data.website_url|default:user.website_url }}" maxlength="300" placeholder="https://…">
 
         {% if user.role == 'student' %}
           <label class="form-label-lpu">LPU registration number</label>

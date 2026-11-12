@@ -59,15 +59,15 @@
       {% if result %}
         <section class="placement-result" role="status">
           <div class="placement-result-icon"><i class="bi bi-award" aria-hidden="true"></i></div>
-          <div><div class="small text-uppercase fw-bold" data-i18n="placement.estimatedStatus">Estimated placement status</div><div class="fs-4 fw-bold" data-i18n-phrase="{{ result.status_label }}">{{ result.status_label }}</div><div class="small"><span data-i18n="placement.modelConfidence">Model confidence:</span> {{ result.confidence_pct }}%{% if result.target_is_single_class %} <span class="fw-semibold" data-i18n="placement.singleClassWarning">(not reliable: training data had only one status class)</span>{% endif %}</div></div>
+          <div><div class="small text-uppercase fw-bold" data-i18n="placement.estimatedChance">Estimated chance of placement</div><div class="fs-2 fw-bold">{{ result.placed_probability_pct }}%</div><div class="small"><span data-i18n="placement.estimatedProbability">Estimated probability of a placed outcome</span>{% if result.target_is_single_class %} <span class="fw-semibold" data-i18n="placement.singleClassWarning">(not reliable: training data had only one status class)</span>{% endif %}</div></div>
         </section>
         {% if result.target_is_single_class %}<div class="placement-data-note"><strong data-i18n="placement.datasetLimitation">Dataset limitation:</strong> <span data-i18n="placement.datasetLimitationBody">Every training row is labeled</span> “{{ result.prediction }}”. <span data-i18n="placement.datasetLimitationTail">The model has not learned the difference between placed and not placed, so treat its status and confidence as non-informative. Retrain with examples from both outcome classes.</span></div>{% endif %}
         <section class="placement-details" data-i18n-aria="placement.feedbackAria" aria-label="Preparation feedback">
           <div class="placement-detail-card"><h3><i class="bi bi-check2-circle me-1" aria-hidden="true"></i><span data-i18n="placement.strengthsTitle">Current strengths</span></h3>
             {% if result.strengths %}<ul>{% for strength in result.strengths %}<li data-i18n-phrase="{{ strength }}">{{ strength }}</li>{% endfor %}</ul>{% else %}<p class="small mb-0" data-i18n="placement.noStrengths">Keep building and recording your preparation activities.</p>{% endif %}
           </div>
-          <div class="placement-detail-card"><h3><i class="bi bi-arrow-up-right-circle me-1" aria-hidden="true"></i><span data-i18n="placement.suggestionsTitle">Suggested next steps</span></h3>
-            {% if result.suggestions %}<ul>{% for suggestion in result.suggestions %}<li data-i18n-phrase="{{ suggestion }}">{{ suggestion }}</li>{% endfor %}</ul>{% else %}<p class="small mb-0" data-i18n="placement.noSuggestions">Your entered profile meets these preparation guidelines. Keep practicing and updating your profile.</p>{% endif %}
+          <div class="placement-detail-card"><h3><i class="bi bi-arrow-up-right-circle me-1" aria-hidden="true"></i><span data-i18n="placement.areasToImprove">Areas to improve</span></h3>
+            {% if result.improvement_areas %}<ul>{% for item in result.improvement_areas %}<li><strong>{{ item.area }}: {{ item.current }} / {{ item.target }}</strong> — {{ item.tip }}</li>{% endfor %}</ul>{% else %}<p class="small mb-0">You meet the readiness targets shown here. Keep practicing and updating your profile.</p>{% endif %}
           </div>
         </section>
       {% endif %}

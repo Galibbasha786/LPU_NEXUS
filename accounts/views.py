@@ -378,6 +378,14 @@ def profile_view(request):
         year = request.POST.get('year', '').strip()
         designation = request.POST.get('designation', '').strip()
         phone = request.POST.get('phone', '').strip()
+        address = request.POST.get('address', '').strip()
+        city = request.POST.get('city', '').strip()
+        state = request.POST.get('state', '').strip()
+        postal_code = request.POST.get('postal_code', '').strip()
+        linkedin_url = request.POST.get('linkedin_url', '').strip()
+        github_url = request.POST.get('github_url', '').strip()
+        instagram_url = request.POST.get('instagram_url', '').strip()
+        website_url = request.POST.get('website_url', '').strip()
         try:
             validate_email(email)
         except ValidationError:
@@ -386,9 +394,22 @@ def profile_view(request):
             if not full_name:
                 messages.error(request, "Full name is required.")
             else:
-                updated, error = update_account_details(
-                    user_id, full_name, email, department, year, designation, phone,
+                profile_fields = (
+                    address, city, state, postal_code, linkedin_url, github_url,
+                    instagram_url, website_url,
                 )
+                if any(name in request.POST for name in (
+                    'address', 'city', 'state', 'postal_code', 'linkedin_url',
+                    'github_url', 'instagram_url', 'website_url',
+                )):
+                    updated, error = update_account_details(
+                        user_id, full_name, email, department, year, designation,
+                        phone, *profile_fields,
+                    )
+                else:
+                    updated, error = update_account_details(
+                        user_id, full_name, email, department, year, designation, phone,
+                    )
                 if error:
                     messages.error(request, error)
                 else:

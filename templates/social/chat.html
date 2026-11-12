@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}{{ chat.name|default:"Chat" }} • Social Hub{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/social.css' %}">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/social.css' %}?v=20261112-responsive-video">{% endblock %}
 
 {% block content %}
 <main class="social-shell">
@@ -40,6 +40,7 @@
     <section id="social-video-call" class="social-video-call" hidden aria-label="Video call">
       <div id="social-video-participants" class="social-video-participants"></div>
       <div class="social-video-controls">
+        <button id="toggle-call-fullscreen" class="btn btn-outline-light" type="button"><i class="bi bi-fullscreen"></i> Full screen</button>
         <button id="toggle-microphone" class="btn btn-outline-light" type="button"><i class="bi bi-mic-fill"></i> Mute mic</button>
         <button id="toggle-camera" class="btn btn-outline-light" type="button"><i class="bi bi-camera-video-fill"></i> Turn camera off</button>
         <button id="leave-call" class="btn btn-danger" type="button"><i class="bi bi-telephone-x-fill"></i> Leave call</button>
@@ -120,6 +121,7 @@
   const callStatus = document.getElementById('call-status');
   const callPanel = document.getElementById('social-video-call');
   const participantGrid = document.getElementById('social-video-participants');
+  const fullscreenButton = document.getElementById('toggle-call-fullscreen');
   const videoCallConfig = {
     startUrl: '{{ start_call_url }}',
     joinUrl: '{{ join_call_url }}',
@@ -142,6 +144,22 @@
   let localCameraEnabled = true;
   let mediaSdk = null;
   let canEndCall = videoCallConfig.canEndCall;
+
+  fullscreenButton?.addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await callPanel.requestFullscreen();
+    } catch (error) {
+      callStatus.textContent = 'Full screen is unavailable in this browser or device.';
+    }
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    const expanded = document.fullscreenElement === callPanel;
+    fullscreenButton.innerHTML = expanded
+      ? '<i class="bi bi-fullscreen-exit"></i> Exit full screen'
+      : '<i class="bi bi-fullscreen"></i> Full screen';
+  });
 
   function showCall(call, isCurrentUserInitiator = false) {
     callId = call.call_id || call.id || callId;

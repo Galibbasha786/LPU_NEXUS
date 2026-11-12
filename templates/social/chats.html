@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Chats • Social Hub{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/social.css' %}">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/social.css' %}?v=20261112-responsive-video">{% endblock %}
 
 {% block content %}
 <main class="social-shell">
@@ -20,8 +20,26 @@
   <div class="social-layout social-chat-layout">
     <section class="social-card">
       <div class="social-section-heading"><div><h2>Your conversations</h2><p>Messages refresh automatically while a chat is open.</p></div></div>
+      <form id="chat-search-form" class="d-flex gap-2 mb-3">
+        <label class="visually-hidden" for="chat-search">Search conversations</label>
+        <input id="chat-search" class="form-control" type="search" placeholder="Search conversations" data-i18n-placeholder="chat.searchPlaceholder">
+        <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search" aria-hidden="true"></i> <span data-i18n="chat.search">Search</span></button>
+      </form>
+      <form method="post" action="{% url 'social:start_direct' %}" class="social-direct-start mb-3">
+        {% csrf_token %}
+        <label for="direct-student" class="form-label fw-semibold" data-i18n="chat.startPrivate">Start a private chat</label>
+        <div class="d-flex gap-2">
+          <select id="direct-student" class="form-select" name="registration_number" required>
+            <option value="" data-i18n="chat.chooseStudent">Choose a student</option>
+            {% for student in students %}{% if student.registration_number and not student.blocked_me and not student.blocked_by_me %}
+              <option value="{{ student.registration_number }}">{{ student.full_name }} · {{ student.registration_number }}</option>
+            {% endif %}{% endfor %}
+          </select>
+          <button class="btn btn-lpu" type="submit" data-i18n="chat.chat">Chat</button>
+        </div>
+      </form>
       {% for chat in chats %}
-        <a class="social-chat-row" href="{% url 'social:chat' chat.id %}">
+        <a class="social-chat-row" data-chat-search="{{ chat.display_name|lower }} {% if chat.kind == 'group' %}group{% else %}private{% endif %}" href="{% url 'social:chat' chat.id %}">
           <span class="social-chat-icon"><i class="bi {% if chat.kind == 'group' %}bi-people-fill{% else %}bi-person-fill{% endif %}"></i></span>
           <span><strong>{{ chat.display_name }}</strong><small>{% if chat.kind == 'group' %}Group chat{% else %}Private chat{% endif %}</small></span>
           <i class="bi bi-chevron-right"></i>
@@ -29,6 +47,7 @@
       {% empty %}
         <p class="social-empty">No conversations yet. Find a student to start a chat.</p>
       {% endfor %}
+      <p class="social-empty" id="chat-search-empty" data-i18n="chat.noMatches" hidden>No conversations match your search.</p>
     </section>
 
     <section class="social-card">
@@ -51,4 +70,24 @@
     </section>
   </div>
 </main>
+<script>
+(() => {
+  const search = document.getElementById('chat-search');
+  const searchForm = document.getElementById('chat-search-form');
+  const rows = Array.from(document.querySelectorAll('[data-chat-search]'));
+  const empty = document.getElementById('chat-search-empty');
+  const filterChats = () => {
+    const query = search.value.trim().toLocaleLowerCase();
+    let visible = 0;
+    rows.forEach((row) => {
+      const matches = row.dataset.chatSearch.includes(query);
+      row.hidden = !matches;
+      if (matches) visible += 1;
+    });
+    empty.hidden = !query || visible > 0;
+  };
+  search?.addEventListener('input', filterChats);
+  searchForm?.addEventListener('submit', (event) => { event.preventDefault(); filterChats(); });
+})();
+</script>
 {% endblock %}

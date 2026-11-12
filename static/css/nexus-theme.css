@@ -1224,6 +1224,46 @@ h1, h2, h3, h4, h5, h6 {
   margin-top: 6px;
 }
 
+/* Student dashboard: give the four summary cards and six main actions a clear visual rhythm. */
+.student-dashboard-stats .stat-card-lpu {
+  min-height: 132px;
+  border: 0;
+  box-shadow: 0 8px 24px rgba(30, 42, 68, .12);
+}
+.student-dashboard-stats > [class*="col-"]:nth-child(1) .stat-card-lpu { background: linear-gradient(145deg, #fff0e5, #fffaf5); }
+.student-dashboard-stats > [class*="col-"]:nth-child(2) .stat-card-lpu { background: linear-gradient(145deg, #fff7d8, #fffdf4); }
+.student-dashboard-stats > [class*="col-"]:nth-child(3) .stat-card-lpu { background: linear-gradient(145deg, #e8f3ff, #f7fbff); }
+.student-dashboard-stats > [class*="col-"]:nth-child(4) .stat-card-lpu { background: linear-gradient(145deg, #fbe9ef, #fff8fa); }
+.student-dashboard-stats .stat-num { color: var(--lpu-maroon, #6b1f2c) !important; }
+.student-dashboard-actions .feature-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 190px;
+  border: 1px solid rgba(107, 31, 44, .12);
+  border-radius: 18px;
+  box-shadow: 0 7px 20px rgba(30, 42, 68, .08);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.student-dashboard-actions .feature-card::after {
+  position: absolute;
+  content: "";
+  width: 70px;
+  height: 70px;
+  right: -24px;
+  top: -24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .32);
+}
+.student-dashboard-actions .feature-card:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(30, 42, 68, .14); }
+.student-dashboard-actions > [class*="col-"]:nth-child(1) .feature-card { background: linear-gradient(145deg, #fff0e5, #fffaf5); }
+.student-dashboard-actions > [class*="col-"]:nth-child(2) .feature-card { background: linear-gradient(145deg, #fde8ec, #fff8f9); }
+.student-dashboard-actions > [class*="col-"]:nth-child(3) .feature-card { background: linear-gradient(145deg, #fff7d8, #fffdf4); }
+.student-dashboard-actions > [class*="col-"]:nth-child(4) .feature-card { background: linear-gradient(145deg, #e8f3ff, #f7fbff); }
+.student-dashboard-actions > [class*="col-"]:nth-child(5) .feature-card { background: linear-gradient(145deg, #e8f8f0, #f7fdf9); }
+.student-dashboard-actions > [class*="col-"]:nth-child(6) .feature-card { background: linear-gradient(145deg, #efeaff, #faf9ff); }
+html[data-theme="dark"] .student-dashboard-stats .stat-card-lpu,
+html[data-theme="dark"] .student-dashboard-actions .feature-card { color: #f8f1f2; }
+
 /* =========================================================
    FOOTER BAR
    ========================================================= */
