@@ -20,7 +20,11 @@ class PlacementModelError(RuntimeError):
 @lru_cache(maxsize=1)
 def _load_artifact():
     if not MODEL_PATH.exists():
-        raise PlacementModelError("Placement model not found. Run scripts/train_placement_model.py first.")
+        raise PlacementModelError(
+            f"Placement model artifact is missing at {MODEL_PATH}. "
+            "Rebuild the Docker image so it can train the model, or run "
+            "python scripts/train_placement_model.py from the application directory."
+        )
     return joblib.load(MODEL_PATH)
 
 

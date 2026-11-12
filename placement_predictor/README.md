@@ -12,7 +12,7 @@ python manage.py apply_placement_validator
 python manage.py runserver
 ```
 
-Visit `/placement-predictor/`. The trained artifact is `placement_predictor/placement_model.joblib` and is intentionally git-ignored; retrain it in each deployment environment. Each successful prediction stores the prediction, confidence, model version, input values, optional session student ID, and timestamp in MongoDB collection `placement_predictions`.
+Visit `/placement-predictor/`. The trained artifact is `placement_predictor/placement_model.joblib` and is intentionally git-ignored. Docker image builds create it from the bundled dataset with `python scripts/train_placement_model.py`, so deploy a newly built image after changing the training script or dataset. For non-Docker deployments, run that command as a build or release step before starting Django. Each successful prediction stores the prediction, confidence, model version, input values, optional session student ID, and timestamp in MongoDB collection `placement_predictions`.
 
 MongoDB validator can also be applied directly from `mongosh`:
 
