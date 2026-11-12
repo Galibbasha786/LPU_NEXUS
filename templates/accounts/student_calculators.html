@@ -100,6 +100,28 @@
     {% endif %}
   </section>
 
+  <section class="calculator-panel card-lpu" id="aggregate-attendance-panel" aria-labelledby="aggregate-attendance-heading">
+    <h3 class="h4" id="aggregate-attendance-heading">Overall subject attendance</h3>
+    <p class="text-muted">Calculate each subject’s attendance above, add its attended and total classes here, then calculate your combined attendance. This list stays in this page and is not saved.</p>
+    <div class="calculator-course-heading">
+      <h4 class="h5 mb-0">Subjects</h4>
+      <button class="btn btn-outline-secondary btn-sm" type="button" id="add-attendance-subject">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i> Add subject
+      </button>
+    </div>
+    <div id="attendance-subject-list" aria-live="polite"></div>
+    <button class="btn btn-lpu mt-2" type="button" id="calculate-overall-attendance">Calculate overall attendance</button>
+    <div class="calculator-result mt-4" id="overall-attendance-result" aria-live="polite" hidden>
+      <h4>Overall attendance</h4>
+      <div class="calculator-stat">
+        <span>Combined attendance across subjects</span>
+        <strong id="overall-attendance-percent"></strong>
+      </div>
+      <p class="text-muted mt-2 mb-0" id="overall-attendance-counts"></p>
+    </div>
+    <div class="alert alert-danger mt-3" id="attendance-subject-error" role="alert" hidden></div>
+  </section>
+
   <section class="calculator-panel card-lpu d-none" id="gpa-panel" role="tabpanel"
            aria-labelledby="gpa-tab" hidden>
     <h3 class="h4">Credit-weighted TGPA &amp; CGPA</h3>
