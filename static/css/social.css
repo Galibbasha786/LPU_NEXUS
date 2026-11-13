@@ -544,6 +544,10 @@
 }
 .social-profile-avatar-large img { width: 100%; height: 100%; object-fit: cover; }
 .social-public-profile-info { flex: 1; min-width: 0; }
+.social-profile-stats { display:flex; flex-wrap:wrap; gap:1.15rem; margin-top:.65rem; color:var(--text-muted,#687080); font-size:.88rem; }
+.social-profile-stats strong { color:var(--text,#202735); font-size:1rem; margin-right:.2rem; }
+.social-profile-actions { display:flex; flex-wrap:wrap; align-items:center; gap:.55rem; }
+.social-profile-actions form { margin:0; }
 .social-public-profile-info h2 { margin: 0; font-size: 1.4rem; }
 .social-public-profile-info p { margin: .35rem 0; color: var(--text-muted, #687080); }
 .social-profile-posts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }

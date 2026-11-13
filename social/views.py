@@ -11,6 +11,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods, require_POST
 from pymongo.errors import PyMongoError
 from redis.exceptions import RedisError
@@ -415,6 +416,11 @@ def set_student_follow(request, peer_id):
         messages.error(request, 'The follow setting could not be updated. Please try again.')
     else:
         messages.success(request, 'Student followed.' if following else 'Student unfollowed.')
+    return_to = request.POST.get('return_to', '')
+    if return_to and url_has_allowed_host_and_scheme(
+        return_to, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+    ):
+        return redirect(return_to)
     return redirect('social:people')
 
 

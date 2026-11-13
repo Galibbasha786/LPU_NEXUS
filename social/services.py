@@ -476,6 +476,8 @@ def student_profile(user_id, peer_id):
     for post in posts:
         post['author_name'] = peer.get('full_name', 'LPU student')
     blocked = _is_blocked(current['_id'], peer['_id'])
+    follower_count = social_follows().count_documents({'followed_id': peer['_id']})
+    following_count = social_follows().count_documents({'follower_id': peer['_id']})
     return {
         'id': str(peer['_id']),
         'full_name': peer.get('full_name', 'LPU student'),
@@ -484,6 +486,8 @@ def student_profile(user_id, peer_id):
         'department': profile.get('department', ''),
         'year': profile.get('year', ''),
         'following': social_follows().find_one({'follower_id': current['_id'], 'followed_id': peer['_id']}) is not None,
+        'follower_count': follower_count,
+        'following_count': following_count,
         'blocked': blocked,
         'posts': posts,
     }
