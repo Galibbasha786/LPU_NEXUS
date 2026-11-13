@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     'campus_ai',
     'placement_predictor',
     'live_news',
+    'dsa_lab',
     'social.apps.SocialConfig',
 ]
 

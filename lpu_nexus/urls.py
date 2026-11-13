@@ -14,6 +14,7 @@ urlpatterns = [
     path('live-news/', include('live_news.urls')),
     path('social/', include('social.urls')),
     path('campus-bulletins/', include('campus_bulletins.urls')),
+    path('dsa-lab/', include('dsa_lab.urls')),
     path('', include('accounts.urls')),
         path("crisis/", include("crisis.urls")),
 ]
