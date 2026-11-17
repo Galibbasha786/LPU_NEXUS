@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Campus News Reader • LPU Nexus{% endblock %}
+{% block extra_head %}
+<style>
+  .news-reader { max-width: 1120px; margin: 0 auto; }
+  .news-reader-stage { overflow: hidden; border-radius: 20px; background: radial-gradient(circle at 78% 15%, #592633, #211219 62%); color: #fff; box-shadow: 0 18px 50px #25101830; }
+  .news-reader-top { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:1rem 1.25rem; border-bottom:1px solid #ffffff20; }
+  .news-reader-brand { font-weight:900; letter-spacing:.08em; color:#f4d47b; }
+  .news-reader-live { color:#ffb6b6; font-size:.75rem; font-weight:800; letter-spacing:.1em; }
+  .news-reader-main { display:grid; grid-template-columns:minmax(220px,.72fr) minmax(0,1.4fr); gap:clamp(1rem,4vw,3rem); align-items:center; padding:clamp(1.25rem,4vw,3rem); min-height:350px; }
+  .news-anchor { display:grid; justify-items:center; gap:1rem; text-align:center; }
+  .news-anchor-face { width:clamp(180px,25vw,280px); aspect-ratio:4/5; position:relative; overflow:hidden; isolation:isolate; border:3px solid #f4d47b; border-radius:48% 48% 22px 22px; background:radial-gradient(ellipse at 50% 25%,#fff9 0 3%,transparent 36%),linear-gradient(140deg,#9c5961,#dcb3a0 48%,#63333d); box-shadow:0 0 0 9px #ffffff10,0 20px 38px #0007; }
+  .news-anchor-face::before { content:""; position:absolute; inset:0; z-index:2; pointer-events:none; background:linear-gradient(110deg,#fff2,transparent 35% 70%,#170b1940),radial-gradient(ellipse at 50% 35%,transparent 35%,#1c11184d 100%); }
+  .news-anchor-face svg { position:absolute; inset:0; width:100%; height:100%; }
+  .anchor-mouth { transform-box:fill-box; transform-origin:center; transition:transform .08s ease-out; }
+  .news-anchor-face.is-speaking .anchor-mouth { animation:anchor-talk .19s ease-in-out infinite alternate; }
+  .anchor-eye { transform-box:fill-box; transform-origin:center; animation:anchor-blink 5s infinite; }
+  .news-anchor-face.is-speaking { box-shadow:0 0 0 9px #ffffff10,0 20px 38px #0007,0 0 32px #f4d47b55; }
+  @keyframes anchor-talk { from { transform:scaleY(.35); } to { transform:scaleY(1.5); } }
+  @keyframes anchor-blink { 0%,45%,48%,78%,81%,100% { transform:scaleY(1); } 46%,79% { transform:scaleY(.08); } }
+  .news-anchor-label { color:#f7e7df; font-size:.83rem; }
+  .news-copy .eyebrow { color:#f4d47b; text-transform:uppercase; letter-spacing:.13em; font-size:.75rem; font-weight:800; }
+  .news-copy h1 { color:#fff; font-weight:900; font-size:clamp(1.7rem,4vw,2.7rem); }
+  .news-copy p { color:#f4e9e7; font-size:1.05rem; line-height:1.7; }
+  .news-control-row { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1rem; }
+  .news-control-row .btn { min-width:108px; }
+  .news-script-note { color:#d5c2c3; font-size:.8rem; }
+  .news-lower { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(240px,.8fr); gap:1rem; margin-top:1rem; }
+  .news-story-card,.news-queue { padding:1.2rem; }
+  .news-story-card h2 { font-size:1.25rem; font-weight:900; }
+  .news-queue-list { display:grid; gap:.5rem; max-height:330px; overflow:auto; }
+  .news-queue-button { text-align:left; border:1px solid var(--border-color,#e5e1df); border-radius:10px; padding:.75rem; background:transparent; color:inherit; }
+  .news-queue-button[aria-current="true"] { border-color:#9b1734; background:#9b17340c; }
+  .news-queue-button strong { display:block; }
+  .news-queue-button span { color:#927b7f; font-size:.7rem; text-transform:uppercase; font-weight:800; }
+  @media(max-width:700px) { .news-reader-main,.news-lower { grid-template-columns:1fr; } .news-reader-main { text-align:center; } .news-copy { text-align:left; } .news-anchor-face { width:175px; } }
+  @media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation:none!important; transition:none!important; } }
+</style>
+{% endblock %}
+{% block content %}
+<main class="news-reader">
+  <header class="hero-header mb-3"><span class="hero-badge">LPU NEXUS · CAMPUS NEWS</span><h2>Campus News Reader</h2><p class="mb-0">A short welcome, a campus introduction, and the latest updates published by LPU staff.</p></header>
+  <section class="news-reader-stage" aria-label="Campus news presenter">
+    <div class="news-reader-top"><span class="news-reader-brand">LPU NEXUS NEWS</span><span class="news-reader-live"><i class="bi bi-broadcast me-1" aria-hidden="true"></i>STUDENT BRIEFING</span></div>
+    <div class="news-reader-main">
+      <div class="news-anchor">
+        <div class="news-anchor-face" id="news-anchor-face" aria-label="Virtual campus news presenter with speech animation" role="img">
+          <svg viewBox="0 0 240 300" aria-hidden="true"><defs><linearGradient id="anchor-skin" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f4d1b9"/><stop offset=".55" stop-color="#d49b80"/><stop offset="1" stop-color="#9b625a"/></linearGradient><linearGradient id="anchor-hair" x2="1" y2="1"><stop stop-color="#251a20"/><stop offset=".5" stop-color="#493039"/><stop offset="1" stop-color="#1a151d"/></linearGradient><linearGradient id="anchor-jacket" x2="0" y2="1"><stop stop-color="#fffaf4"/><stop offset="1" stop-color="#aeb8c8"/></linearGradient><radialGradient id="anchor-light"><stop stop-color="#fff" stop-opacity=".7"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+            <ellipse cx="120" cy="296" rx="112" ry="80" fill="#211219"/><path fill="url(#anchor-jacket)" d="M38 300q8-81 61-100l21 23 22-23q55 18 62 100z"/><path fill="#9b1734" d="M109 220h22l-5 80h-12z"/><path fill="#f5d47c" d="m110 220 10 15 10-15-4 25h-12z"/>
+            <path fill="url(#anchor-hair)" d="M50 123Q33 28 117 22q89-5 76 106l-13 74q-15 25-34 29l-5-44H86l-8 44q-29-14-34-44z"/><path fill="url(#anchor-skin)" d="M72 107q3-67 50-67t49 67v44q-8 56-49 66-41-10-49-66z"/><path fill="url(#anchor-hair)" d="M67 105Q58 28 123 28q63 0 61 79l-18-26q-42 4-69-28-8 32-30 41"/><path fill="#62404a" d="M71 105q10-19 30-4-18-4-29 9m37-9q18-14 34 2-17-8-33 5"/>
+            <g class="anchor-eye"><ellipse cx="88" cy="116" rx="11" ry="7" fill="#fff8ef"/><ellipse cx="145" cy="116" rx="11" ry="7" fill="#fff8ef"/><circle cx="91" cy="116" r="4" fill="#49352f"/><circle cx="142" cy="116" r="4" fill="#49352f"/><circle cx="92" cy="115" r="1.3" fill="#fff"/><circle cx="143" cy="115" r="1.3" fill="#fff"/></g><path fill="none" stroke="#7d4a46" stroke-width="2" d="M89 101q10-7 19 0m27 0q10-7 20 0"/><path fill="#c9846e" d="m117 118-7 30 12 4 8-3-8-3z"/><ellipse cx="78" cy="145" rx="10" ry="5" fill="#d98d7f" opacity=".34"/><ellipse cx="155" cy="145" rx="10" ry="5" fill="#d98d7f" opacity=".34"/><path fill="#8e4f52" d="M103 162q17 10 34 0-3 18-17 18t-17-18"/><path class="anchor-mouth" fill="#542a32" d="M108 165q12 5 24 0l-3 9q-9 5-18 0z"/><path fill="#fff0e8" d="M110 166q10 3 20 0l-2 3q-8 3-16 0z"/><path fill="url(#anchor-light)" d="M28 26h170v226H28z"/></svg>
+        </div>
+        <div class="news-anchor-label"><strong>Nexus Presenter</strong><br>AI-assisted campus briefing</div>
+      </div>
+      <div class="news-copy" aria-live="polite" aria-atomic="true">
+        <div class="eyebrow" id="news-eyebrow">Welcome to LPU Nexus</div>
+        <h1 id="news-title">Your campus, connected.</h1>
+        <p id="news-body">Hello, {{ request.session.lpu_user_name|default:'LPU student' }}. Welcome to LPU Nexus. Lovely Professional University is a vibrant learning community where ideas, achievement, and campus life come together. Here is your latest campus briefing.</p>
+        <div class="news-control-row"><button id="news-play" class="btn btn-light" type="button"><i class="bi bi-play-fill me-1" aria-hidden="true"></i>Play briefing</button><button id="news-pause" class="btn btn-outline-light" type="button"><i class="bi bi-pause-fill me-1" aria-hidden="true"></i>Pause</button><button id="news-next" class="btn btn-outline-light" type="button">Next headline <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></button></div>
+        <p id="news-speech-status" class="news-script-note mt-3 mb-0">Press Play briefing to hear the welcome and headlines. Speech uses your browser’s available voice.</p>
+      </div>
+    </div>
+  </section>
+  <div class="news-lower">
+    <article class="card-lpu card-accent-gold news-story-card"><div class="d-flex gap-2 align-items-center mb-2"><span id="news-category" class="bulletin-badge bulletin-badge-news">WELCOME</span><span id="news-index" class="small text-muted">Introduction</span></div><h2 id="news-story-title">Welcome to the campus briefing</h2><p id="news-story-body" class="mb-0">The presenter will read headline details here. Select an update from the list or begin the briefing.</p></article>
+    <aside class="card-lpu news-queue"><h2 class="h6 fw-bold">Latest staff headlines</h2><div id="news-queue-list" class="news-queue-list"></div></aside>
+  </div>
+</main>
+{{ bulletins|json_script:'campus-news-bulletins' }}
+{% endblock %}
+{% block extra_js %}
+<script>
+(() => {
+  const bulletins = JSON.parse(document.getElementById('campus-news-bulletins').textContent);
+  const welcome = {category:'WELCOME', title:'Welcome to the campus briefing', body:'Hello, {{ request.session.lpu_user_name|default:"LPU student"|escapejs }}. Welcome to LPU Nexus. Lovely Professional University is a vibrant learning community where ideas, achievement, and campus life come together. Here is your latest campus briefing.'};
+  const stories = [welcome, ...bulletins];
+  let index = 0, timer = null, playing = false;
+  const presenter = document.getElementById('news-anchor-face');
+  const title = document.getElementById('news-title'), body = document.getElementById('news-body');
+  const eyebrow = document.getElementById('news-eyebrow'), storyTitle = document.getElementById('news-story-title');
+  const storyBody = document.getElementById('news-story-body'), category = document.getElementById('news-category');
+  const storyIndex = document.getElementById('news-index'), status = document.getElementById('news-speech-status');
+  const queue = document.getElementById('news-queue-list');
+  const speak = (text) => {
+    if (!('speechSynthesis' in window)) { status.textContent = 'Speech playback is unavailable in this browser. Read the on-screen captions instead.'; return; }
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text); utterance.rate = .94; utterance.pitch = 1;
+    const voices = speechSynthesis.getVoices();
+    utterance.voice = voices.find(v => /^en(-IN)?$/i.test(v.lang)) || voices.find(v => v.lang.toLowerCase().startsWith('en')) || null;
+    utterance.onstart = () => { presenter.classList.add('is-speaking'); status.textContent = 'Reading aloud with your browser’s selected voice.'; };
+    utterance.onend = () => { presenter.classList.remove('is-speaking'); if (playing) advance(); };
+    utterance.onerror = () => { presenter.classList.remove('is-speaking'); status.textContent = 'Speech stopped. Press Play briefing to try again.'; };
+    speechSynthesis.speak(utterance);
+  };
+  const render = (read = false) => {
+    const item = stories[index];
+    eyebrow.textContent = index === 0 ? 'Welcome to LPU Nexus' : `${item.category || 'Campus news'} · Staff update`;
+    title.textContent = index === 0 ? 'Your campus, connected.' : item.title;
+    body.textContent = item.body || 'More details are available in this campus update.';
+    storyTitle.textContent = item.title; storyBody.textContent = item.body || 'No additional details were provided.';
+    category.textContent = item.category || 'NEWS'; category.className = `bulletin-badge bulletin-badge-${String(item.category || 'news').toLowerCase()}`;
+    storyIndex.textContent = index === 0 ? 'Introduction' : `Headline ${index} of ${stories.length - 1}`;
+    [...queue.children].forEach((button, i) => button.setAttribute('aria-current', String(i === index - 1)));
+    if (read) speak(`${index === 0 ? '' : `Campus ${item.category || 'news'} headline. `}${item.title}. ${item.body || ''}`);
+  };
+  const advance = () => { index = (index + 1) % stories.length; render(true); };
+  bulletins.forEach((item, i) => {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'news-queue-button';
+    const kind = document.createElement('span'); kind.textContent = item.category || 'news';
+    const headline = document.createElement('strong'); headline.textContent = item.title;
+    button.append(kind, headline); button.addEventListener('click', () => { index = i + 1; playing = false; clearTimeout(timer); render(false); }); queue.appendChild(button);
+  });
+  if (!bulletins.length) { const empty = document.createElement('p'); empty.className = 'small text-muted mb-0'; empty.textContent = 'No active staff headlines right now. Check back for the next campus update.'; queue.appendChild(empty); }
+  document.getElementById('news-play').addEventListener('click', () => { playing = true; render(true); });
+  document.getElementById('news-pause').addEventListener('click', () => { playing = false; clearTimeout(timer); if ('speechSynthesis' in window) speechSynthesis.cancel(); presenter.classList.remove('is-speaking'); status.textContent = 'Briefing paused.'; });
+  document.getElementById('news-next').addEventListener('click', () => { playing = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); presenter.classList.remove('is-speaking'); advance(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && playing) { playing = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); presenter.classList.remove('is-speaking'); status.textContent = 'Briefing paused while this tab is in the background.'; } });
+  render();
+})();
+</script>
+{% endblock %}

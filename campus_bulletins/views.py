@@ -84,3 +84,15 @@ def bulletin_ticker_json(request):
         logger.exception('Could not refresh campus headline ticker')
         return JsonResponse({'bulletins': []}, status=503)
     return JsonResponse({'bulletins': bulletins})
+
+
+@login_required_mongo
+@role_required('student')
+def news_reader(request):
+    """Student-facing presenter view for current staff bulletins."""
+    try:
+        bulletins = serialize_list(latest_bulletins(limit=30))
+    except PyMongoError:
+        logger.exception('Could not load bulletins for student news reader')
+        bulletins = []
+    return render(request, 'campus_bulletins/reader.html', {'bulletins': bulletins})
