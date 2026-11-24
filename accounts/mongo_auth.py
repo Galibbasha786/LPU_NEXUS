@@ -7,9 +7,7 @@ from core.mongo import users, student_profiles
 from core.utils import now, to_object_id
 
 
-# =====================================================
-#  FIXED ADMIN EMAIL (only this email can be admin)
-# =====================================================
+# The seeded administrator is retained as the initial recovery account.
 FIXED_ADMIN_EMAIL = "syedsunnygalibbasha786@gmail.com"
 logger = logging.getLogger(__name__)
 
@@ -101,7 +99,7 @@ def create_staff(email, password, full_name, department='',
 
 
 def create_admin_if_missing(password='admin123'):
-    """Ensures the one-and-only admin exists. Called from seed command."""
+    """Ensure the initial seeded administrator exists."""
     if users().find_one({'email': FIXED_ADMIN_EMAIL}):
         return None
     user_doc = {
@@ -115,6 +113,28 @@ def create_admin_if_missing(password='admin123'):
     }
     users().insert_one(user_doc)
     return user_doc
+
+
+def create_admin_account(email, password, full_name, created_by_admin_id):
+    """Create an additional administrator from the admin management screen."""
+    email = email.strip().lower()
+    if users().find_one({'email': email}):
+        return None, "Email already registered."
+    if len(password) < 6:
+        return None, "Password must be at least 6 characters."
+    user_doc = {
+        'email': email,
+        'password_hash': make_password(password),
+        'full_name': full_name.strip(),
+        'role': 'admin',
+        'active': True,
+        'created_by_admin_id': created_by_admin_id,
+        'created_at': now(),
+        'updated_at': now(),
+    }
+    result = users().insert_one(user_doc)
+    user_doc['_id'] = result.inserted_id
+    return user_doc, None
 
 
 def find_user_by_identifier(identifier):
@@ -262,6 +282,21 @@ def update_profile_image(user_id, image):
 
 def list_staff():
     return list(users().find({'role': 'staff'}).sort('created_at', -1))
+
+
+def list_admins():
+    return list(
+        users().find(
+            {'role': 'admin'},
+            {
+                'email': 1,
+                'full_name': 1,
+                'created_at': 1,
+                'active': 1,
+                'created_by_admin_id': 1,
+            },
+        ).sort('created_at', -1)
+    )
 
 
 def list_students():

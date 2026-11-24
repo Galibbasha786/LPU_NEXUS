@@ -108,8 +108,12 @@
       <button id="flip-camera" class="btn btn-sm btn-outline-secondary" type="button">
         <i class="bi bi-camera-reverse me-1" aria-hidden="true"></i>Flip camera
       </button>
+      <button id="share-screen" class="btn btn-sm btn-outline-secondary" type="button" aria-pressed="false">
+        <i class="bi bi-display me-1" aria-hidden="true"></i>Share screen
+      </button>
     </div>
     <video id="live-host-video" class="w-100 rounded d-none" autoplay playsinline></video>
+    <video id="live-host-screen" class="w-100 rounded d-none mb-2" autoplay playsinline muted></video>
     <div id="live-remote-videos" class="row g-2"></div>
     <div id="live-reaction-overlay" class="position-absolute top-0 start-0 w-100 h-100 overflow-hidden pe-none" aria-live="polite"></div>
   </div>
@@ -166,6 +170,8 @@
   const hostVideo = document.getElementById('live-host-video');
   const hostCameraControls = document.getElementById('host-camera-controls');
   const flipCameraButton = document.getElementById('flip-camera');
+  const shareScreenButton = document.getElementById('share-screen');
+  const hostScreenVideo = document.getElementById('live-host-screen');
   const remoteVideos = document.getElementById('live-remote-videos');
   const reactionOverlay = document.getElementById('live-reaction-overlay');
   const viewerManagement = document.getElementById('live-viewer-management');
@@ -263,6 +269,10 @@
     hostVideo.srcObject = null;
     hostVideo.classList.add('d-none');
     hostCameraControls.classList.add('d-none');
+    hostScreenVideo.srcObject = null;
+    hostScreenVideo.classList.add('d-none');
+    shareScreenButton.textContent = 'Share screen';
+    shareScreenButton.setAttribute('aria-pressed', 'false');
     remoteVideos.replaceChildren();
     chatMessages.replaceChildren();
     reactionOverlay.replaceChildren();
@@ -272,7 +282,7 @@
     chatControls.classList.remove('d-none');
   }
 
-  function attachTrack(track, participant) {
+  function attachTrack(track, participant, publication) {
     const element = track.attach();
     if (track.kind === Track.Kind.Video) {
       const wrapper = document.createElement('div');
@@ -282,7 +292,7 @@
       element.playsInline = true;
       const label = document.createElement('p');
       label.className = 'small text-muted mt-1 mb-0';
-      label.textContent = participant.name || 'LPU Staff';
+      label.textContent = `${participant.name || 'LPU Staff'}${publication.source === Track.Source.ScreenShare ? ' · screen share' : ''}`;
       wrapper.append(element, label);
       remoteVideos.appendChild(wrapper);
     } else {
@@ -309,9 +319,17 @@
       const connection = await post(endpoint(config.tokenUrl, stream.id));
       room = new Room();
       room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-        attachTrack(track, participant);
+        attachTrack(track, participant, publication);
       });
       room.on(RoomEvent.TrackUnsubscribed, (track) => track.detach().forEach(element => element.remove()));
+      room.on(RoomEvent.LocalTrackUnpublished, publication => {
+        if (publication.source === Track.Source.ScreenShare) {
+          hostScreenVideo.srcObject = null;
+          hostScreenVideo.classList.add('d-none');
+          shareScreenButton.textContent = 'Share screen';
+          shareScreenButton.setAttribute('aria-pressed', 'false');
+        }
+      });
       room.on(RoomEvent.DataReceived, (payload, participant) => {
         if (!commentsEnabled) return;
         if (participant?.identity === room?.localParticipant.identity) return;
@@ -343,6 +361,7 @@
       });
       await room.connect(connection.url, connection.token);
       if (connection.is_host) {
+        hostCameraControls.classList.remove('d-none');
         await room.localParticipant.setCameraEnabled(true);
         await room.localParticipant.setMicrophoneEnabled(true);
         const camera = room.localParticipant.getTrackPublication(Track.Source.Camera);
@@ -541,6 +560,35 @@
   document.getElementById('live-disconnect').addEventListener('click', async () => {
     await disconnect();
     showStatus('You left the live broadcast.');
+  });
+  shareScreenButton.addEventListener('click', async () => {
+    if (!room || !currentStream) return;
+    shareScreenButton.disabled = true;
+    try {
+      const activePublication = room.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+      if (activePublication) {
+        await room.localParticipant.setScreenShareEnabled(false);
+        hostScreenVideo.srcObject = null;
+        hostScreenVideo.classList.add('d-none');
+        shareScreenButton.textContent = 'Share screen';
+        shareScreenButton.setAttribute('aria-pressed', 'false');
+        showStatus('Screen sharing stopped.');
+      } else {
+        await room.localParticipant.setScreenShareEnabled(true);
+        const publication = room.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+        if (publication?.track) {
+          publication.track.attach(hostScreenVideo);
+          hostScreenVideo.classList.remove('d-none');
+        }
+        shareScreenButton.textContent = 'Stop sharing';
+        shareScreenButton.setAttribute('aria-pressed', 'true');
+        showStatus('Your screen is being shared with live viewers.');
+      }
+    } catch (error) {
+      showStatus(error.message || 'Could not share your screen. Check browser permissions.', true);
+    } finally {
+      shareScreenButton.disabled = false;
+    }
   });
   flipCameraButton.addEventListener('click', async () => {
     if (!room) return;

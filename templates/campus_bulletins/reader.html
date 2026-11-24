@@ -40,9 +40,9 @@
 {% endblock %}
 {% block content %}
 <main class="news-reader">
-  <header class="hero-header mb-3"><span class="hero-badge">LPU NEXUS · CAMPUS NEWS</span><h2>Campus News Reader</h2><p class="mb-0">A short welcome, a campus introduction, and the latest updates published by LPU staff.</p></header>
+  <header class="hero-header mb-3"><span class="hero-badge">LOVELY PROFESSIONAL UNIVERSITY</span><h2>LPU Campus News</h2><p class="mb-0">Your daily introduction to LPU, followed by the latest campus headlines and announcements from staff.</p></header>
   <section class="news-reader-stage" aria-label="Campus news presenter">
-    <div class="news-reader-top"><span class="news-reader-brand">LPU NEXUS NEWS</span><span class="news-reader-live"><i class="bi bi-broadcast me-1" aria-hidden="true"></i>STUDENT BRIEFING</span></div>
+    <div class="news-reader-top"><span class="news-reader-brand">LOVELY PROFESSIONAL UNIVERSITY</span><span class="news-reader-live"><i class="bi bi-broadcast me-1" aria-hidden="true"></i>CAMPUS NEWS BRIEFING</span></div>
     <div class="news-reader-main">
       <div class="news-anchor">
         <div class="news-anchor-face" id="news-anchor-face" aria-label="Virtual campus news presenter with speech animation" role="img">
@@ -51,12 +51,12 @@
             <path fill="url(#anchor-hair)" d="M50 123Q33 28 117 22q89-5 76 106l-13 74q-15 25-34 29l-5-44H86l-8 44q-29-14-34-44z"/><path fill="url(#anchor-skin)" d="M72 107q3-67 50-67t49 67v44q-8 56-49 66-41-10-49-66z"/><path fill="url(#anchor-hair)" d="M67 105Q58 28 123 28q63 0 61 79l-18-26q-42 4-69-28-8 32-30 41"/><path fill="#62404a" d="M71 105q10-19 30-4-18-4-29 9m37-9q18-14 34 2-17-8-33 5"/>
             <g class="anchor-eye"><ellipse cx="88" cy="116" rx="11" ry="7" fill="#fff8ef"/><ellipse cx="145" cy="116" rx="11" ry="7" fill="#fff8ef"/><circle cx="91" cy="116" r="4" fill="#49352f"/><circle cx="142" cy="116" r="4" fill="#49352f"/><circle cx="92" cy="115" r="1.3" fill="#fff"/><circle cx="143" cy="115" r="1.3" fill="#fff"/></g><path fill="none" stroke="#7d4a46" stroke-width="2" d="M89 101q10-7 19 0m27 0q10-7 20 0"/><path fill="#c9846e" d="m117 118-7 30 12 4 8-3-8-3z"/><ellipse cx="78" cy="145" rx="10" ry="5" fill="#d98d7f" opacity=".34"/><ellipse cx="155" cy="145" rx="10" ry="5" fill="#d98d7f" opacity=".34"/><path fill="#8e4f52" d="M103 162q17 10 34 0-3 18-17 18t-17-18"/><path class="anchor-mouth" fill="#542a32" d="M108 165q12 5 24 0l-3 9q-9 5-18 0z"/><path fill="#fff0e8" d="M110 166q10 3 20 0l-2 3q-8 3-16 0z"/><path fill="url(#anchor-light)" d="M28 26h170v226H28z"/></svg>
         </div>
-        <div class="news-anchor-label"><strong>Nexus Presenter</strong><br>AI-assisted campus briefing</div>
+        <div class="news-anchor-label"><strong>LPU News Presenter</strong><br>Virtual presenter · browser voice</div>
       </div>
       <div class="news-copy" aria-live="polite" aria-atomic="true">
-        <div class="eyebrow" id="news-eyebrow">Welcome to LPU Nexus</div>
-        <h1 id="news-title">Your campus, connected.</h1>
-        <p id="news-body">Hello, {{ request.session.lpu_user_name|default:'LPU student' }}. Welcome to LPU Nexus. Lovely Professional University is a vibrant learning community where ideas, achievement, and campus life come together. Here is your latest campus briefing.</p>
+        <div class="eyebrow" id="news-eyebrow">Good morning from LPU</div>
+        <h1 id="news-title">Welcome to Lovely Professional University</h1>
+        <p id="news-body">A very good morning, {{ request.session.lpu_user_name|default:'LPU student' }}. Welcome to Lovely Professional University, a vibrant community for learning, discovery, and achievement. Here are today’s campus headlines and announcements.</p>
         <div class="news-control-row"><button id="news-play" class="btn btn-light" type="button"><i class="bi bi-play-fill me-1" aria-hidden="true"></i>Play briefing</button><button id="news-pause" class="btn btn-outline-light" type="button"><i class="bi bi-pause-fill me-1" aria-hidden="true"></i>Pause</button><button id="news-next" class="btn btn-outline-light" type="button">Next headline <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></button></div>
         <p id="news-speech-status" class="news-script-note mt-3 mb-0">Press Play briefing to hear the welcome and headlines. Speech uses your browser’s available voice.</p>
       </div>
@@ -68,12 +68,13 @@
   </div>
 </main>
 {{ bulletins|json_script:'campus-news-bulletins' }}
+<div id="campus-news-config" data-ticker-url="{{ ticker_url }}"></div>
 {% endblock %}
 {% block extra_js %}
 <script>
 (() => {
-  const bulletins = JSON.parse(document.getElementById('campus-news-bulletins').textContent);
-  const welcome = {category:'WELCOME', title:'Welcome to the campus briefing', body:'Hello, {{ request.session.lpu_user_name|default:"LPU student"|escapejs }}. Welcome to LPU Nexus. Lovely Professional University is a vibrant learning community where ideas, achievement, and campus life come together. Here is your latest campus briefing.'};
+  let bulletins = JSON.parse(document.getElementById('campus-news-bulletins').textContent);
+  const welcome = {category:'LPU INTRODUCTION', title:'Good morning, and welcome to Lovely Professional University', body:'A very good morning, {{ request.session.lpu_user_name|default:"LPU student"|escapejs }}. Welcome to Lovely Professional University, known as LPU. Our campus brings together students, faculty, research, innovation, and a rich range of academic and cultural experiences. We now bring you the latest headlines and announcements shared by LPU staff.'};
   const stories = [welcome, ...bulletins];
   let index = 0, timer = null, playing = false;
   const presenter = document.getElementById('news-anchor-face');
@@ -95,27 +96,44 @@
   };
   const render = (read = false) => {
     const item = stories[index];
-    eyebrow.textContent = index === 0 ? 'Welcome to LPU Nexus' : `${item.category || 'Campus news'} · Staff update`;
-    title.textContent = index === 0 ? 'Your campus, connected.' : item.title;
+    eyebrow.textContent = index === 0 ? 'Good morning from Lovely Professional University' : `${item.category || 'Campus news'} · LPU staff bulletin`;
+    title.textContent = item.title;
     body.textContent = item.body || 'More details are available in this campus update.';
     storyTitle.textContent = item.title; storyBody.textContent = item.body || 'No additional details were provided.';
     category.textContent = item.category || 'NEWS'; category.className = `bulletin-badge bulletin-badge-${String(item.category || 'news').toLowerCase()}`;
-    storyIndex.textContent = index === 0 ? 'Introduction' : `Headline ${index} of ${stories.length - 1}`;
+    storyIndex.textContent = index === 0 ? 'LPU introduction' : `Headline ${index} of ${stories.length - 1}`;
     [...queue.children].forEach((button, i) => button.setAttribute('aria-current', String(i === index - 1)));
-    if (read) speak(`${index === 0 ? '' : `Campus ${item.category || 'news'} headline. `}${item.title}. ${item.body || ''}`);
+    if (read) speak(index === 0 ? item.body : `From Lovely Professional University. ${item.category || 'Campus news'} headline. ${item.title}. ${item.body || ''}`);
   };
-  const advance = () => { index = (index + 1) % stories.length; render(true); };
-  bulletins.forEach((item, i) => {
+  const advance = () => { index = stories.length > 1 ? (index + 1) % stories.length : 0; render(index !== 0); };
+  const drawQueue = () => {
+    queue.replaceChildren();
+    bulletins.forEach((item, i) => {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'news-queue-button';
     const kind = document.createElement('span'); kind.textContent = item.category || 'news';
     const headline = document.createElement('strong'); headline.textContent = item.title;
     button.append(kind, headline); button.addEventListener('click', () => { index = i + 1; playing = false; clearTimeout(timer); render(false); }); queue.appendChild(button);
-  });
-  if (!bulletins.length) { const empty = document.createElement('p'); empty.className = 'small text-muted mb-0'; empty.textContent = 'No active staff headlines right now. Check back for the next campus update.'; queue.appendChild(empty); }
+    });
+    if (!bulletins.length) { const empty = document.createElement('p'); empty.className = 'small text-muted mb-0'; empty.textContent = 'No active staff headlines right now. Check back for the next campus update.'; queue.appendChild(empty); }
+  };
+  drawQueue();
   document.getElementById('news-play').addEventListener('click', () => { playing = true; render(true); });
   document.getElementById('news-pause').addEventListener('click', () => { playing = false; clearTimeout(timer); if ('speechSynthesis' in window) speechSynthesis.cancel(); presenter.classList.remove('is-speaking'); status.textContent = 'Briefing paused.'; });
-  document.getElementById('news-next').addEventListener('click', () => { playing = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); presenter.classList.remove('is-speaking'); advance(); });
+  document.getElementById('news-next').addEventListener('click', () => { playing = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); presenter.classList.remove('is-speaking'); index = stories.length > 1 ? (index + 1) % stories.length : 0; render(false); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && playing) { playing = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); presenter.classList.remove('is-speaking'); status.textContent = 'Briefing paused while this tab is in the background.'; } });
+  window.setInterval(async () => {
+    if (playing) return;
+    try {
+      const response = await fetch(document.getElementById('campus-news-config').dataset.tickerUrl, {headers:{'X-Requested-With':'XMLHttpRequest'}});
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!Array.isArray(data.bulletins)) return;
+      bulletins = data.bulletins;
+      stories.splice(1, stories.length - 1, ...bulletins);
+      if (index >= stories.length) index = 0;
+      drawQueue(); render();
+    } catch (_) {}
+  }, 60000);
   render();
 })();
 </script>

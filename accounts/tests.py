@@ -21,8 +21,10 @@ from .id_card_verification import (
 )
 from .mongo_auth import (
 	approve_student_verification,
+	create_admin_account,
 	create_student,
 	find_user_by_identifier,
+	list_admins,
 	verify_recovery_answer,
 )
 from .student_calculators import (
@@ -116,6 +118,36 @@ class StudentAccountCreationTests(SimpleTestCase):
 		updates = users.return_value.update_one.call_args.args[1]['$set']
 		self.assertEqual(updates['id_verification_status'], 'verified')
 		self.assertEqual(updates['id_verified_by'], reviewer_id)
+
+
+class AdminAccountManagementTests(SimpleTestCase):
+	@patch('accounts.mongo_auth.users')
+	def test_create_admin_account_stores_admin_role_and_creator(self, users):
+		collection = users.return_value
+		collection.find_one.return_value = None
+		collection.insert_one.return_value.inserted_id = ObjectId()
+
+		admin, error = create_admin_account(
+			' NewAdmin@lpu.in ', 'newpass123', 'New Admin', 'creator-id',
+		)
+
+		self.assertIsNone(error)
+		self.assertEqual(admin['email'], 'newadmin@lpu.in')
+		document = collection.insert_one.call_args.args[0]
+		self.assertEqual(document['role'], 'admin')
+		self.assertEqual(document['created_by_admin_id'], 'creator-id')
+		self.assertNotEqual(document['password_hash'], 'newpass123')
+
+	@patch('accounts.mongo_auth.users')
+	def test_list_admins_excludes_password_and_recovery_fields(self, users):
+		list_admins()
+
+		collection = users.return_value
+		query, projection = collection.find.call_args.args
+		self.assertEqual(query, {'role': 'admin'})
+		self.assertNotIn('password_hash', projection)
+		self.assertNotIn('recovery_answer_hash', projection)
+		self.assertEqual(projection['email'], 1)
 
 
 class PasswordResetViewTests(TestCase):
@@ -216,6 +248,10 @@ class PasswordResetViewTests(TestCase):
 		self.assertNotIn('password_reset_verified', self.client.session)
 
 
+@override_settings(STORAGES={
+	'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+	'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
 class ProfileViewTests(TestCase):
 	@patch('accounts.views.get_student_profile')
 	@patch('accounts.views.get_user_by_id')
@@ -309,6 +345,101 @@ class ProfileViewTests(TestCase):
 		self.assertRedirects(response, '/profile/', fetch_redirect_response=False)
 		verify_password.assert_called_once_with(get_user.return_value, 'oldpass')
 		set_password.assert_called_once_with('mongo-user-id', 'newpass123')
+
+	@patch('accounts.views.set_user_password')
+	@patch('accounts.views.verify_current_password', return_value=True)
+	@patch('accounts.views.get_user_by_id')
+	def test_admin_can_change_password_without_account_deletion_controls(
+		self, get_user, verify_password, set_password
+	):
+		get_user.return_value = {
+			'_id': 'admin-user-id', 'role': 'admin', 'full_name': 'Admin',
+			'email': 'admin@lpu.in',
+		}
+		session = self.client.session
+		session['lpu_user_id'] = 'admin-user-id'
+		session['lpu_user_role'] = 'admin'
+		session.save()
+
+		response = self.client.get('/profile/')
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'Change password')
+		self.assertNotContains(response, 'Delete account')
+		response = self.client.post('/profile/', {
+			'action': 'change_password', 'current_password': 'oldpass',
+			'new_password': 'newpass123', 'confirm_password': 'newpass123',
+		})
+
+		self.assertRedirects(response, '/profile/', fetch_redirect_response=False)
+		verify_password.assert_called_once_with(get_user.return_value, 'oldpass')
+		set_password.assert_called_once_with('admin-user-id', 'newpass123')
+
+	@patch('accounts.views.delete_account')
+	@patch('accounts.views.get_user_by_id')
+	def test_admin_account_cannot_be_deleted_from_profile(self, get_user, delete_account):
+		get_user.return_value = {
+			'_id': 'admin-user-id', 'role': 'admin', 'full_name': 'Admin',
+			'email': 'admin@lpu.in',
+		}
+		session = self.client.session
+		session['lpu_user_id'] = 'admin-user-id'
+		session['lpu_user_role'] = 'admin'
+		session.save()
+
+		response = self.client.post('/profile/', {
+			'action': 'delete_account', 'confirmation': 'DELETE',
+		})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'Administrator accounts cannot be deleted')
+		delete_account.assert_not_called()
+
+	@patch('accounts.views.create_admin_account')
+	def test_admin_can_create_another_admin(self, create_admin):
+		create_admin.return_value = ({
+			'full_name': 'New Admin', 'email': 'new@lpu.in',
+		}, None)
+		session = self.client.session
+		session['lpu_user_id'] = 'creator-id'
+		session['lpu_user_role'] = 'admin'
+		session.save()
+
+		response = self.client.post('/nexus-admin/admins/create/', {
+			'full_name': 'New Admin', 'email': 'new@lpu.in',
+			'password': 'newpass123', 'confirm_password': 'newpass123',
+		})
+
+		self.assertRedirects(
+			response, '/nexus-admin/admins/', fetch_redirect_response=False,
+		)
+		create_admin.assert_called_once_with(
+			'new@lpu.in', 'newpass123', 'New Admin', 'creator-id',
+		)
+
+	@patch('accounts.views.get_current_user')
+	@patch('accounts.views.list_admins')
+	def test_admin_list_shows_all_admin_records(self, list_admins_mock, current_user):
+		list_admins_mock.return_value = [
+			{
+				'_id': ObjectId(), 'email': 'first@lpu.in',
+				'full_name': 'First Admin', 'active': True,
+			},
+			{
+				'_id': ObjectId(), 'email': 'second@lpu.in',
+				'full_name': 'Second Admin', 'active': True,
+			},
+		]
+		session = self.client.session
+		session['lpu_user_id'] = 'admin-id'
+		session['lpu_user_role'] = 'admin'
+		session.save()
+
+		response = self.client.get('/nexus-admin/admins/')
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'First Admin')
+		self.assertContains(response, 'Second Admin')
 
 	@patch('accounts.views.update_account_details', return_value=(True, None))
 	@patch('accounts.views.get_user_by_id')

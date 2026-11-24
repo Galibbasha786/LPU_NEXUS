@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Administrators • LPU Nexus{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h3 class="mb-0">Administrator Accounts</h3>
+  <div>
+    <a href="{% url 'accounts:admin_create_admin' %}" class="btn btn-nx btn-sm">+ New Administrator</a>
+    <a href="{% url 'accounts:admin_dashboard' %}" class="btn btn-sm btn-outline-secondary">Dashboard</a>
+  </div>
+</div>
+
+<div class="card card-nx p-3">
+  <form method="get" class="row g-2 mb-3" role="search">
+    <div class="col">
+      <input class="form-control" type="search" name="q" value="{{ search_query }}" placeholder="Search name or email" aria-label="Search administrators">
+    </div>
+    <div class="col-auto"><button class="btn btn-lpu" type="submit">Search</button></div>
+  </form>
+  {% if admin_list %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead><tr><th>Name</th><th>Email</th><th>Created</th><th>Account</th></tr></thead>
+        <tbody>
+          {% for admin in admin_list %}
+            <tr>
+              <td>{{ admin.full_name }}</td>
+              <td>{{ admin.email }}</td>
+              <td class="text-muted small">{{ admin.created_at|slice:":10" }}</td>
+              <td>{% if admin.active == False %}<span class="badge text-bg-secondary">Suspended</span>{% else %}<span class="badge text-bg-success">Active</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted mb-0 text-center py-4">No administrator accounts found.</p>
+  {% endif %}
+</div>
+{% endblock %}

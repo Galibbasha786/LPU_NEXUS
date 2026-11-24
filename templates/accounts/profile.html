@@ -98,6 +98,7 @@
     </section>
   {% endif %}
 
+  {% if user.role != 'admin' %}
   <section class="profile-danger" aria-labelledby="delete-heading">
     <h2 id="delete-heading" data-i18n="profile.deleteAccount">Delete account</h2>
     <p data-i18n="profile.deleteAccountBody">Deleting your account removes your sign-in and profile details. This action cannot be undone.</p>
@@ -117,5 +118,6 @@
       </div>
     </form>
   </section>
+  {% endif %}
 </main>
 {% endblock %}

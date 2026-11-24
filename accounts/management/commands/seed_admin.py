@@ -4,7 +4,7 @@ from accounts.mongo_auth import create_admin_if_missing, FIXED_ADMIN_EMAIL
 
 
 class Command(BaseCommand):
-    help = "Ensure the single fixed admin account exists."
+    help = "Ensure the initial seeded administrator account exists."
 
     def handle(self, *args, **options):
         user = create_admin_if_missing(password='admin123')

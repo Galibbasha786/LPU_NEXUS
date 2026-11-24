@@ -95,4 +95,8 @@ def news_reader(request):
     except PyMongoError:
         logger.exception('Could not load bulletins for student news reader')
         bulletins = []
-    return render(request, 'campus_bulletins/reader.html', {'bulletins': bulletins})
+    from django.urls import reverse
+    return render(request, 'campus_bulletins/reader.html', {
+        'bulletins': bulletins,
+        'ticker_url': reverse('campus_bulletins:ticker'),
+    })

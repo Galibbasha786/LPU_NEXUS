@@ -393,6 +393,18 @@
           <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
         </a>
 
+        <a href="{% url 'accounts:profile' %}" class="nx-sidebar-link" data-tooltip="Admin Profile" data-i18n-tooltip="profile.passwordTitle">
+          <span class="nx-slink-icon nx-icon-indigo"><i class="bi bi-key-fill"></i></span>
+          <span class="nx-slink-text">Profile &amp; password</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+
+        <a href="{% url 'accounts:admin_list_admins' %}" class="nx-sidebar-link" data-tooltip="Administrators">
+          <span class="nx-slink-icon nx-icon-indigo"><i class="bi bi-shield-fill"></i></span>
+          <span class="nx-slink-text">Administrators</span>
+          <span class="nx-slink-arrow"><i class="bi bi-chevron-right"></i></span>
+        </a>
+
         <a href="{% url 'accounts:admin_list_students' %}" class="nx-sidebar-link" data-tooltip="Students" data-i18n-tooltip="nav.students">
           <span class="nx-slink-icon nx-icon-blue"><i class="bi bi-mortarboard-fill"></i></span>
           <span class="nx-slink-text" data-i18n="nav.students">Students</span>

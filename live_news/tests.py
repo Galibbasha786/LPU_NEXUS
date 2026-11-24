@@ -12,6 +12,10 @@ import jwt
 from .views import LiveKitShutdownError, _delete_livekit_room
 
 
+@override_settings(STORAGES={
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
 class LiveNewsViewTests(TestCase):
     def setUp(self):
         self.stream_id = ObjectId()
@@ -59,6 +63,7 @@ class LiveNewsViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Broadcast or schedule campus news')
         self.assertContains(response, 'Flip camera')
+        self.assertContains(response, 'Share screen')
         self.assertContains(response, 'livekit-client@2')
 
     @patch('live_news.views.live_streams')

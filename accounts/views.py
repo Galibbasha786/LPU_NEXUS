@@ -17,7 +17,8 @@ from pymongo.errors import PyMongoError
 from crisis.services import crisis_stats
 from .mongo_auth import (
     create_student, create_staff, authenticate_user,
-    list_staff, list_students, list_pending_students, get_student_profile,
+    create_admin_account, list_admins, list_staff, list_students,
+    list_pending_students, get_student_profile,
     find_user_by_identifier,
     get_user_by_id, set_user_password, verify_recovery_answer,
     verify_current_password, update_account_details, update_profile_image,
@@ -359,7 +360,7 @@ def logout_view(request):
 
 
 @login_required_mongo
-@role_required('student', 'staff')
+@role_required('student', 'staff', 'admin')
 @require_http_methods(["GET", "POST"])
 def profile_view(request):
     user_id = request.session.get('lpu_user_id')
@@ -368,6 +369,8 @@ def profile_view(request):
         logout_session(request)
         messages.warning(request, "Please sign in again to manage your profile.")
         return redirect('accounts:login')
+    for field in ('department', 'designation', 'phone'):
+        user.setdefault(field, '')
     profile_keys = (
         'address', 'city', 'state', 'postal_code', 'linkedin_url',
         'github_url', 'instagram_url', 'website_url',
@@ -477,7 +480,9 @@ def profile_view(request):
             return redirect('accounts:profile')
 
     elif request.method == 'POST' and action == 'delete_account':
-        if request.POST.get('confirmation', '').strip() != 'DELETE':
+        if user.get('role') == 'admin':
+            messages.error(request, "Administrator accounts cannot be deleted from this page.")
+        elif request.POST.get('confirmation', '').strip() != 'DELETE':
             messages.error(request, "Type DELETE to confirm account deletion.")
         else:
             password = request.POST.get('delete_password', '')
@@ -744,6 +749,7 @@ def admin_dashboard(request):
     user = get_current_user(request)
     staff_list = list_staff()
     student_count = users().count_documents({'role': 'student'})
+    admin_count = users().count_documents({'role': 'admin'})
 
     from core.mongo import ideas, problems
     from core.utils import serialize_list
@@ -762,6 +768,7 @@ def admin_dashboard(request):
         'total_users': users().count_documents({}),
         'total_students': student_count,
         'total_staff': len(staff_list),
+        'total_admins': admin_count,
         'crisis_mode': crisis_st.get('crisis_mode', False),   # ← ADD
     }
     return render(request, 'accounts/dashboard_admin.html', {
@@ -772,6 +779,67 @@ def admin_dashboard(request):
         'latest_notifications': serialize_list(latest_notifications),
         'unread_notifications': unread_notifications,
     })
+
+
+@login_required_mongo
+@role_required('admin')
+@require_http_methods(["GET", "POST"])
+def admin_create_admin(request):
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        password = request.POST.get('password', '')
+        confirm_password = request.POST.get('confirm_password', '')
+        full_name = request.POST.get('full_name', '').strip()
+        try:
+            validate_email(email)
+        except ValidationError:
+            messages.error(request, "Enter a valid email address.")
+        else:
+            if not full_name or len(full_name) > 120:
+                messages.error(request, "Enter a full name of 1 to 120 characters.")
+            elif len(email) > 254:
+                messages.error(request, "Email addresses must be 254 characters or fewer.")
+            elif password != confirm_password:
+                messages.error(request, "Passwords do not match.")
+            else:
+                try:
+                    admin, error = create_admin_account(
+                        email, password, full_name,
+                        request.session.get('lpu_user_id', ''),
+                    )
+                except PyMongoError:
+                    logger.exception('Could not create an administrator account')
+                    messages.error(request, "The administrator account could not be created.")
+                else:
+                    if error:
+                        messages.error(request, error)
+                    else:
+                        messages.success(
+                            request,
+                            f"Administrator account created for {admin['full_name']}.",
+                        )
+                        return redirect('accounts:admin_list_admins')
+    return render(request, 'accounts/admin_create_admin.html')
+
+
+@login_required_mongo
+@role_required('admin')
+def admin_list_admins(request):
+    from core.utils import serialize_list
+    query = (request.GET.get('q') or '').strip().casefold()
+    admins = list_admins()
+    if query:
+        admins = [
+            item for item in admins
+            if query in item.get('full_name', '').casefold()
+            or query in item.get('email', '').casefold()
+        ]
+    return render(request, 'accounts/admin_list_admins.html', {
+        'user': get_current_user(request),
+        'admin_list': serialize_list(admins),
+        'search_query': request.GET.get('q', ''),
+    })
+
 
 @login_required_mongo
 @role_required('admin')

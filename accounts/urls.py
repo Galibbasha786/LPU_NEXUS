@@ -29,6 +29,8 @@ urlpatterns = [
     path('notifications/<str:notification_id>/read/', notification_views.mark_notification_read_view, name='notification_read'),
 
     # ---- admin management (renamed from admin/ → nexus-admin/) ----
+    path('nexus-admin/admins/create/', views.admin_create_admin, name='admin_create_admin'),
+    path('nexus-admin/admins/', views.admin_list_admins, name='admin_list_admins'),
     path('nexus-admin/staff/create/', views.admin_create_staff, name='admin_create_staff'),
     path('nexus-admin/staff/', views.admin_list_staff, name='admin_list_staff'),
     path('nexus-admin/students/', views.admin_list_students, name='admin_list_students'),

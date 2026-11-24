@@ -121,6 +121,14 @@
 
 <div class="row g-3 mb-4">
   <div class="col-md-4">
+    <a href="{% url 'accounts:admin_list_admins' %}" class="text-decoration-none">
+      <div class="card card-nx p-4 h-100">
+        <h6><i class="bi bi-shield-fill me-1" aria-hidden="true"></i>Manage Administrators</h6>
+        <p class="small text-muted mb-0">{{ stats.total_admins }} administrator account(s); review all admin records or create another admin.</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
     <a href="{% url 'problems:queue' %}" class="text-decoration-none"><div class="card-lpu card-accent-orange h-100"><h6>Campus problem queue</h6><p class="small text-muted mb-0">{{ stats.open_problems }} report(s) still open · {{ stats.total_problems }} total</p></div></a>
   </div>
   <div class="col-md-4">
@@ -153,6 +161,14 @@
 </section>
 
 <div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <a href="{% url 'accounts:admin_create_admin' %}" class="text-decoration-none">
+      <div class="card card-nx p-4 h-100">
+        <h6><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Create Administrator</h6>
+        <p class="small text-muted mb-0">Grant administrator access to another account.</p>
+      </div>
+    </a>
+  </div>
   <div class="col-md-4">
     <a href="{% url 'accounts:admin_create_staff' %}" class="text-decoration-none">
       <div class="card card-nx p-4 h-100">

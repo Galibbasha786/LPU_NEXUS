@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Create Administrator • LPU Nexus{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-7 col-lg-6">
+    <div class="card card-nx p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Create Administrator</h4>
+        <a href="{% url 'accounts:admin_list_admins' %}" class="btn btn-sm btn-outline-secondary">Back</a>
+      </div>
+      <p class="small text-muted">The new account will have the same administrator permissions as yours.</p>
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label" for="admin-full-name">Full name</label>
+          <input id="admin-full-name" type="text" name="full_name" class="form-control" maxlength="120" autocomplete="name" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="admin-email">Email</label>
+          <input id="admin-email" type="email" name="email" class="form-control" maxlength="254" autocomplete="email" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="admin-password">Temporary password</label>
+          <input id="admin-password" type="password" name="password" class="form-control" minlength="6" autocomplete="new-password" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="admin-confirm-password">Confirm password</label>
+          <input id="admin-confirm-password" type="password" name="confirm_password" class="form-control" minlength="6" autocomplete="new-password" required>
+        </div>
+        <button class="btn btn-nx w-100" type="submit">Create Administrator</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
