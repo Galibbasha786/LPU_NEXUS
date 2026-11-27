@@ -30,6 +30,7 @@ LIVE_NEWS_POSTER_FORMATS = {
     'WEBP': {'.webp'},
 }
 MAX_LIVE_NEWS_POSTER_SIZE = 8 * 1024 * 1024
+MAX_DASHBOARD_SLIDE_SIZE = 8 * 1024 * 1024
 MAX_PROBLEM_IMAGE_SIZE = 8 * 1024 * 1024
 IDEA_VIDEO_EXTENSIONS = {'.mp4', '.webm', '.mov', '.m4v'}
 IDEA_AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.ogg', '.aac'}
@@ -60,6 +61,10 @@ class LiveNewsPosterValidationError(Exception):
 
 class LiveNewsPosterStorageError(Exception):
     """An expected remote storage error for a live-news poster."""
+
+
+class DashboardSlideError(Exception):
+    """An expected validation or storage error for a dashboard slide."""
 
 
 class ProblemImageValidationError(Exception):
@@ -787,3 +792,56 @@ def save_incident_media(uploaded_file):
         'format': file_format,
         'delivery_type': result.get('type', 'authenticated'),
     }, None
+
+
+def save_dashboard_slide(uploaded_file):
+    if not uploaded_file:
+        raise DashboardSlideError('Choose an image to upload.')
+    extension = os.path.splitext(uploaded_file.name or '')[1].lower()
+    if extension not in {'.jpg', '.jpeg', '.png', '.webp'}:
+        raise DashboardSlideError('Use a JPG, PNG, or WEBP image.')
+    if getattr(uploaded_file, 'size', 0) > MAX_DASHBOARD_SLIDE_SIZE:
+        raise DashboardSlideError('Dashboard images must be 8 MB or smaller.')
+    try:
+        uploaded_file.seek(0)
+        with Image.open(uploaded_file) as image:
+            image.verify()
+            if image.format not in {'JPEG', 'PNG', 'WEBP'}:
+                raise DashboardSlideError('Use a JPG, PNG, or WEBP image.')
+        uploaded_file.seek(0)
+    except DashboardSlideError:
+        raise
+    except (OSError, UnidentifiedImageError) as error:
+        raise DashboardSlideError('The selected file is not a valid image.') from error
+    try:
+        credentials = _cloudinary_credentials()
+    except ProfileImageUploadError as error:
+        raise DashboardSlideError('Image uploads are unavailable. Contact the administrator.') from error
+    try:
+        result = cloudinary.uploader.upload(
+            uploaded_file, folder='lpu_nexus/dashboard_slides',
+            resource_type='image', type='upload',
+            allowed_formats=['jpg', 'jpeg', 'png', 'webp'], **credentials,
+        )
+    except Exception as error:
+        logger.exception('Dashboard slide upload to Cloudinary failed')
+        raise DashboardSlideError('The image could not be uploaded. Please try again.') from error
+    if not result.get('secure_url') or not result.get('public_id'):
+        raise DashboardSlideError('Cloudinary did not confirm the image upload.')
+    return {'url': result['secure_url'], 'public_id': result['public_id']}
+
+
+def delete_dashboard_slide(image):
+    if not image or not image.get('public_id'):
+        return True
+    try:
+        result = cloudinary.uploader.destroy(
+            image['public_id'], resource_type='image', invalidate=True,
+            cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+            api_key=settings.CLOUDINARY_API_KEY,
+            api_secret=settings.CLOUDINARY_API_SECRET,
+        )
+        return result.get('result') in {'ok', 'not found'}
+    except Exception:
+        logger.exception('Could not delete dashboard slide %s', image['public_id'])
+        return False

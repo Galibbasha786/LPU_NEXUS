@@ -1,0 +1,33 @@
+<section class="card-lpu mb-4 dashboard-slide-manager" aria-labelledby="dashboard-slide-heading">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+    <div>
+      <h5 id="dashboard-slide-heading" class="mb-1"><i class="bi bi-images me-2" aria-hidden="true"></i>Dashboard slideshow</h5>
+      <p class="small text-muted mb-0">Upload JPG, PNG, or WEBP images up to 8 MB. Uploaded images appear first; remaining slots use the campus defaults.</p>
+    </div>
+    <span class="badge text-bg-light">{{ uploaded_dashboard_slides|length }} uploaded</span>
+  </div>
+  <form method="post" action="{% url 'accounts:manage_dashboard_slides' %}" enctype="multipart/form-data" class="row g-2 align-items-end">
+    {% csrf_token %}<input type="hidden" name="action" value="upload">
+    <div class="col-md-5"><label for="dashboard-slide-image" class="form-label">Choose an image</label><input class="form-control" id="dashboard-slide-image" type="file" name="image" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required></div>
+    <div class="col-md-4"><label for="dashboard-slide-expiry" class="form-label">Schedule removal <span class="text-muted">(optional)</span></label><input class="form-control" id="dashboard-slide-expiry" type="datetime-local" name="expires_at"><div class="form-text">Uses your local timezone. The default slide returns after removal.</div></div>
+    <div class="col-md-3"><button type="submit" class="btn btn-lpu w-100"><i class="bi bi-cloud-arrow-up me-1" aria-hidden="true"></i>Upload image</button></div>
+  </form>
+  {% if uploaded_dashboard_slides %}
+  <div class="table-responsive mt-3"><table class="table table-sm align-middle mb-0"><thead><tr><th>Image</th><th>Removal</th><th class="text-end">Action</th></tr></thead><tbody>
+    {% for slide in uploaded_dashboard_slides %}<tr><td><img src="{{ slide.url }}" alt="Dashboard slideshow upload" width="88" height="52" class="dashboard-slide-thumb"> <span>{{ slide.public_id|default:slide.id }}</span></td><td>{% if slide.expires_at_display %}{{ slide.expires_at_display }}{% else %}No scheduled removal{% endif %}</td><td class="text-end"><form method="post" action="{% url 'accounts:manage_dashboard_slides' %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="slide_id" value="{{ slide.id }}"><button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button></form></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% endif %}
+</section>
+{% if dashboard_next_expiry_ms %}
+<script>
+  (() => {
+    const expiresAt = {{ dashboard_next_expiry_ms }};
+    const refreshAtExpiry = () => {
+      const delay = expiresAt - Date.now();
+      if (delay <= 0) window.location.reload();
+      else window.setTimeout(refreshAtExpiry, Math.min(delay + 500, 2147483000));
+    };
+    refreshAtExpiry();
+  })();
+</script>
+{% endif %}

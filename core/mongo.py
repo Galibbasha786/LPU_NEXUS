@@ -56,6 +56,7 @@ def social_messages():      return get_db()['social_messages']
 def social_blocks():        return get_db()['social_blocks']
 def social_follows():       return get_db()['social_follows']
 def campus_bulletins():     return get_db()['campus_bulletins']
+def dashboard_slides():      return get_db()['dashboard_slides']
 
 def init_indexes():
     """Create MongoDB indexes. Safe to call repeatedly."""

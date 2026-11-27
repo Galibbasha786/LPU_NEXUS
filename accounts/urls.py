@@ -18,6 +18,7 @@ urlpatterns = [
     ),
     path('dashboard/staff/', views.staff_dashboard, name='staff_dashboard'),
     path('dashboard/admin/', views.admin_dashboard, name='admin_dashboard'),
+    path('dashboard/slides/manage/', views.manage_dashboard_slides, name='manage_dashboard_slides'),
     path(
         'verification/pending/',
         views.verification_pending_view,

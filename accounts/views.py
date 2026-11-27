@@ -12,6 +12,8 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.contrib import messages
 from django.conf import settings
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.views.decorators.http import require_http_methods
 from pymongo.errors import PyMongoError
 from crisis.services import crisis_stats
@@ -32,7 +34,7 @@ from .session import (
     login_required_mongo, role_required,
 )
 from .student_calculators import CalculatorInputError, calculate_attendance, calculate_gpa
-from core.mongo import users
+from core.mongo import dashboard_slides, users
 from core.storage import (
     IdentityCardStorageError,
     ProfileImageUploadError,
@@ -41,9 +43,16 @@ from core.storage import (
     identity_card_download_url,
     save_identity_card,
     save_profile_image,
+    save_dashboard_slide,
+    delete_dashboard_slide,
+    DashboardSlideError,
 )
 
 logger = logging.getLogger(__name__)
+STATIC_DASHBOARD_SLIDES = [
+    'images/img1.jpeg', 'images/img2.jpeg',
+    'images/img3.jpeg', 'images/img4.jpeg',
+]
 
 ALLOWED_ID_EXT = {'.jpg', '.jpeg', '.png', '.webp', '.pdf'}
 MAX_ID_SIZE = 5 * 1024 * 1024   # 5 MB
@@ -750,6 +759,109 @@ def student_calculators_view(request):
 # ============================================================
 #  STAFF DASHBOARD
 # ============================================================
+def dashboard_slide_context():
+    """Remove expired Cloudinary images and build the dashboard gallery."""
+    from core.utils import serialize_list
+
+    collection = dashboard_slides()
+    now = timezone.now()
+    expired = list(collection.find({'expires_at': {'$lte': now}}))
+    for slide in expired:
+        if delete_dashboard_slide(slide):
+            collection.delete_one({'_id': slide['_id']})
+
+    uploaded = list(collection.find({
+        '$or': [{'expires_at': {'$exists': False}}, {'expires_at': {'$gt': now}}],
+    }).sort('created_at', 1))
+    slides = [
+        {'url': slide['url'], 'uploaded': True, 'id': str(slide['_id']),
+         'expires_at': slide.get('expires_at')}
+        for slide in uploaded
+    ]
+    slides.extend(
+        {'static_path': path, 'uploaded': False}
+        for path in STATIC_DASHBOARD_SLIDES[len(slides):]
+    )
+    slide_interval = 5
+    for index, slide in enumerate(slides):
+        slide['delay_seconds'] = index * slide_interval
+    uploaded_display = serialize_list(uploaded)
+    expiries = [slide.get('expires_at') for slide in uploaded if slide.get('expires_at')]
+    next_expiry_ms = int(min(expiries).timestamp() * 1000) if expiries else None
+    for slide in uploaded_display:
+        expiry = slide.get('expires_at')
+        if expiry:
+            parsed_expiry = parse_datetime(expiry)
+            slide['expires_at_display'] = timezone.localtime(parsed_expiry).strftime('%b %d, %Y, %I:%M %p') if parsed_expiry else expiry
+    return {
+        'dashboard_slides': slides,
+        'dashboard_slide_duration': max(len(slides), 1) * slide_interval,
+        'dashboard_next_expiry_ms': next_expiry_ms,
+        'uploaded_dashboard_slides': uploaded_display,
+    }
+
+
+@login_required_mongo
+@role_required('staff', 'admin')
+@require_http_methods(["POST"])
+def manage_dashboard_slides(request):
+    from core.utils import to_object_id
+
+    collection = dashboard_slides()
+    action = request.POST.get('action')
+    if action == 'upload':
+        expires_at = None
+        raw_expiry = request.POST.get('expires_at', '').strip()
+        if raw_expiry:
+            expires_at = parse_datetime(raw_expiry)
+            if not expires_at:
+                messages.error(request, 'Choose a valid scheduled removal date and time.')
+                return _dashboard_slides_redirect(request)
+            if timezone.is_naive(expires_at):
+                expires_at = timezone.make_aware(expires_at, timezone.get_current_timezone())
+            if expires_at <= timezone.now():
+                messages.error(request, 'Scheduled removal must be in the future.')
+                return _dashboard_slides_redirect(request)
+        try:
+            image = save_dashboard_slide(request.FILES.get('image'))
+            record = {
+                **image,
+                'created_at': timezone.now(),
+                'created_by': request.session.get('lpu_user_id'),
+            }
+            if expires_at:
+                record['expires_at'] = expires_at
+            try:
+                collection.insert_one(record)
+            except Exception:
+                delete_dashboard_slide(image)
+                raise
+            messages.success(request, 'Dashboard image uploaded and added to the slideshow.')
+        except DashboardSlideError as error:
+            messages.error(request, str(error))
+        except Exception:
+            logger.exception('Could not save dashboard slide record')
+            messages.error(request, 'The image upload could not be saved. Please try again.')
+    elif action == 'delete':
+        slide_id = to_object_id(request.POST.get('slide_id', ''))
+        slide = collection.find_one({'_id': slide_id}) if slide_id else None
+        if not slide:
+            messages.error(request, 'That dashboard image could not be found.')
+        elif not delete_dashboard_slide(slide):
+            messages.error(request, 'Cloudinary could not delete the image. Please try again.')
+        else:
+            collection.delete_one({'_id': slide['_id']})
+            messages.success(request, 'Dashboard image deleted; the static slide is back in rotation.')
+    else:
+        messages.error(request, 'Choose an upload or delete action.')
+    return _dashboard_slides_redirect(request)
+
+
+def _dashboard_slides_redirect(request):
+    return redirect('accounts:admin_dashboard' if request.session.get('lpu_user_role') == 'admin'
+                    else 'accounts:staff_dashboard')
+
+
 @login_required_mongo
 @role_required('staff', 'admin')
 def staff_dashboard(request):
@@ -772,6 +884,7 @@ def staff_dashboard(request):
         'user': user, 'stats': stats,
         'latest_notifications': serialize_list(latest_notifications),
         'unread_notifications': unread_notifications,
+        **dashboard_slide_context(),
     })
 
 
@@ -813,6 +926,7 @@ def admin_dashboard(request):
         'crisis_stats': crisis_st,
         'latest_notifications': serialize_list(latest_notifications),
         'unread_notifications': unread_notifications,
+        **dashboard_slide_context(),
     })
 
 
