@@ -1122,23 +1122,27 @@ h1, h2, h3, h4, h5, h6 {
    ========================================================= */
 .dashboard-visual {
   position: relative;
+  display: grid;
   width: 100%;
-  aspect-ratio: 16 / 6;
-  min-height: 240px;
-  max-height: 340px;
+  min-height: 300px;
   margin-bottom: 24px;
-  overflow: hidden;
+  overflow: clip;
   border-radius: 18px;
   background: var(--lpu-maroon-deep);
   box-shadow: var(--shadow-md);
 }
 
 .dashboard-visual .slide {
+  position: relative;
+  inset: auto;
+  grid-area: 1 / 1;
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center center;
+  height: auto;
+  max-height: 70vh;
+  object-fit: contain;
+  object-position: center;
+  align-self: center;
 }
 
 .dashboard-slide-manager .dashboard-slide-thumb {
@@ -1563,11 +1567,7 @@ body.dashboard-readable-mode main :is(p, li, label, input, select, button, a) { 
 }
 
 @media (max-width: 768px) {
-  .dashboard-visual {
-    aspect-ratio: 16 / 9;
-    min-height: 200px;
-    max-height: 280px;
-  }
+  .dashboard-visual { min-height: 220px; }
 
   .dashboard-visual-content {
     padding: 24px 22px;
@@ -1609,17 +1609,26 @@ body.dashboard-readable-mode main :is(p, li, label, input, select, button, a) { 
     min-height: calc(100vh - 92px);
   }
 
-  .auth-visual .slide,
-  .dashboard-visual .slide {
+  .auth-visual .slide {
     object-fit: cover;
     object-position: center;
     background: #35131b;
   }
 
+  .dashboard-visual .slide {
+    position: relative;
+    inset: auto;
+    grid-area: 1 / 1;
+    height: auto;
+    max-height: 70vh;
+    object-fit: contain;
+    object-position: center;
+    background: #35131b;
+  }
+
   .dashboard-visual {
-      aspect-ratio: 16 / 9;
-    min-height: 260px;
-      max-height: 380px;
+    display: grid;
+    min-height: 300px;
     background: #35131b;
   }
 
@@ -1751,9 +1760,7 @@ body.dashboard-readable-mode main :is(p, li, label, input, select, button, a) { 
     }
 
     .dashboard-visual {
-      aspect-ratio: 16 / 9;
       min-height: 220px;
-      max-height: 300px;
     }
   }
 
