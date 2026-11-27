@@ -241,6 +241,41 @@ def login_view(request):
     return render(request, 'accounts/login.html', recaptcha_context)
 
 
+@require_http_methods(["GET", "POST"])
+def role_login_view(request, role):
+    """Authenticate staff and admins through their dedicated sign-in pages."""
+    if role not in ('staff', 'admin'):
+        return redirect('accounts:login')
+    if request.session.get('lpu_user_id'):
+        if request.session.get('lpu_user_role') == role:
+            return redirect('accounts:dashboard')
+        logout_session(request)
+
+    recaptcha_site_key = settings.RECAPTCHA_SITE_KEY
+    recaptcha_configured = bool(recaptcha_site_key and settings.RECAPTCHA_SECRET_KEY)
+    recaptcha_context = {
+        'recaptcha_site_key': recaptcha_site_key if recaptcha_configured else '',
+        'recaptcha_setup_error': not recaptcha_configured and not settings.DEBUG,
+        'recaptcha_development_notice': not recaptcha_configured and settings.DEBUG,
+        'login_role': role,
+    }
+    if request.method == 'POST':
+        if not recaptcha_configured and not settings.DEBUG:
+            messages.error(request, "Login is unavailable until Google reCAPTCHA is configured.")
+            return render(request, f'accounts/login_{role}.html', recaptcha_context)
+        if recaptcha_configured and not verify_google_recaptcha(request.POST.get('g-recaptcha-response', '')):
+            messages.error(request, "Please complete the Google reCAPTCHA check.")
+            return render(request, f'accounts/login_{role}.html', recaptcha_context)
+
+        user = authenticate_user(request.POST.get('identifier', '').strip(), request.POST.get('password', ''))
+        if user and user.get('role') == role:
+            login_session(request, user)
+            messages.success(request, f"Welcome back, {user.get('full_name')}!")
+            return redirect('accounts:dashboard')
+        messages.error(request, f"Invalid {role} UID, email, or password.")
+    return render(request, f'accounts/login_{role}.html', recaptcha_context)
+
+
 @require_http_methods(["GET"])
 def verification_pending_view(request):
     if not request.session.get('lpu_user_id'):

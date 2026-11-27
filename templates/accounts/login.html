@@ -1,21 +1,33 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Sign In • LPU Nexus{% endblock %}
+{% block title %}{% if login_role == 'admin' %}Admin Sign In{% elif login_role == 'staff' %}Staff Sign In{% else %}Sign In{% endif %} • LPU Nexus{% endblock %}
 {% block body_class %}{% endblock %}
 {% block content_container_class %}container-fluid p-0{% endblock %}
 
 {% block content %}
 <div class="login-wrapper">
   <div class="auth-shell">
-    <div class="auth-visual">
-      <img class="slide" src="{% static 'images/img1.jpeg' %}" alt="">
-      <img class="slide" src="{% static 'images/img2.jpeg' %}" alt="">
-      <img class="slide" src="{% static 'images/img3.jpeg' %}" alt="">
-      <img class="slide" src="{% static 'images/img4.jpeg' %}" alt="">
+    <div class="auth-visual{% if login_role == 'admin' %} auth-visual-admin{% elif login_role == 'staff' %} auth-visual-staff{% endif %}">
+      {% if login_role == 'admin' %}
+        <img class="slide" src="{% static 'images/p1.jpg' %}" alt="">
+        <img class="slide" src="{% static 'images/p2.jpg' %}" alt="">
+        <img class="slide" src="{% static 'images/p3.jpg' %}" alt="">
+        <img class="slide" src="{% static 'images/p4.jpg' %}" alt="">
+      {% elif login_role == 'staff' %}
+        <img class="slide" src="{% static 'images/s1.jpg' %}" alt="">
+        <img class="slide" src="{% static 'images/s2.jpg' %}" alt="">
+        <img class="slide" src="{% static 'images/s3.jpg' %}" alt="">
+        <img class="slide" src="{% static 'images/s4.jpeg' %}" alt="">
+      {% else %}
+        <img class="slide" src="{% static 'images/img1.jpeg' %}" alt="">
+        <img class="slide" src="{% static 'images/img2.jpeg' %}" alt="">
+        <img class="slide" src="{% static 'images/img3.jpeg' %}" alt="">
+        <img class="slide" src="{% static 'images/img4.jpeg' %}" alt="">
+      {% endif %}
       <div class="auth-visual-copy">
         <span class="eyebrow">LPU NEXUS</span>
-        <h1 data-i18n="auth.visualTitle">Navigate LPU with ease.</h1>
-        <p data-i18n="auth.visualBody">Real-time maps, routes & tracking.</p>
+        <h1>{% if login_role == 'admin' %}Lead campus forward.{% elif login_role == 'staff' %}Support the LPU community.{% else %}Navigate LPU with ease.{% endif %}</h1>
+        <p>{% if login_role == 'admin' %}Tools and insight for LPU administrators.{% elif login_role == 'staff' %}Campus services and updates, all in one place.{% else %}Real-time maps, routes &amp; tracking.{% endif %}</p>
       </div>
     </div>
     <div class="auth-form-panel">
@@ -33,9 +45,9 @@
           {% csrf_token %}
 
           <div class="mb-3">
-            <label class="form-label-lpu" for="login-identifier" data-i18n="auth.uid">LPU UID or email</label>
+            <label class="form-label-lpu" for="login-identifier">{% if login_role == 'admin' %}Admin UID or email{% elif login_role == 'staff' %}Staff UID or email{% else %}LPU UID or email{% endif %}</label>
             <input type="text" name="identifier" id="login-identifier" class="form-control form-control-lpu"
-              placeholder="Enter your UID or email"
+              placeholder="{% if login_role == 'admin' %}Enter your admin UID or email{% elif login_role == 'staff' %}Enter your staff UID or email{% else %}Enter your UID or email{% endif %}"
               data-i18n-placeholder="auth.uidPh"
               value="{{ request.POST.identifier|default:'' }}"
               autocomplete="username"
@@ -87,6 +99,17 @@
           <span data-i18n="auth.newStudent">New student?</span>
           <a href="{% url 'accounts:register' %}" class="auth-link" data-i18n="auth.create">Create an account</a>
         </p>
+        {% if login_role == 'admin' %}
+        <p class="auth-switch auth-role-links"><a href="{% url 'accounts:login' %}" class="auth-link">Student login</a><span aria-hidden="true"> · </span><a href="{% url 'accounts:staff_login' %}" class="auth-link">Staff login</a></p>
+        {% elif login_role == 'staff' %}
+        <p class="auth-switch auth-role-links"><a href="{% url 'accounts:login' %}" class="auth-link">Student login</a><span aria-hidden="true"> · </span><a href="{% url 'accounts:admin_login' %}" class="auth-link">Admin login</a></p>
+        {% else %}
+        <p class="auth-switch auth-role-links">
+          <a href="{% url 'accounts:staff_login' %}" class="auth-link">Are you staff?</a>
+          <span aria-hidden="true">·</span>
+          <a href="{% url 'accounts:admin_login' %}" class="auth-link">Are you admin?</a>
+        </p>
+        {% endif %}
       </div>
     </div>
   </div>

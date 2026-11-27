@@ -54,6 +54,8 @@ urlpatterns = [
     # auth
     path('register/', views.register_view, name='register'),
     path('login/', views.login_view, name='login'),
+    path('login/staff/', views.role_login_view, {'role': 'staff'}, name='staff_login'),
+    path('login/admin/', views.role_login_view, {'role': 'admin'}, name='admin_login'),
     path('forgot-password/', views.forgot_password_view, name='forgot_password'),
     path('profile/', views.profile_view, name='profile'),
     path('logout/', views.logout_view, name='logout'),
