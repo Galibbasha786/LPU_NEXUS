@@ -3,7 +3,7 @@ import os
 import re
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone as datetime_timezone
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from django.core.exceptions import ValidationError
@@ -794,7 +794,7 @@ def dashboard_slide_context():
             if parsed_expiry:
                 if timezone.is_naive(parsed_expiry):
                     # PyMongo decodes BSON dates as naive UTC datetimes by default.
-                    parsed_expiry = timezone.make_aware(parsed_expiry, timezone.utc)
+                    parsed_expiry = timezone.make_aware(parsed_expiry, datetime_timezone.utc)
                 parsed_expiry = timezone.localtime(parsed_expiry)
                 slide['expires_at_display'] = parsed_expiry.strftime('%b %d, %Y, %I:%M %p')
                 expiries.append(parsed_expiry)
