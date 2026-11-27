@@ -786,13 +786,21 @@ def dashboard_slide_context():
     for index, slide in enumerate(slides):
         slide['delay_seconds'] = index * slide_interval
     uploaded_display = serialize_list(uploaded)
-    expiries = [slide.get('expires_at') for slide in uploaded if slide.get('expires_at')]
-    next_expiry_ms = int(min(expiries).timestamp() * 1000) if expiries else None
+    expiries = []
     for slide in uploaded_display:
         expiry = slide.get('expires_at')
         if expiry:
             parsed_expiry = parse_datetime(expiry)
-            slide['expires_at_display'] = timezone.localtime(parsed_expiry).strftime('%b %d, %Y, %I:%M %p') if parsed_expiry else expiry
+            if parsed_expiry:
+                if timezone.is_naive(parsed_expiry):
+                    # PyMongo decodes BSON dates as naive UTC datetimes by default.
+                    parsed_expiry = timezone.make_aware(parsed_expiry, timezone.utc)
+                parsed_expiry = timezone.localtime(parsed_expiry)
+                slide['expires_at_display'] = parsed_expiry.strftime('%b %d, %Y, %I:%M %p')
+                expiries.append(parsed_expiry)
+            else:
+                slide['expires_at_display'] = expiry
+    next_expiry_ms = int(min(expiries).timestamp() * 1000) if expiries else None
     return {
         'dashboard_slides': slides,
         'dashboard_slide_duration': max(len(slides), 1) * slide_interval,
